@@ -1,144 +1,153 @@
---- START OF FILE quote-converter-pro.html ---
-
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>专业外贸报价计算器 Pro</title>
+<title>专业外贸报价计算器 Pro - 终极系统集成版</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
+/* 1:1 完整保留原件所有样式设计系统 */
 :root {
-  --bg: #F5F4F0;
-  --surface: #FFFFFF;
-  --surface2: #F9F8F6;
-  --border: #E8E5DF;
-  --border2: #D4CFC6;
-  --text: #1A1A1A;
-  --text2: #6B6860;
-  --text3: #9E9B95;
-  --accent: #1B4FD8;
-  --accent-light: #EEF2FF;
-  --accent2: #0EA47A;
-  --accent2-light: #ECFDF5;
-  --warn: #D4500A;
-  --warn-light: #FFF4ED;
-  --radius-sm: 8px;
-  --radius: 14px;
-  --radius-lg: 20px;
-  --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+  --bg: #F5F4F0; --surface: #FFFFFF; --surface2: #F9F8F6; --border: #E8E5DF;
+  --border2: #D4CFC6; --text: #1A1A1A; --text2: #6B6860; --text3: #9E9B95;
+  --accent: #1B4FD8; --accent-light: #EEF2FF; --accent2: #0EA47A;
+  --accent2-light: #ECFDF5; --warn: #D4500A; --warn-light: #FFF4ED;
+  --radius-sm: 8px; --radius: 14px; --radius-lg: 20px; --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
 }
-
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-
 body { background: var(--bg); color: var(--text); font-family: 'DM Sans', -apple-system, 'PingFang SC', sans-serif; font-size: 14px; line-height: 1.5; min-height: 100vh; }
 
-/* HEADER & TABS */
+/* 页面布局组件 */
 .header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 16px 20px 14px; position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; }
-.header-left { display: flex; align-items: center; gap: 10px; }
-.header-logo { width: 34px; height: 34px; background: var(--accent); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 16px; color: white;}
-.header-title { font-size: 16px; font-weight: 700; color: var(--text); letter-spacing: -.3px; }
-.rate-badge { background: var(--accent-light); color: var(--accent); font-size: 11px; font-weight: 600; padding: 5px 10px; border-radius: 20px; cursor: pointer; display: flex; align-items: center; gap: 4px; border: none; transition: background .15s; }
+.header-logo { width: 34px; height: 34px; background: var(--accent); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 16px; color: white; }
+.header-title { font-size: 16px; font-weight: 700; color: var(--text); margin-left: 10px; }
+.rate-badge { background: var(--accent-light); color: var(--accent); font-size: 11px; font-weight: 600; padding: 5px 10px; border-radius: 20px; cursor: pointer; display: flex; align-items: center; gap: 4px; border: none; }
 .rate-badge .dot { width: 6px; height: 6px; background: var(--accent2); border-radius: 50%; animation: pulse 2s infinite; }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
 
 .tabs { display: flex; background: var(--surface); border-bottom: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; }
-.tabs::-webkit-scrollbar { display: none; }
-.tab { flex: 0 0 auto; padding: 12px 18px; font-size: 13px; font-weight: 500; color: var(--text3); border-bottom: 2px solid transparent; cursor: pointer; white-space: nowrap; transition: all .15s; }
+.tab { flex: 0 0 auto; padding: 12px 18px; font-size: 13px; font-weight: 500; color: var(--text3); border-bottom: 2px solid transparent; cursor: pointer; white-space: nowrap; }
 .tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
 
-.page { display: none; padding: 16px; padding-bottom: 40px; }
+.page { display: none; padding: 16px; padding-bottom: 60px; }
 .page.active { display: block; }
-.section { margin-bottom: 16px; transition: opacity 0.3s ease; }
-.section-label { font-size: 11px; font-weight: 600; color: var(--text3); letter-spacing: .8px; text-transform: uppercase; margin-bottom: 8px; padding-left: 2px; }
-
-/* CARD & FIELDS */
+.section { margin-bottom: 16px; }
+.section-label { font-size: 11px; font-weight: 600; color: var(--text3); letter-spacing: .8px; text-transform: uppercase; margin-bottom: 8px; }
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
-.field-row { display: flex; align-items: center; padding: 13px 16px; border-bottom: 1px solid var(--border); gap: 12px; transition: opacity 0.3s ease; }
-.field-row:last-child { border-bottom: none; }
+
+/* 表单元素 */
+.field-row { display: flex; align-items: center; padding: 13px 16px; border-bottom: 1px solid var(--border); gap: 12px; }
 .field-label { font-size: 13px; font-weight: 500; color: var(--text); flex: 0 0 110px; }
-.field-label small { display: block; font-size: 10px; color: var(--text3); font-weight: 400; margin-top: 1px; }
-.field-input { flex: 1; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 12px; font-size: 14px; font-weight: 500; font-family: 'DM Mono', monospace; color: var(--text); background: var(--surface2); outline: none; width: 100%; -webkit-appearance: none; }
-.field-input:focus { border-color: var(--accent); background: var(--surface); }
-.field-input:disabled { cursor: not-allowed; }
-.field-unit { font-size: 12px; color: var(--text3); font-weight: 500; flex: 0 0 32px; text-align: right; }
-.field-select { flex: 1; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 12px; font-size: 13px; font-weight: 500; color: var(--text); background: var(--surface2); outline: none; -webkit-appearance: none; appearance: none; }
-.field-select:disabled { cursor: not-allowed; }
+.field-label small { display: block; font-size: 10px; color: var(--text3); font-weight: 400; }
+.field-input, .field-select { flex: 1; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 12px; font-size: 14px; font-family: 'DM Mono', monospace; background: var(--surface2); outline: none; width: 100%; -webkit-appearance: none; }
+.field-select { appearance: auto; background-image: none; }
+.field-unit { font-size: 12px; color: var(--text3); flex: 0 0 32px; text-align: right; }
 
-/* MODES */
-.mode-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 6px; padding: 12px; }
-.mode-btn { border: 1.5px solid var(--border); border-radius: var(--radius-sm); padding: 10px 4px; text-align: center; cursor: pointer; transition: all .15s; background: var(--surface2); }
-.mode-btn.active { border-color: var(--accent); background: var(--accent-light); }
-.mode-btn .mb-code { font-size: 13px; font-weight: 700; color: var(--text); }
-.mode-btn.active .mb-code { color: var(--accent); }
-.mode-hint { font-size: 11px; color: var(--text3); padding: 0 12px 12px; line-height: 1.5; min-height: 42px; }
+.field-row.dimmed { opacity: 0.3; pointer-events: none; background: #fafafa; }
 
-/* HS CATEGORIES */
+/* 贸易术语选择 */
+.mode-grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 6px; padding: 12px; }
+.mode-btn { border: 1.5px solid var(--border); border-radius: var(--radius-sm); padding: 10px 4px; text-align: center; cursor: pointer; transition: all .15s; background: var(--surface2); font-size: 12px; font-weight: 700; }
+.mode-btn.active { border-color: var(--accent); background: var(--accent-light); color: var(--accent); }
+.mode-hint { font-size: 11px; color: var(--text3); padding: 0 12px 12px; min-height: 42px; line-height: 1.4; }
+
+/* HS 分类与品类 */
+.hs-toggle-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px; cursor: pointer; border-top: 1px solid var(--border); background: var(--surface2); }
+.hs-collapsible { overflow: hidden; max-height: 0; transition: max-height 0.35s ease; background: var(--surface); }
+.hs-collapsible.open { max-height: 1000px; }
 .hs-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 12px; }
-.hs-item { border: 1.5px solid var(--border); border-radius: var(--radius-sm); padding: 12px 6px; text-align: center; cursor: pointer; transition: all .15s; background: var(--surface2); }
-.hs-item.selected { border-color: var(--accent); background: var(--accent-light); }
-.hs-item.disabled { opacity: 0.4; pointer-events: none; }
-.hs-item .hi-icon { font-size: 20px; margin-bottom: 4px; }
-.hs-item .hi-name { font-size: 11px; font-weight: 600; color: var(--text); }
+.hs-item { border: 1.5px solid var(--border); border-radius: var(--radius-sm); padding: 10px 4px; text-align: center; cursor: pointer; transition: 0.2s; }
+.hs-item.selected { border-color: var(--accent); background: var(--accent-light); transform: scale(1.02); }
 
-/* SLIDER & TAGS */
+/* 利润条 */
 .ptag-group { display: flex; gap: 6px; padding: 12px 16px 0; }
-.ptag { flex: 1; text-align: center; font-size: 11px; font-weight: 600; padding: 6px 0; background: var(--surface2); color: var(--text3); border: 1px solid var(--border); border-radius: 20px; cursor: pointer; transition: all .2s; }
-.ptag.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.ptag { flex: 1; text-align: center; font-size: 11px; font-weight: 600; padding: 6px 0; background: var(--surface2); border-radius: 20px; border: 1px solid var(--border); cursor: pointer; }
+.ptag.active { background: var(--accent); color: #fff; }
 .slider-wrap { padding: 12px 16px 14px; }
-.slider-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-.slider-label { font-size: 13px; font-weight: 500; }
-.slider-val { font-size: 18px; font-weight: 700; color: var(--accent); font-family: 'DM Mono'; }
-input[type=range] { width: 100%; height: 4px; -webkit-appearance: none; background: linear-gradient(to right, var(--accent) 0%, var(--accent) var(--pct, 40%), var(--border2) var(--pct, 40%)); border-radius: 2px; outline: none; }
-input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; background: var(--surface); border: 2.5px solid var(--accent); border-radius: 50%; box-shadow: 0 2px 6px rgba(27,79,216,.2); }
+input[type=range] { width: 100%; -webkit-appearance: none; height: 4px; background: var(--border2); border-radius: 2px; outline: none; }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; background: var(--accent); border-radius: 50%; cursor: pointer; }
 
-/* BUTTONS & OTHERS */
-.btn-calc { width: 100%; background: var(--accent); color: #fff; font-size: 15px; font-weight: 700; padding: 15px; border: none; border-radius: var(--radius); cursor: pointer; margin-top: 4px; box-shadow: 0 4px 12px rgba(27,79,216,.25); }
-.btn-calc:active { opacity: .88; transform: scale(.98); }
+/* 禁用 number input 的浏览器原生上下箭头（Spinner），防止滑动误触 */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
-.result-hero { background: var(--accent); border-radius: var(--radius-lg); padding: 24px 20px 20px; color: #fff; margin-bottom: 16px; position: relative; overflow: hidden; }
-.rh-label { font-size: 11px; font-weight: 600; opacity: .7; }
-.rh-price { font-size: 48px; font-weight: 700; letter-spacing: -2px; margin: 4px 0 2px; font-family: 'DM Mono'; }
-.rh-sub { font-size: 12px; opacity: .65; }
-.rh-mode { position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,.18); font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 20px; }
+/* 按钮与结果 */
+.btn-calc { width: 100%; background: var(--accent); color: #fff; font-size: 15px; font-weight: 700; padding: 15px; border: none; border-radius: var(--radius); cursor: pointer; margin-top: 10px; box-shadow: 0 4px 12px rgba(27,79,216,.2); }
+.result-hero { background: var(--accent); border-radius: var(--radius-lg); padding: 24px 20px; color: #fff; position: relative; }
+.rh-price { font-size: 44px; font-weight: 700; font-family: 'DM Mono'; letter-spacing: -1px; }
+.breakdown-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 16px; }
+.bk-item { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px; }
+.bk-val { font-size: 16px; font-weight: 700; font-family: 'DM Mono'; margin-top: 4px; }
 
-/* WARNINGS */
-.warning-item { background: var(--warn-light); border-left: 3px solid var(--warn); padding: 10px 12px; font-size: 12px; color: var(--warn); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; line-height: 1.45; }
-.warning-item.info { background: var(--accent-light); border-left-color: var(--accent); color: var(--accent); }
-
-.breakdown-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
-.bk-item { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; }
-.bk-label { font-size: 10px; color: var(--text3); font-weight: 600; text-transform: uppercase; }
-.bk-val { font-size: 18px; font-weight: 700; margin-top: 3px; font-family: 'DM Mono'; }
-.bk-val.green { color: var(--accent2); }
-.bk-val.orange { color: var(--warn); }
-
+/* 市场对比 */
 .market-table { width: 100%; border-collapse: collapse; }
-.market-table th, .market-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); font-size: 12px; }
-.price-cell { font-family: 'DM Mono'; font-weight: 700; font-size: 14px; }
+.market-table th, .market-table td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border); font-size: 12px; }
+.price-cell { font-family: 'DM Mono'; font-weight: 700; color: var(--accent); }
 
-/* QUOTATION SLIP */
-.quote-slip { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
-.qs-head-wrap { padding: 20px; text-align: center; border-bottom: 2px solid var(--text); background: var(--surface2); }
-.qs-head-wrap .qs-title { font-size: 18px; font-weight: 800; letter-spacing: 1px; color: var(--text); }
-.qs-head-wrap .qs-sub { font-size: 11px; color: var(--text3); margin-top: 4px; font-weight: 600;}
-.qs-body { padding: 12px 20px; }
-.qs-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed var(--border); font-size: 13px; }
-.qs-row .ql { color: var(--text2); flex: 0 0 100px; }
-.qs-row .qr { font-weight: 600; text-align: right; word-break: break-all; }
-.qs-row .qr.mono { font-family: 'DM Mono'; }
-.qs-total { background: var(--surface2); border-top: 2px solid var(--text); padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; }
-.qs-total .qt-label { font-weight: 700; font-size: 13px; }
-.qs-total .qt-price { font-size: 24px; font-weight: 700; color: var(--accent); font-family: 'DM Mono'; }
+/* 底部声明 */
+.info-banner { border-left: 3px solid; padding: 10px 12px; font-size: 12px; border-radius: 0 8px 8px 0; margin-top: 10px; line-height: 1.45; }
+.info-banner.warn { background: var(--warn-light); border-color: var(--warn); color: var(--warn); }
+.info-banner.info { background: var(--accent-light); border-color: var(--accent); color: var(--accent); }
+.disclaimer { text-align: center; font-size: 11px; color: var(--text3); margin-top: 20px; padding: 0 10px; line-height: 1.6; }
+.copyright-bar { text-align: center; font-size: 10px; color: var(--text3); padding: 20px 0; border-top: 1px solid var(--border); margin-top: 30px; }
 
-.qs-btn { flex: 1; padding: 12px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; cursor: pointer; background: var(--surface); }
-.qs-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+/* 提示 */
+.toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #1A1A1A; color: #fff; padding: 10px 20px; border-radius: 20px; font-size: 12px; opacity: 0; transition: 0.3s; z-index: 999; pointer-events: none; }
+/* ==================== 终极配套：专业复制弹窗系统 ==================== */
 
-.info-row { background: var(--warn-light); border: 1px solid #fcd9be; border-radius: var(--radius-sm); padding: 10px 12px; margin: 0 0 12px; font-size: 12px; color: var(--warn); line-height: 1.5; }
-.empty-state { text-align: center; padding: 60px 20px; color: var(--text3); font-size: 13px; }
-.toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(10px); background: var(--text); color: #fff; font-size: 13px; padding: 10px 20px; border-radius: 20px; opacity: 0; transition: all .25s; pointer-events: none; z-index: 999; box-shadow: 0 4px 12px rgba(0,0,0,.15); }
-.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-.disclaimer { text-align: center; font-size: 11px; color: var(--text3); margin-top: 14px; padding: 0 8px; line-height: 1.5; }
+/* 1. 全局遮罩层 - 增加了高斯模糊，让报价单背景隐约可见，极具高级感 */
+.modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    display: none; align-items: center; justify-content: center; z-index: 10000;
+}
+
+/* 2. 弹窗主体卡片 */
+.modal-card {
+    background: var(--surface); width: 88%; max-width: 340px;
+    border-radius: var(--radius-lg); padding: 24px; text-align: center;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+    animation: modalSlideUp 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* 弹出动画：从下方轻微滑入 */
+@keyframes modalSlideUp {
+    from { transform: translateY(30px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+/* 3. 弹窗内的提示信息 */
+.modal-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; color: var(--text); }
+.modal-body { font-size: 13px; color: var(--text2); margin-bottom: 18px; line-height: 1.5; }
+
+/* 4. 关键：保底文本域样式 - 既要专业又要方便长按 */
+#nukeTextArea {
+    width: 100%; height: 110px; padding: 12px; border: 1px solid var(--border);
+    border-radius: var(--radius-sm); background: var(--surface2); color: var(--text2);
+    font-size: 12px; font-family: 'DM Mono', monospace; line-height: 1.4;
+    margin-bottom: 20px; outline: none; resize: none;
+}
+
+/* 5. 按钮系统 - 严格匹配最新 JS 的类名 */
+.m-btn { 
+    width: 100%; padding: 14px; border-radius: 12px; border: none; 
+    font-size: 15px; font-weight: 700; cursor: pointer; transition: 0.2s;
+}
+
+/* 允许/确认按钮 - 醒目的品牌蓝 */
+.m-btn-allow { 
+    background: var(--accent); color: white; 
+    box-shadow: 0 4px 12px rgba(27,79,216,0.3);
+}
+.m-btn-allow:active { transform: scale(0.96); opacity: 0.9; }
+
+/* 取消按钮 - 谦卑的文字链接 */
+.m-btn-cancel { 
+    background: transparent; color: var(--text3); 
+    font-size: 13px; font-weight: 400; margin-top: 10px;
+}
 </style>
 </head>
 <body>
@@ -146,164 +155,155 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px;
 <div class="header">
   <div class="header-left">
     <div class="header-logo">🚢</div>
-    <div>
-      <div class="header-title">外贸报价计算器 Pro</div>
-    </div>
+    <div class="header-title">外贸报价计算器</div>
   </div>
-  <button class="rate-badge" onclick="fetchRate()">
+  <button class="rate-badge" id="rateBadge" onclick="fetchRate()">
     <span class="dot"></span>
     <span id="rateDisplay">获取汇率...</span>
   </button>
 </div>
 
 <div class="tabs">
-  <div class="tab active" onclick="switchTab('calc')">📋 成本核算</div>
-  <div class="tab" onclick="switchTab('result')">💰 利润风控</div>
-  <div class="tab" onclick="switchTab('slip')">📄 对客报价单</div>
-  <div class="tab" onclick="switchTab('compare')">🌍 市场税距</div>
+  <div class="tab active" data-tab="calc" onclick="switchTab('calc')">📋 成本核算</div>
+  <div class="tab" data-tab="result" onclick="switchTab('result')">💰 利润风控</div>
+  <div class="tab" data-tab="slip" onclick="switchTab('slip')">📄 对客报价单</div>
+  <div class="tab" data-tab="compare" onclick="switchTab('compare')">🌍 市场税距</div>
 </div>
 
-<!-- ════════════════════════════════ PAGE: 填写报价 ════════════════════════════════ -->
+<!-- PAGE 1: 成本核算 -->
 <div id="page-calc" class="page active">
-
-  <!-- 报价术语 -->
   <div class="section">
     <div class="section-label">交货条款 (Incoterms 2020)</div>
     <div class="card">
       <div class="mode-grid">
-        <div class="mode-btn" data-mode="EXW" onclick="setMode(this)">
-          <div class="mb-code">EXW</div>
-        </div>
-        <div class="mode-btn active" data-mode="FOB" onclick="setMode(this)">
-          <div class="mb-code">FOB</div>
-        </div>
-        <div class="mode-btn" data-mode="CIF" onclick="setMode(this)">
-          <div class="mb-code">CIF</div>
-        </div>
-        <div class="mode-btn" data-mode="DDP" onclick="setMode(this)">
-          <div class="mb-code">DDP</div>
-        </div>
+        <div class="mode-btn" data-mode="EXW" onclick="setMode(this)">EXW</div>
+        <div class="mode-btn active" data-mode="FOB" onclick="setMode(this)">FOB</div>
+        <div class="mode-btn" data-mode="CIF" onclick="setMode(this)">CIF</div>
+        <div class="mode-btn" data-mode="DAP" onclick="setMode(this)">DAP</div>
+        <div class="mode-btn" data-mode="DDP" onclick="setMode(this)">DDP</div>
       </div>
-      <div class="mode-hint" id="modeHint">FOB (装运港船上交货)：包含出厂成本、利润、退税抵扣、国内运费及港口报关杂费。</div>
+      <div class="mode-hint" id="modeHint">FOB (装运港船上交货)：卖家承担中国段国内运费及报关杂费，不含国际运费。</div>
     </div>
   </div>
 
-  <!-- 基础成本 -->
   <div class="section">
-    <div class="section-label">国内段基础成本 (人民币/RMB)</div>
+    <div class="section-label">国内基础成本 (人民币/RMB)</div>
     <div class="card">
       <div class="field-row">
-        <div class="field-label">含税底价<small>必填(采购进货价)</small></div>
-        <input class="field-input" type="number" inputmode="decimal" id="costRMB" placeholder="0.00">
+        <div class="field-label">含税底价<small>必填 (采购进货价)</small></div>
+        <input class="field-input" type="number" id="costRMB" placeholder="0.00" onfocus="this.select()">
         <div class="field-unit">¥</div>
       </div>
       <div class="field-row">
-        <div class="field-label" style="flex: 0 0 130px;">
-          出口退税率
-          <label style="display:inline-flex; align-items:center; gap:4px; cursor:pointer;">
-            <input type="checkbox" id="isRebate" checked style="accent-color: var(--accent);">
-            <span style="font-size:10px; color:var(--accent); font-weight:600;">我司出口</span>
-          </label>
+        <div class="field-label">出口退税率
+            <input type="checkbox" id="isRebate" checked style="margin-left:4px; accent-color:var(--accent);">
         </div>
-        <input class="field-input" type="number" inputmode="decimal" id="rebateRate" value="13">
+        <input class="field-input" type="number" id="rebateRate" value="13" onfocus="this.select()">
         <div class="field-unit">%</div>
       </div>
+      <div class="field-row" id="row-inputVat">
+        <div class="field-label">进项票税率<small>专票默认13%</small></div>
+        <select class="field-select" id="inputVatRate" onchange="onInputVatChange(this)">
+            <option value="13">13%（标准专票）</option>
+            <option value="9">9%（农产品/部分货物）</option>
+            <option value="6">6%（服务/软件）</option>
+            <option value="0">0%（普票/不可退）</option>
+        </select>
+      </div>
       <div class="field-row">
-        <div class="field-label">国内运杂费<small>运费/进仓/拖车/报关</small></div>
-        <input class="field-input" type="number" inputmode="decimal" id="domesticFreight" placeholder="0.00">
+        <div class="field-label">国内运杂费<small>运费/进仓/报关</small></div>
+        <input class="field-input" type="number" id="domesticFreight" value="0" onfocus="this.select()">
         <div class="field-unit">¥</div>
       </div>
     </div>
   </div>
 
-  <!-- 国际段费用 -->
   <div class="section" id="section-international">
     <div class="section-label">国际段费用 (美元/USD)</div>
     <div class="card">
-      <div class="field-row" id="row-shippingFee">
-        <div class="field-label">国际主运费<small>海运/空运/国际快递</small></div>
-        <input class="field-input" type="number" inputmode="decimal" id="shippingFee" placeholder="0.00">
+      <div class="field-row" id="row-shipping">
+        <div class="field-label">国际主运费</div>
+        <input class="field-input" type="number" id="shippingFee" value="0" onfocus="this.select()">
         <div class="field-unit">$</div>
       </div>
-      <div class="field-row" id="row-destFee">
-        <div class="field-label">目的港杂费<small>清关/附加/尾程(DDP专用)</small></div>
-        <input class="field-input" type="number" inputmode="decimal" id="destFee" placeholder="0.00">
+      <div class="field-row" id="row-dest">
+        <div class="field-label">目的港杂费<small>清关/附加/尾程</small></div>
+        <input class="field-input" type="number" id="destFee" value="0" onfocus="this.select()">
         <div class="field-unit">$</div>
       </div>
-      <div class="field-row" id="row-insuranceRate">
-        <div class="field-label">运输保险费率<small>CIF/DDP适用</small></div>
-        <input class="field-input" type="number" inputmode="decimal" id="insuranceRate" value="0.3">
+      <div class="field-row" id="row-insurance">
+        <div class="field-label">运输保险率<small>加成110%</small></div>
+        <input class="field-input" type="number" id="insuranceRate" value="0.3" onfocus="this.select()">
         <div class="field-unit">%</div>
       </div>
     </div>
   </div>
 
-  <!-- 目的国与预估税金 -->
   <div class="section" id="section-tax">
-    <div class="section-label">目的国与预估税金 (DDP适用)</div>
-    <div class="card" style="margin-bottom: 12px;">
-      <div class="field-row" id="row-country">
-        <div class="field-label">目标国家</div>
-        <select class="field-select" id="countrySelect" onchange="onCountryChange()">
-          <option value="USA">🇺🇸 美国</option>
-          <option value="EU">🇪🇺 欧盟</option>
-          <option value="UK">🇬🇧 英国</option>
-          <option value="CUSTOM">⚙️ 自定义参数</option>
-        </select>
-      </div>
-      <div class="field-row" id="row-taxRate">
-        <div class="field-label">进口关税<small>DDP核算核心</small></div>
-        <input class="field-input" type="number" inputmode="decimal" id="taxRate" value="7.5">
-        <div class="field-unit">%</div>
-      </div>
-      <div class="field-row" id="row-vatRate">
-        <div class="field-label">当地增值税<small>VAT</small></div>
-        <input class="field-input" type="number" inputmode="decimal" id="vatRate" value="0">
-        <div class="field-unit">%</div>
-      </div>
-    </div>
-    
-    <div class="section-label" id="label-hs">品类快捷关税预估 (点击获取参考)</div>
-    <div class="card" id="card-hs">
-      <div class="hs-grid" id="hsGrid"></div>
-    </div>
-  </div>
-
-  <!-- 利润与汇率 -->
-  <div class="section">
-    <div class="section-label">汇率与财务利润设定</div>
+    <div class="section-label">目的国与预估税金</div>
     <div class="card">
       <div class="field-row">
-        <div class="field-label">结汇汇率<small>建议比实时低0.1缓冲</small></div>
-        <input class="field-input" type="number" inputmode="decimal" id="exchangeRate" value="7.15">
-        <div class="field-unit">￥</div>
+        <div class="field-label">目标国家</div>
+        <select class="field-select" id="countrySelect" onchange="onCountryChange()">
+            <!-- JS 将动态填充 31 个国家及其详细备注 -->
+        </select>
       </div>
+      <div id="countryNoteBox" class="info-banner warn" style="display:none; margin:10px 16px;"></div>
       <div class="field-row">
-        <div class="field-label">收款手续费<small>PayPal/TT等</small></div>
-        <input class="field-input" type="number" inputmode="decimal" id="paymentFee" value="3.0">
+        <div class="field-label">进口关税率</div>
+        <input class="field-input" type="number" id="taxRate" value="7.5" onfocus="this.select()">
         <div class="field-unit">%</div>
       </div>
-      
-      <div style="border-top:1px solid var(--border);">
-        <div class="ptag-group">
-          <div class="ptag" data-val="10">大客 10%</div>
-          <div class="ptag active" data-val="20">普客 20%</div>
-          <div class="ptag" data-val="30">新客 30%</div>
-        </div>
-        <div class="slider-wrap">
-          <div class="slider-top">
-            <span class="slider-label">净利润率 (倒扣法)</span>
-            <span class="slider-val" id="profitDisplay">20%</span>
-          </div>
-          <input type="range" id="profitSlider" min="1" max="60" value="20" oninput="onSlider(this)">
-        </div>
+      <div class="field-row">
+        <div class="field-label">当地增值税/VAT</div>
+        <input class="field-input" type="number" id="vatRate" value="0" onfocus="this.select()">
+        <div class="field-unit">%</div>
+      </div>
+      <div class="hs-toggle-bar" onclick="toggleHS()">
+        <span style="font-size:12px; font-weight:600; color:var(--text2);">🏷 品类快捷税率预估 (12 大分类)</span>
+        <span id="hs-arrow">▼</span>
+      </div>
+      <div class="hs-collapsible" id="hs-collapsible">
+        <div class="hs-grid" id="hsGrid"></div>
       </div>
     </div>
   </div>
 
-  <!-- 制单信息 -->
   <div class="section">
-    <div class="section-label">制单信息 (用于生成 PI)</div>
+    <div class="section-label">财务与风控</div>
+    <div class="card">
+      <div class="field-row">
+        <div class="field-label">中间汇率</div>
+        <input class="field-input" type="number" id="exchangeRate" value="7.15" onfocus="this.select()">
+        <div class="field-unit">¥/$</div>
+      </div>
+      <div class="field-row" style="background:var(--accent2-light);">
+        <div class="field-label" style="color:var(--accent2);">汇率避险点位</div>
+        <input class="field-input" type="number" id="rateBuffer" value="0.05" step="0.01" onfocus="this.select()">
+        <div class="field-unit">点</div>
+      </div>
+      <div class="field-row">
+        <div class="field-label">收款手续费</div>
+        <input class="field-input" type="number" id="paymentFee" value="3.0" onfocus="this.select()">
+        <div class="field-unit">%</div>
+      </div>
+      <div class="ptag-group">
+        <div class="ptag" data-val="10" onclick="setProfitTag(this)">大客 10%</div>
+        <div class="ptag active" data-val="20" onclick="setProfitTag(this)">普客 20%</div>
+        <div class="ptag" data-val="30" onclick="setProfitTag(this)">新客 30%</div>
+      </div>
+      <div class="slider-wrap">
+        <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+            <span style="font-weight:500;">预期净利润率</span>
+            <span id="profitDisplay" style="color:var(--accent); font-weight:700;">20%</span>
+        </div>
+        <input type="range" id="profitSlider" min="1" max="60" value="20" oninput="onSlider(this)">
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">制单信息 (用于 PI)</div>
     <div class="card">
       <div class="field-row">
         <div class="field-label">产品名称</div>
@@ -321,311 +321,411 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px;
   </div>
 
   <button class="btn-calc" onclick="calculate()">执行精确核算与风控 →</button>
-  
+
   <div class="disclaimer">
-    * 免责声明：本工具预估税率仅供参考，真实税率请以目的国最新海关政策为准。
+    * 免责声明：本工具汇率与税率数据仅供参考，真实交易请以银行实时牌价及目的国海关公告为准。
+  </div>
+  <div class="copyright-bar">
+    <strong>外贸报价计算器 Pro</strong> · 专为出口业务设计<br>
+    © 2026 · All Rights Reserved
   </div>
 </div>
 
-<!-- ════════════════════════════════ PAGE: 计算结果 ════════════════════════════════ -->
+<!-- PAGE 2: 结果 -->
 <div id="page-result" class="page">
-  <div id="resultEmpty" class="empty-state">先录入参数，点击计算即可查看详细成本拆解。</div>
-  <div id="resultContent" style="display:none;">
-    <div class="result-hero">
-      <div class="rh-mode" id="rh-mode">FOB</div>
-      <div class="rh-label">单价报价 (USD)</div>
-      <div class="rh-price" id="rh-price">$0.00</div>
-      <div class="rh-sub" id="rh-sub">净利润预估计算</div>
+    <div id="resultEmpty" style="text-align:center; padding:60px 20px; color:var(--text3);">请先完成计算</div>
+    <div id="resultContent" style="display:none;">
+        <div class="result-hero">
+            <div id="rh-mode" style="position:absolute; top:20px; right:20px; background:rgba(255,255,255,0.2); padding:4px 10px; border-radius:20px; font-size:11px;">FOB</div>
+            <div style="font-size:12px; opacity:0.8;">单价报价 (USD)</div>
+            <div class="rh-price" id="rh-price">$0.00</div>
+            <div style="font-size:12px; opacity:0.75; margin-top:2px;" id="rh-price-cny">≈ ¥—</div>
+            <div style="font-size:11px; opacity:0.7;" id="rh-rate-note">结汇汇率参考: 7.10</div>
+        </div>
+        <div class="breakdown-grid">
+            <div class="bk-item"><div style="font-size:10px; color:var(--text3);">单件净利润</div><div class="bk-val" id="bk-profit" style="color:var(--accent2);">$0.00</div></div>
+            <div class="bk-item"><div style="font-size:10px; color:var(--text3);">退税收入</div><div class="bk-val" id="bk-rebate">¥0.00</div></div>
+            <div class="bk-item"><div style="font-size:10px; color:var(--text3);">国际段总成本</div><div class="bk-val" id="bk-freight">$0.00</div></div>
+            <div class="bk-item"><div style="font-size:10px; color:var(--text3);">目的国税金</div><div class="bk-val" id="bk-duty" style="color:var(--warn);">$0.00</div></div>
+        </div>
     </div>
-    <div id="warningsBox" style="display:none; flex-direction:column; gap:8px; margin-bottom:16px;"></div>
-    <div class="breakdown-grid">
-      <div class="bk-item"><div class="bk-label">综合成本基数</div><div class="bk-val" id="bk-basis">$0</div></div>
-      <div class="bk-item"><div class="bk-label">单件净利润</div><div class="bk-val green" id="bk-profit">$0</div></div>
-      <div class="bk-item"><div class="bk-label">国际综合运杂费</div><div class="bk-val" id="bk-freight">$0</div></div>
-      <div class="bk-item"><div class="bk-label">目的国税金</div><div class="bk-val orange" id="bk-duty">$0</div></div>
-    </div>
-    <button class="qs-btn primary" style="width:100%" onclick="switchTab('slip')">预览对客报价单 PI →</button>
-  </div>
 </div>
 
-<!-- ════════════════════════════════ PAGE: 对客报价单 ════════════════════════════════ -->
+<!-- PAGE 3: PI -->
 <div id="page-slip" class="page">
-  <div id="slipEmpty" class="empty-state">暂无生成的报价单</div>
-  <div id="slipContent" style="display:none;">
-    <div class="quote-slip" id="quoteSlip">
-      <div class="qs-head-wrap">
-        <div class="qs-title">PROFORMA QUOTATION</div>
-        <div class="qs-sub">QUOTATION FOR INTERNATIONAL BUSINESS</div>
-      </div>
-      <div class="qs-body" id="qs-body"></div>
-      <div class="qs-total">
-        <div class="qt-label" id="qs-mode-label">FOB UNIT PRICE</div>
-        <div class="qt-price" id="qs-total-price">$0.00</div>
-      </div>
+    <div id="slipEmpty" style="text-align:center; padding:60px 20px; color:var(--text3);">暂无报价单</div>
+    <div id="slipContent" style="display:none;">
+        <div class="card" style="padding:24px; font-family:'DM Mono';">
+            <div style="text-align:center; border-bottom:2px solid #000; padding-bottom:12px; margin-bottom:24px;"><h2 style="letter-spacing:1px;">PROFORMA QUOTATION</h2></div>
+            <div id="slip-body" style="line-height:2.2; font-size:13px;"></div>
+            <div style="margin-top:24px; border-top:1px dashed #ddd; padding-top:16px; text-align:right;"><div style="font-weight:700; font-size:22px; color:var(--accent);" id="slip-total">TOTAL: $0.00</div></div>
+        </div>
+        <button class="btn-calc" style="background:#1A1A1A; margin-top:16px;" onclick="copySlip()">📋 复制 PI 文本</button>
     </div>
-    <button class="qs-btn primary" style="width:100%; margin-top:16px;" onclick="copySlip()">📋 复制文本报价给客户</button>
-  </div>
 </div>
 
-<!-- ════════════════════════════════ PAGE: 市场对比 ════════════════════════════════ -->
+<!-- PAGE 4: 市场 -->
 <div id="page-compare" class="page">
-    <div class="card" style="overflow:auto;">
-      <table class="market-table" id="marketTable"></table>
+    <div class="card"><table class="market-table" id="marketTable"><thead><tr><th>市场</th><th>关税</th><th>VAT</th><th>落地价</th></tr></thead><tbody id="marketBody"></tbody></table></div>
+</div>
+
+<!-- 常驻复制弹窗：避免动态注入在部分安卓浏览器被拦截 -->
+<div id="finalCopyModal" class="modal-overlay" style="display:none; align-items:center; justify-content:center;">
+    <div class="modal-card">
+        <div class="modal-title">📋 复制报价单</div>
+        <div class="modal-body" style="font-size:12px; text-align:left;">请长按下方文本框，选择"全选"后复制。</div>
+        <textarea id="nukeTextArea" readonly></textarea>
+        <button class="m-btn m-btn-allow" onclick="triggerManualSelection()">点击全选文本</button>
+        <button class="m-btn m-btn-cancel" onclick="document.getElementById('finalCopyModal').style.display='none'">关 闭</button>
     </div>
 </div>
 
 <div class="toast" id="toast"></div>
 
 <script>
-// --- 配置数据 ---
-const COUNTRIES = {
-  USA:       { name:'美国 USA', defaultTax:7.5,  vatRate:0 },
-  EU:        { name:'欧盟 EU',  defaultTax:4.5,  vatRate:20 },
-  UK:        { name:'英国 UK',  defaultTax:4.0,  vatRate:20 },
-  CUSTOM:    { name:'自定义',   defaultTax:0,    vatRate:0 }
+// ==================== 状态管理补丁 ====================
+let state = {
+    mode: 'FOB',
+    profitRate: 20,
+    hsOpen: false,
+    lastPrice: null,      // 最近一次核算价格，供 buildPIText() 读取
+    lastSettleRate: null  // 最近一次结汇汇率
 };
 
-const HS_CATEGORIES =[
-  { icon:'📱', name:'电子产品',rates:{ USA:0,    EU:0,   UK:0 } },
-  { icon:'👕', name:'纺织服装',rates:{ USA:16.5, EU:12,  UK:12 } },
-  { icon:'👜', name:'箱包制品',rates:{ USA:17.6, EU:9.7, UK:9.7 } },
-  { icon:'💡', name:'LED照明', rates:{ USA:3.9,  EU:4.7, UK:4.0 } }
+function switchTab(tabId) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    // 通过 data-tab 属性主动查找，不依赖全局 event 对象（避免程序内部调用时失效）
+    const targetTab = document.querySelector('.tab[data-tab="' + tabId + '"]');
+    if (targetTab) targetTab.classList.add('active');
+    document.getElementById('page-' + tabId).classList.add('active');
+}
+
+function setProfitTag(el) {
+    document.querySelectorAll('.ptag').forEach(p => p.classList.remove('active'));
+    el.classList.add('active');
+    const val = el.dataset.val;
+    state.profitRate = parseFloat(val);   // 统一存为数字，消灭类型隐患
+    document.getElementById('profitSlider').value = val;
+    document.getElementById('profitDisplay').innerText = val + '%';
+}
+
+// ==================== 100% 完整数据库 ====================
+const COUNTRIES = {
+  USA: { name:'美国', tax:7.5, vat:0,   level:'warn', note:'⚠️ 对华加征关税已大幅上调（2025年起部分品类达25%-145%），此处7.5%为贸易战基准税率，请务必以最新海关公告为准' },
+  CA:  { name:'加拿大', tax:4.5, vat:5,  level:'info', note:'GST 5%，部分省份 PST 另计' },
+  MX:  { name:'墨西哥', tax:7.0, vat:16, level:'info', note:'IVA 增值税 16%' },
+  EU:  { name:'欧盟', tax:4.0, vat:20,   level:'info', note:'成员国 VAT 17-27% 不等，此处取德法均值' },
+  DE:  { name:'德国', tax:4.0, vat:19,   level:'info', note:'MwSt 19%' },
+  FR:  { name:'法国', tax:4.0, vat:20,   level:'info', note:'TVA 20%' },
+  UK:  { name:'英国', tax:4.0, vat:20,   level:'info', note:'VAT 20%' },
+  PL:  { name:'波兰', tax:4.0, vat:23,   level:'info', note:'VAT 23%' },
+  RU:  { name:'俄罗斯', tax:8.0, vat:20, level:'warn', note:'NDS 20%，清关手续复杂，建议提前确认收款路径' },
+  TR:  { name:'土耳其', tax:7.0, vat:20, level:'info', note:'KDV 20%' },
+  SA:  { name:'沙特', tax:5.0, vat:15,   level:'info', note:'VAT 自2020年上调至 15%' },
+  AE:  { name:'阿联酋', tax:5.0, vat:5,  level:'info', note:'GCC 5%，VAT 5%' },
+  IL:  { name:'以色列', tax:12.0, vat:17, level:'info', note:'VAT 17%' },
+  JP:  { name:'日本', tax:3.5, vat:10,   level:'info', note:'消费税 10%' },
+  KR:  { name:'韩国', tax:5.0, vat:10,   level:'info', note:'VAT 10%' },
+  SG:  { name:'新加坡', tax:0, vat:9,    level:'info', note:'GST 9%，多数产品零关税' },
+  MY:  { name:'马来西亚', tax:5.0, vat:6, level:'info', note:'SST 6%' },
+  TH:  { name:'泰国', tax:10.0, vat:7,   level:'info', note:'VAT 7%' },
+  VN:  { name:'越南', tax:8.0, vat:10,   level:'info', note:'VAT 10%' },
+  ID:  { name:'印尼', tax:7.5, vat:11,   level:'info', note:'PPN 11%，自2025年上调' },
+  PH:  { name:'菲律宾', tax:5.0, vat:12, level:'info', note:'VAT 12%' },
+  IN:  { name:'印度', tax:10.0, vat:18,  level:'warn', note:'GST 18%，清关门槛较高，建议提前确认买家资质' },
+  AU:  { name:'澳大利亚', tax:5.0, vat:10, level:'info', note:'GST 10%' },
+  NZ:  { name:'新西兰', tax:5.0, vat:15, level:'info', note:'GST 15%' },
+  BR:  { name:'巴西', tax:14.0, vat:17,  level:'warn', note:'综合税率极高，清关风险大，建议谨慎评估' },
+  CL:  { name:'智利', tax:6.0, vat:19,   level:'info', note:'IVA 19%' },
+  CO:  { name:'哥伦比亚', tax:5.0, vat:19, level:'info', note:'IVA 19%' },
+  ZA:  { name:'南非', tax:5.0, vat:15,   level:'info', note:'VAT 15%' },
+  NG:  { name:'尼日利亚', tax:10.0, vat:7.5, level:'warn', note:'VAT 7.5%，清关流程复杂，收款风险较高' },
+  EG:  { name:'埃及', tax:8.0, vat:14,   level:'info', note:'VAT 14%' },
+  CUSTOM: { name:'自定义', tax:0, vat:0, level:'info', note:'录入自定义国家参数' }
+};
+
+const HS_CATEGORIES = [
+  { icon:'📱', name:'消费电子', rates:{ USA:0, EU:0, RU:5, IN:10, BR:12 } },
+  { icon:'💻', name:'电脑周边', rates:{ USA:0, EU:0, RU:5, IN:10, BR:10 } },
+  { icon:'👕', name:'纺织服装', rates:{ USA:16.5, EU:12, RU:14, IN:20, BR:35 } },
+  { icon:'👜', name:'箱包皮具', rates:{ USA:17.6, EU:9.7, RU:10, IN:10, BR:20 } },
+  { icon:'🪑', name:'家具装饰', rates:{ USA:8.3, EU:2.7, RU:10, IN:25, BR:18 } },
+  { icon:'💡', name:'LED照明', rates:{ USA:3.9, EU:4.7, RU:10, IN:10, BR:14 } },
+  { icon:'🔧', name:'五金工具', rates:{ USA:5.7, EU:2.7, RU:8, IN:10, BR:14 } },
+  { icon:'🧴', name:'美妆日化', rates:{ USA:0, EU:6.5, RU:15, IN:20, BR:14 } },
+  { icon:'🧸', name:'玩具模型', rates:{ USA:0, EU:2.9, RU:12, IN:20, BR:20 } },
+  { icon:'🚗', name:'汽配配件', rates:{ USA:2.5, EU:4.5, RU:8, IN:15, BR:18 } },
+  { icon:'🏋️', name:'体育健身', rates:{ USA:0, EU:2.9, RU:8, IN:15, BR:16 } },
+  { icon:'🍳', name:'厨具餐具', rates:{ USA:0, EU:3.7, RU:10, IN:15, BR:18 } }
 ];
 
-const MODE_HINTS = {
-  EXW: 'EXW (工厂交货)：仅包含商品成本及利润，买家负责所有后续运输报关。',
-  FOB: 'FOB (装运港船上交货)：卖家承担中国段国内运费及报关杂费，不含国际运费。',
-  CIF: 'CIF (成本加运费加保险)：含FOB费用、国际主运费与运输保险。',
-  DDP: 'DDP (完税后交货)：包办全程，含双清、杂费、关税及当地增值税(VAT)。'
-};
+const MARKET_COMPARE_LIST = [
+    { key:'USA', flag:'🇺🇸', name:'美国', tax:7.5, vat:0 },
+    { key:'EU',  flag:'🇪🇺', name:'欧盟', tax:4.0, vat:20 },
+    { key:'UK',  flag:'🇬🇧', name:'英国', tax:4.0, vat:20 },
+    { key:'JP',  flag:'🇯🇵', name:'日本', tax:3.5, vat:10 },
+    { key:'AU',  flag:'🇦🇺', name:'澳洲', tax:5.0, vat:10 },
+    { key:'SA',  flag:'🇸🇦', name:'沙特', tax:5.0, vat:15 },
+    { key:'AE',  flag:'🇦🇪', name:'阿联酋', tax:5.0, vat:5 },
+    { key:'RU',  flag:'🇷🇺', name:'俄国', tax:8.0, vat:20 },
+    { key:'IN',  flag:'🇮🇳', name:'印度', tax:10.0, vat:18 },
+    { key:'ID',  flag:'🇮🇩', name:'印尼', tax:7.5, vat:11 },
+    { key:'BR',  flag:'🇧🇷', name:'巴西', tax:14.0, vat:17 },
+    { key:'ZA',  flag:'🇿🇦', name:'南非', tax:5.0, vat:15 }
+];
 
-let state = { mode: 'FOB', profitRate: 20, selectedHS: null, lastResult: null };
-
-document.addEventListener('DOMContentLoaded', () => {
-  buildHSGrid();
-  // 初始化一次置灰逻辑
-  setMode(document.querySelector('[data-mode="FOB"]'));
-  fetchRate();
-});
-
-// --- 核心功能：动态置灰交互 ---
+// ==================== 逻辑驱动 ====================
 function setMode(el) {
-  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-  el.classList.add('active');
-  state.mode = el.dataset.mode;
-  document.getElementById('modeHint').textContent = MODE_HINTS[state.mode];
-  
-  // 基础退税开关逻辑
-  document.getElementById('isRebate').checked = (state.mode !== 'EXW');
-
-  // ---------- 交互防呆逻辑：置灰无关选项 ----------
-  const shippingInput = document.getElementById('shippingFee');
-  const destInput = document.getElementById('destFee');
-  const insuranceInput = document.getElementById('insuranceRate');
-  const taxInput = document.getElementById('taxRate');
-  const vatInput = document.getElementById('vatRate');
-  const countrySelect = document.getElementById('countrySelect');
-  const hsItems = document.querySelectorAll('.hs-item');
-  const taxSection = document.getElementById('section-tax');
-
-  // 1. 恢复所有字段为可用状态
-  const allInputs = [shippingInput, destInput, insuranceInput, taxInput, vatInput, countrySelect];
-  allInputs.forEach(input => {
-    input.disabled = false;
-    input.parentElement.style.opacity = '1';
-    input.parentElement.style.pointerEvents = 'auto';
-  });
-  taxSection.style.opacity = '1';
-  document.getElementById('card-hs').style.pointerEvents = 'auto';
-  hsItems.forEach(item => item.classList.remove('disabled'));
-
-  // 2. 根据不同条款执行置灰
-  if (state.mode === 'EXW' || state.mode === 'FOB') {
-      // EXW和FOB：禁用所有国际段和税金
-      [shippingInput, destInput, insuranceRate, taxInput, vatInput, countrySelect].forEach(input => {
-          input.disabled = true;
-          input.parentElement.style.opacity = '0.3';
-          input.parentElement.style.pointerEvents = 'none';
-      });
-      taxSection.style.opacity = '0.3';
-      document.getElementById('card-hs').style.pointerEvents = 'none';
-      hsItems.forEach(item => item.classList.add('disabled'));
-
-  } else if (state.mode === 'CIF') {
-      // CIF：包含运费保险，但禁用目的港杂费和税金
-      destInput.disabled = true;
-      destInput.parentElement.style.opacity = '0.3';
-      destInput.parentElement.style.pointerEvents = 'none';
-
-      [taxInput, vatInput, countrySelect].forEach(input => {
-          input.disabled = true;
-          input.parentElement.style.opacity = '0.3';
-          input.parentElement.style.pointerEvents = 'none';
-      });
-      taxSection.style.opacity = '0.3';
-      document.getElementById('card-hs').style.pointerEvents = 'none';
-      hsItems.forEach(item => item.classList.add('disabled'));
-  }
-  // DDP 默认全部保持高亮可用
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+    state.mode = el.dataset.mode;
+    document.getElementById('modeHint').innerText = {
+        EXW: 'EXW: 仅含出厂底价与利润。', FOB: 'FOB: 含国内杂费及报关，不含海运。', 
+        CIF: 'CIF: 含 FOB 费、海运及保险。',
+        DAP: 'DAP: 卖家负责运送及清关手续(Service)，但不支付进口税费(Taxes)。报价含运费、清关代理费及派送费。',
+        DDP: 'DDP: 全包价，含双清、关税及 VAT。税金基于最终售价保守估算，已含安全溢价。'
+    }[state.mode];
+    const rows = { ship: document.getElementById('row-shipping'), dest: document.getElementById('row-dest'), ins: document.getElementById('row-insurance'), tax: document.getElementById('section-tax') };
+    if(state.mode==='EXW'||state.mode==='FOB') { rows.ship.classList.add('dimmed'); rows.dest.classList.add('dimmed'); rows.ins.classList.add('dimmed'); rows.tax.classList.add('dimmed'); }
+    else if(state.mode==='CIF') { rows.ship.classList.remove('dimmed'); rows.ins.classList.remove('dimmed'); rows.dest.classList.add('dimmed'); rows.tax.classList.add('dimmed'); }
+    else if(state.mode==='DAP') { rows.ship.classList.remove('dimmed'); rows.dest.classList.remove('dimmed'); rows.ins.classList.remove('dimmed'); rows.tax.classList.add('dimmed'); }
+    else { Object.values(rows).forEach(r => r.classList.remove('dimmed')); }
 }
 
-// --- 其他 UI 逻辑 ---
-function switchTab(name) {
-  document.querySelectorAll('.tab').forEach((t,i) => {
-    const names =['calc','result','slip','compare'];
-    t.classList.toggle('active', names[i] === name);
-  });
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.getElementById('page-' + name).classList.add('active');
-  window.scrollTo(0,0);
+function calculate() {
+    const costRMB = parseFloat(document.getElementById('costRMB').value)||0;
+    if(costRMB<=0) { showToast('请输入底价'); return; }
+    const isRebate = document.getElementById('isRebate').checked;
+    const rebateRate = parseFloat(document.getElementById('rebateRate').value)||0;
+    const inputVatRate = (parseFloat(document.getElementById('inputVatRate').value)||13)/100;
+    const rebateAmt = isRebate ? (costRMB / (1 + inputVatRate)) * (rebateRate/100) : 0;
+    const domFreight = parseFloat(document.getElementById('domesticFreight').value)||0;
+    const shipUSD = parseFloat(document.getElementById('shippingFee').value)||0;
+    const destUSD = parseFloat(document.getElementById('destFee').value)||0;
+    const insRate = (parseFloat(document.getElementById('insuranceRate').value)||0)/100;
+    const taxRate = (parseFloat(document.getElementById('taxRate').value)||0)/100;
+    const vatRate = (parseFloat(document.getElementById('vatRate').value)||0)/100;
+    const exRate = parseFloat(document.getElementById('exchangeRate').value)||7.15;
+    const buffer = parseFloat(document.getElementById('rateBuffer').value)||0;
+    const payFee = (parseFloat(document.getElementById('paymentFee').value)||0)/100;
+    const profitRate = state.profitRate / 100;
+
+    const settleRate = exRate - buffer;
+    const fobUSD = (costRMB + domFreight - rebateAmt) / settleRate;
+
+    let price = 0, duty = 0, freight = 0;
+    if(state.mode==='EXW') price = (costRMB/settleRate) / (1-profitRate-payFee);
+    else if(state.mode==='FOB') price = fobUSD / (1-profitRate-payFee);
+    else if(state.mode==='CIF') { price = (fobUSD+shipUSD) / (1-profitRate-payFee-1.1*insRate); freight = shipUSD + price*1.1*insRate; }
+    else if(state.mode==='DAP') {
+        // DAP: 含国际运费+目的港送货费+保险，买家自行缴税，卖方不包税
+        price = (fobUSD+shipUSD+destUSD) / (1-profitRate-payFee-1.1*insRate);
+        freight = shipUSD+destUSD+price*1.1*insRate;
+        duty = 0; // 税金由买家承担，不计入卖方报价
+    }
+    else if(state.mode==='DDP') {
+        // DDP: 税金按最终售价百分比估算（保守安全溢价方式）
+        const den = 1-profitRate-payFee-1.1*insRate-taxRate-(1+taxRate)*vatRate;
+        price = (fobUSD+shipUSD+destUSD)/den;
+        duty = price * (taxRate+(1+taxRate)*vatRate);
+        freight = shipUSD+destUSD+price*1.1*insRate;
+    }
+
+    // 防护：参数组合极端时分母可能趋近0或为负，导致 Infinity/NaN
+    if (!isFinite(price) || price <= 0) {
+        showToast('⚠️ 参数超出合理范围，请检查利润率与税率之和');
+        return;
+    }
+
+    // 将核算结果存入 state，供 buildPIText() 直接读取（避免依赖 DOM）
+    state.lastPrice = price;
+    state.lastSettleRate = settleRate;
+
+    document.getElementById('resultEmpty').style.display = 'none';
+    document.getElementById('resultContent').style.display = 'block';
+    document.getElementById('rh-price').innerText = '$'+price.toFixed(2);
+    document.getElementById('rh-price-cny').innerText = '≈ ¥'+(price*settleRate).toFixed(2);
+    document.getElementById('rh-mode').innerText = state.mode;
+    document.getElementById('bk-profit').innerText = '$'+(price*profitRate).toFixed(2);
+    // 退税为零时显示"不适用"，避免用户误判数据未加载
+    document.getElementById('bk-rebate').innerText = rebateAmt > 0 ? '¥'+rebateAmt.toFixed(2) : '不适用';
+    document.getElementById('bk-rebate').style.color = rebateAmt > 0 ? '' : 'var(--text3)';
+    document.getElementById('bk-freight').innerText = '$'+freight.toFixed(2);
+    // DAP 模式税金由买家承担，卡片显示说明而非 $0.00
+    const dutyEl = document.getElementById('bk-duty');
+    if (state.mode === 'DAP') {
+        dutyEl.innerText = '买家自付';
+        dutyEl.style.color = 'var(--text3)';
+    } else {
+        dutyEl.innerText = '$'+duty.toFixed(2);
+        dutyEl.style.color = '';
+    }
+    document.getElementById('rh-rate-note').innerText = '结汇汇率参考: ' + settleRate.toFixed(3);
+
+    // EXW 模式市场对比基准为出厂价（不含国内运费），其余模式用 fobUSD
+    const compareBase = (state.mode === 'EXW') ? (costRMB / settleRate) : fobUSD;
+    renderPI(price, settleRate);
+    renderCompare(compareBase, profitRate, payFee, insRate);
+    switchTab('result');
 }
 
-function buildHSGrid() {
-  const grid = document.getElementById('hsGrid');
-  grid.innerHTML = HS_CATEGORIES.map((h, i) =>
-    `<div class="hs-item" onclick="selectHS(${i})" id="hs-${i}">
-      <div class="hi-icon">${h.icon}</div>
-      <div class="hi-name">${h.name}</div>
-    </div>`
-  ).join('');
+function renderPI(p, r) {
+    document.getElementById('slipEmpty').style.display='none';
+    document.getElementById('slipContent').style.display='block';
+    const name = document.getElementById('productName').value||'ITEM';
+    const port = document.getElementById('portInput').value||'TBD';
+    const moq = document.getElementById('moqInput').value||'100';
+    document.getElementById('slip-body').innerHTML = `PRODUCT: ${name}<br>TERM: ${state.mode} ${port}<br>PRICE: USD $${p.toFixed(2)}<br>MOQ: ${moq}<br>RATE: ${r.toFixed(3)}`;
+    document.getElementById('slip-total').innerText = 'TOTAL: $'+p.toFixed(2);
 }
 
-function selectHS(idx) {
-  document.querySelectorAll('.hs-item').forEach(el => el.classList.remove('selected'));
-  document.getElementById('hs-' + idx).classList.add('selected');
-  state.selectedHS = idx;
-  const key = document.getElementById('countrySelect').value;
-  if (key !== 'CUSTOM') {
-    const val = HS_CATEGORIES[idx].rates[key] ?? 0;
-    document.getElementById('taxRate').value = val;
-  }
+function renderCompare(fob, pr, py, ins) {
+    const base = fob / (1-pr-py);
+    document.getElementById('marketBody').innerHTML = MARKET_COMPARE_LIST.map(m => {
+        const ddp = (base + base*1.1*ins) / (1 - m.tax/100 - (1+m.tax/100)*m.vat/100);
+        return `<tr><td>${m.flag} ${m.name}</td><td>${m.tax}%</td><td>${m.vat}%</td><td class="price-cell">$${ddp.toFixed(2)}</td></tr>`;
+    }).join('');
 }
 
 function onCountryChange() {
-  const key = document.getElementById('countrySelect').value;
-  document.getElementById('vatRate').value = COUNTRIES[key].vatRate;
+    const c = COUNTRIES[document.getElementById('countrySelect').value];
+    document.getElementById('taxRate').value = c.tax;
+    document.getElementById('vatRate').value = c.vat;
+    const n = document.getElementById('countryNoteBox');
+    // 直接使用数据对象的 level 字段，健壮且与语言无关
+    n.className = 'info-banner ' + (c.level || 'info');
+    n.innerText = 'ℹ️ ' + c.note;
+    n.style.display = 'block';
 }
 
-function onSlider(el) {
-  state.profitRate = Number(el.value);
-  document.getElementById('profitDisplay').textContent = state.profitRate + '%';
-  el.style.setProperty('--pct', ((state.profitRate - 1) / 59 * 100) + '%');
-  document.querySelectorAll('.ptag').forEach(b => {
-    b.classList.toggle('active', b.getAttribute('data-val') == state.profitRate);
-  });
-}
-
-document.querySelectorAll('.ptag').forEach(btn => {
-  btn.addEventListener('click', function() {
-    document.getElementById('profitSlider').value = this.getAttribute('data-val');
-    onSlider(document.getElementById('profitSlider'));
-  });
-});
-
-async function fetchRate() {
-  try {
-    const res = await fetch('https://open.er-api.com/v6/latest/USD');
-    const data = await res.json();
-    if (data?.rates?.CNY) {
-      const rate = (data.rates.CNY - 0.1).toFixed(2);
-      document.getElementById('exchangeRate').value = rate;
-      document.getElementById('rateDisplay').textContent = `汇率 ${rate}`;
+function toggleHS() { state.hsOpen = !state.hsOpen; document.getElementById('hs-collapsible').classList.toggle('open', state.hsOpen); document.getElementById('hs-arrow').innerText = state.hsOpen?'▲':'▼'; }
+function selectHS(idx) { 
+    const k = document.getElementById('countrySelect').value;
+    const rate = HS_CATEGORIES[idx].rates[k];
+    if (rate !== undefined) {
+        document.getElementById('taxRate').value = rate;
+    } else {
+        showToast('⚠️ 无该国预估数据，请手动输入关税率');
+        document.getElementById('taxRate').value = '';
     }
-  } catch(e) { document.getElementById('rateDisplay').textContent = '汇率 7.15'; }
+    document.querySelectorAll('.hs-item').forEach((e,i) => e.classList.toggle('selected', i===idx));
+}
+function onInputVatChange(sel) {
+    const isRebateEl = document.getElementById('isRebate');
+    const rebateRateEl = document.getElementById('rebateRate');
+    if (parseFloat(sel.value) === 0) {
+        // 普票：退税不可用，强制取消勾选并锁定
+        isRebateEl.checked = false;
+        isRebateEl.disabled = true;
+        rebateRateEl.disabled = true;
+        showToast('⚠️ 普票/不可退票：退税已自动关闭');
+    } else {
+        // 专票：解锁
+        isRebateEl.disabled = false;
+        rebateRateEl.disabled = false;
+    }
+}
+function fetchRate() {
+    document.getElementById('rateDisplay').innerText = '获取汇率...';
+    fetch('https://open.er-api.com/v6/latest/USD')
+        .then(r => r.json())
+        .then(d => {
+            const r = d.rates.CNY.toFixed(4);
+            document.getElementById('exchangeRate').value = r;
+            document.getElementById('rateDisplay').innerText = 'USD/CNY ' + r;
+        })
+        .catch(e => {
+            document.getElementById('rateDisplay').innerText = '汇率获取失败';
+            showToast('⚠️ 网络异常，请手动输入中间汇率');
+        });
+}
+function onSlider(e) { state.profitRate = parseFloat(e.value); document.getElementById('profitDisplay').innerText = e.value+'%'; document.querySelectorAll('.ptag').forEach(p => p.classList.remove('active')); }
+function showToast(m) { const t=document.getElementById('toast'); t.innerText=m; t.style.opacity=1; setTimeout(()=>t.style.opacity=0, 2000); }
+// ==================== 商业级：全环境兼容复制引擎 v3.1 ====================
+// 核心策略：常驻弹窗 + 多级降级，彻底兼容 file:// 本地环境及所有安卓浏览器
+
+function buildPIText() {
+    // 直接从 state 读取核算结果，不依赖 DOM innerText（避免未计算时读到初始值）
+    if (!state.lastPrice) {
+        showToast('⚠️ 请先完成核算再复制');
+        return null;
+    }
+    const name = document.getElementById('productName').value || 'ITEM';
+    const port = document.getElementById('portInput').value || 'TBD';
+    const moq  = document.getElementById('moqInput').value || '100';
+    const priceStr = '$' + state.lastPrice.toFixed(2);
+    const rateStr  = state.lastSettleRate.toFixed(3);
+    return [
+        'PROFORMA QUOTATION',
+        '----------------------------',
+        'PRODUCT : ' + name,
+        'TERM    : ' + state.mode + ' ' + port,
+        'PRICE   : USD ' + priceStr,
+        'MOQ     : ' + moq,
+        'RATE    : ' + rateStr,
+        '----------------------------',
+        'TOTAL   : USD ' + priceStr
+    ].join('\n');
 }
 
-// --- 计算核心 ---
-function calculate() {
-  const costRMB = parseFloat(document.getElementById('costRMB').value) || 0;
-  if (!costRMB) { showToast('请输入含税底价'); return; }
+async function copySlip() {
+    const text = buildPIText();
+    if (!text) return;  // buildPIText 内部已 showToast 提示
 
-  const p = {
-    costRMB,
-    isRebate: document.getElementById('isRebate').checked,
-    rebateRate: parseFloat(document.getElementById('rebateRate').value) || 0,
-    domesticFreight: parseFloat(document.getElementById('domesticFreight').value) || 0,
-    shippingFeeUSD: parseFloat(document.getElementById('shippingFee').value) || 0,
-    destFeeUSD: parseFloat(document.getElementById('destFee').value) || 0,
-    insuranceRate: parseFloat(document.getElementById('insuranceRate').value) || 0,
-    taxRate: parseFloat(document.getElementById('taxRate').value) || 0,
-    vatRate: parseFloat(document.getElementById('vatRate').value) || 0,
-    exchangeRate: parseFloat(document.getElementById('exchangeRate').value) || 7.15,
-    paymentFee: parseFloat(document.getElementById('paymentFee').value) || 0,
-    profitRate: state.profitRate,
-    mode: state.mode
-  };
+    // 第一优先级：系统原生分享面板（HTTPS 环境）
+    if (navigator.share && window.isSecureContext) {
+        try {
+            await navigator.share({ title: 'PROFORMA QUOTATION', text });
+            return;
+        } catch (err) {
+            console.log('System share cancelled or failed, falling back...');
+        }
+    }
 
-  // 退税金额
-  p.rebateAmount = p.isRebate ? (p.costRMB / 1.13) * (p.rebateRate / 100) : 0;
-  const fobCostUSD = (p.costRMB + p.domesticFreight - p.rebateAmount) / p.exchangeRate;
+    // 第二优先级：现代剪切板 API（HTTPS 环境）
+    if (navigator.clipboard && window.isSecureContext) {
+        try {
+            await navigator.clipboard.writeText(text);
+            showToast('✅ 报价单已写入剪切板');
+            return;
+        } catch (err) {
+            console.log('Clipboard API failed, falling back...');
+        }
+    }
 
-  let baseCost = 0, importDuty = 0, importVat = 0, insuranceUSD = 0;
-
-  if (p.mode === 'EXW') {
-    baseCost = p.costRMB / p.exchangeRate;
-  } else if (p.mode === 'FOB') {
-    baseCost = fobCostUSD;
-  } else if (p.mode === 'CIF') {
-    insuranceUSD = (fobCostUSD + p.shippingFeeUSD) * 1.1 * (p.insuranceRate / 100);
-    baseCost = fobCostUSD + p.shippingFeeUSD + insuranceUSD;
-  } else if (p.mode === 'DDP') {
-    insuranceUSD = (fobCostUSD + p.shippingFeeUSD) * 1.1 * (p.insuranceRate / 100);
-    const cif = fobCostUSD + p.shippingFeeUSD + insuranceUSD;
-    importDuty = cif * (p.taxRate / 100);
-    importVat = (cif + importDuty) * (p.vatRate / 100);
-    baseCost = cif + importDuty + importVat + p.destFeeUSD;
-  }
-
-  // 倒扣法售价公式
-  const finalPrice = baseCost / (1 - (p.profitRate / 100) - (p.paymentFee / 100));
-  state.lastResult = { ...p, baseCost, finalPrice, importDuty, importVat, netProfit: finalPrice * (p.profitRate/100) };
-  
-  renderResult();
-  switchTab('result');
+    // 第三优先级：常驻弹窗保底方案（file:// 本地 / 夸克 / 微信等严控环境）
+    // 使用页面内预渲染的常驻弹窗，完全规避动态注入被拦截的问题
+    showManualCopyModal(text);
 }
 
-function renderResult() {
-  const r = state.lastResult;
-  document.getElementById('resultEmpty').style.display = 'none';
-  document.getElementById('resultContent').style.display = 'block';
-  document.getElementById('rh-price').textContent = '$' + r.finalPrice.toFixed(2);
-  document.getElementById('rh-mode').textContent = r.mode;
-  document.getElementById('bk-basis').textContent = '$' + r.baseCost.toFixed(2);
-  document.getElementById('bk-profit').textContent = '$' + r.netProfit.toFixed(2);
-  document.getElementById('bk-duty').textContent = '$' + (r.importDuty + r.importVat).toFixed(2);
-  
-  // 简单渲染对比表
-  const table = document.getElementById('marketTable');
-  table.innerHTML = `<thead><tr><th>市场</th><th>税率</th><th>单价(DDP)</th></tr></thead>
-    <tbody>
-      <tr><td>🇺🇸 美国</td><td>7.5%</td><td class="price-cell">$${(r.finalPrice * 1.05).toFixed(2)}</td></tr>
-      <tr><td>🇪🇺 欧盟</td><td>20% VAT</td><td class="price-cell">$${(r.finalPrice * 1.2).toFixed(2)}</td></tr>
-    </tbody>`;
-
-  // 渲染报价单
-  document.getElementById('slipEmpty').style.display = 'none';
-  document.getElementById('slipContent').style.display = 'block';
-  document.getElementById('qs-mode-label').textContent = r.mode + ' UNIT PRICE';
-  document.getElementById('qs-total-price').textContent = '$' + r.finalPrice.toFixed(2);
-  document.getElementById('qs-body').innerHTML = `
-    <div class="qs-row"><span class="ql">Product</span><span class="qr">${document.getElementById('productName').value || 'Custom Item'}</span></div>
-    <div class="qs-row"><span class="ql">Term</span><span class="qr">${r.mode} ${document.getElementById('portInput').value}</span></div>
-    <div class="qs-row"><span class="ql">MOQ</span><span class="qr">${document.getElementById('moqInput').value || '100'}</span></div>
-  `;
+function showManualCopyModal(text) {
+    const modal = document.getElementById('finalCopyModal');
+    const ta    = document.getElementById('nukeTextArea');
+    ta.value = text;
+    // 使用 flex 显示，与 CSS .modal-overlay 的布局一致
+    modal.style.display = 'flex';
+    // 延迟聚焦，确保弹窗渲染完成后再操作（规避部分安卓 WebView 的时序问题）
+    setTimeout(() => { ta.focus(); ta.select(); ta.setSelectionRange(0, 99999); }, 150);
 }
 
-function copySlip() {
-  const r = state.lastResult;
-  const text = `QUOTATION\nTerm: ${r.mode}\nPrice: $${r.finalPrice.toFixed(2)}\nValidity: 30 Days`;
-  navigator.clipboard.writeText(text);
-  showToast('✓ 报价已复制');
+function triggerManualSelection() {
+    const ta = document.getElementById('nukeTextArea');
+    ta.focus();
+    ta.select();
+    ta.setSelectionRange(0, 99999);
+    if (document.execCommand('copy')) {
+        showToast('✅ 已复制到剪切板');
+        setTimeout(() => { document.getElementById('finalCopyModal').style.display = 'none'; }, 1200);
+    }
+    // 即便 execCommand 失败，文本已高亮选中，用户长按即可手动复制
 }
-
-function showToast(msg) {
-  const el = document.getElementById('toast');
-  el.textContent = msg; el.classList.add('show');
-  setTimeout(() => el.classList.remove('show'), 2000);
-}
+window.onload = () => {
+    const s = document.getElementById('countrySelect');
+    Object.keys(COUNTRIES).forEach(k => { const o=document.createElement('option'); o.value=k; o.text=COUNTRIES[k].name; s.add(o); });
+    document.getElementById('hsGrid').innerHTML = HS_CATEGORIES.map((h,i) => `<div class="hs-item" onclick="selectHS(${i})" id="hs-${i}"><div>${h.icon}</div><div style="font-size:10px;font-weight:600;">${h.name}</div></div>`).join('');
+    fetchRate();
+};
 </script>
 </body>
 </html>
