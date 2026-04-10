@@ -148,6 +148,173 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
     background: transparent; color: var(--text3); 
     font-size: 13px; font-weight: 400; margin-top: 10px;
 }
+
+/* ==================== 引导流系统：步骤进度条 ==================== */
+.step-progress-wrapper {
+  padding: 10px 4px 24px;
+  margin-bottom: 12px;
+}
+
+.step-progress-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: relative;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+/* 进度底线 */
+.progress-line {
+  position: absolute;
+  top: 16px; /* 对应圆圈中心 */
+  left: 30px;
+  right: 30px;
+  height: 2px;
+  background: var(--border);
+  z-index: 1;
+}
+
+/* 动态填充进度线 (可选逻辑：由 JS 控制宽度，这里先做静态基础) */
+.progress-line-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  width: 0%; /* 由 JS 动态更新：0%, 33%, 66%, 100% */
+}
+
+.step-dot {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+}
+
+/* 步骤圆圈 */
+.step-dot .dot-circle {
+  width: 32px;
+  height: 32px;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+  font-family: 'DM Mono', monospace;
+  color: var(--text3);
+  transition: all 0.3s ease;
+}
+
+/* 步骤标签 */
+.step-dot .dot-label {
+  margin-top: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all 0.3s ease;
+}
+
+/* 激活状态修饰符 */
+.step-dot.active .dot-circle {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-light);
+  transform: scale(1.1);
+  box-shadow: 0 0 0 4px var(--surface), 0 0 0 6px var(--accent-light);
+}
+
+.step-dot.active .dot-label {
+  color: var(--accent);
+}
+
+/* 已完成状态修饰符 (变绿或深色) */
+.step-dot.completed .dot-circle {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+/* ==================== 引导流系统：内容容器 ==================== */
+.step-stage {
+  display: none; /* 默认隐藏 */
+  animation: stageSlideIn 0.4s ease-out;
+}
+
+.step-stage.active {
+  display: block; /* 激活显示 */
+}
+
+/* 进场动画：轻微上浮+渐变 */
+@keyframes stageSlideIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 导航按钮组布局 */
+.step-nav-actions {
+  display: grid;
+  grid-template-columns: 1fr 2.5fr; /* 返回按钮较小，主按钮较大 */
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.btn-step-back {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text2);
+  padding: 15px;
+  border-radius: var(--radius);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-step-next {
+  background: var(--accent);
+  color: white;
+  border: none;
+  padding: 15px;
+  border-radius: var(--radius);
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(27,79,216,0.15);
+}
+
+/* 强化条款按钮的视觉深度与选中确认感 */
+.mode-btn { transition: all 0.2s ease; position: relative; }
+.mode-btn.active {
+    border-color: var(--accent) !important;
+    background: var(--accent-light) !important;
+    color: var(--accent);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(27,79,216,0.12);
+}
+.mode-btn.active::after {
+    content: "✓";
+    position: absolute; top: -5px; right: -5px;
+    background: var(--accent); color: white;
+    width: 14px; height: 14px; border-radius: 50%;
+    font-size: 10px; line-height: 14px; text-align: center;
+}
+
+/* 优化描述框的视觉权重 */
+#modeHint {
+    background: var(--surface2);
+    border-left: 3px solid var(--border);
+    margin: 0 12px 12px;
+    padding: 10px 12px;
+    min-height: 54px; /* 防止文案长短不一导致页面抖动 */
+}
 </style>
 </head>
 <body>
@@ -172,162 +339,201 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
 <!-- PAGE 1: 成本核算 -->
 <div id="page-calc" class="page active">
-  <div class="section">
-    <div class="section-label">交货条款 (Incoterms 2020)</div>
-    <div class="card">
-      <div class="mode-grid">
-        <div class="mode-btn" data-mode="EXW" onclick="setMode(this)">EXW</div>
-        <div class="mode-btn active" data-mode="FOB" onclick="setMode(this)">FOB</div>
-        <div class="mode-btn" data-mode="CIF" onclick="setMode(this)">CIF</div>
-        <div class="mode-btn" data-mode="DAP" onclick="setMode(this)">DAP</div>
-        <div class="mode-btn" data-mode="DDP" onclick="setMode(this)">DDP</div>
-      </div>
-      <div class="mode-hint" id="modeHint">FOB (装运港船上交货)：卖家承担中国段国内运费及报关杂费，不含国际运费。</div>
+
+  <!-- [分步指示器] - 仅增加 UI，不干涉逻辑 -->
+  <div class="step-progress-wrapper">
+    <div class="step-progress-bar">
+      <div class="progress-line"><div class="progress-line-fill" id="stepProgressLine"></div></div>
+      <div class="step-dot active" id="dot-1"><div class="dot-circle">1</div><div class="dot-label">成本</div></div>
+      <div class="step-dot" id="dot-2"><div class="dot-circle">2</div><div class="dot-label">物流</div></div>
+      <div class="step-dot" id="dot-3"><div class="dot-circle">3</div><div class="dot-label">风控</div></div>
+      <div class="step-dot" id="dot-4"><div class="dot-circle">4</div><div class="dot-label">制单</div></div>
     </div>
   </div>
 
-  <div class="section">
-    <div class="section-label">国内基础成本 (人民币/RMB)</div>
-    <div class="card">
-      <div class="field-row">
-        <div class="field-label">含税底价<small>必填 (采购进货价)</small></div>
-        <input class="field-input" type="number" id="costRMB" placeholder="0.00" onfocus="this.select()">
-        <div class="field-unit">¥</div>
-      </div>
-      <div class="field-row">
-        <div class="field-label">出口退税率
-            <input type="checkbox" id="isRebate" checked style="margin-left:4px; accent-color:var(--accent);">
+  <!-- [STAGE 1: 国内基础成本] -->
+  <div class="step-stage active" id="stage-1">
+    <div class="section">
+      <div class="section-label">国内基础成本 (人民币/RMB)</div>
+      <div class="card">
+        <div class="field-row">
+          <div class="field-label">含税底价<small>必填 (采购进货价)</small></div>
+          <input class="field-input" type="number" id="costRMB" placeholder="0.00" onfocus="this.select()">
+          <div class="field-unit">¥</div>
         </div>
-        <input class="field-input" type="number" id="rebateRate" value="13" onfocus="this.select()">
-        <div class="field-unit">%</div>
-      </div>
-      <div class="field-row" id="row-inputVat">
-        <div class="field-label">进项票税率<small>专票默认13%</small></div>
-        <select class="field-select" id="inputVatRate" onchange="onInputVatChange(this)">
-            <option value="13">13%（标准专票）</option>
-            <option value="9">9%（农产品/部分货物）</option>
-            <option value="6">6%（服务/软件）</option>
-            <option value="0">0%（普票/不可退）</option>
-        </select>
-      </div>
-      <div class="field-row">
-        <div class="field-label">国内运杂费<small>运费/进仓/报关</small></div>
-        <input class="field-input" type="number" id="domesticFreight" value="0" onfocus="this.select()">
-        <div class="field-unit">¥</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="section" id="section-international">
-    <div class="section-label">国际段费用 (美元/USD)</div>
-    <div class="card">
-      <div class="field-row" id="row-shipping">
-        <div class="field-label">国际主运费</div>
-        <input class="field-input" type="number" id="shippingFee" value="0" onfocus="this.select()">
-        <div class="field-unit">$</div>
-      </div>
-      <div class="field-row" id="row-dest">
-        <div class="field-label">目的港杂费<small>清关/附加/尾程</small></div>
-        <input class="field-input" type="number" id="destFee" value="0" onfocus="this.select()">
-        <div class="field-unit">$</div>
-      </div>
-      <div class="field-row" id="row-insurance">
-        <div class="field-label">运输保险率<small>加成110%</small></div>
-        <input class="field-input" type="number" id="insuranceRate" value="0.3" onfocus="this.select()">
-        <div class="field-unit">%</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="section" id="section-tax">
-    <div class="section-label">目的国与预估税金</div>
-    <div class="card">
-      <div class="field-row">
-        <div class="field-label">目标国家</div>
-        <select class="field-select" id="countrySelect" onchange="onCountryChange()">
-            <!-- JS 将动态填充 31 个国家及其详细备注 -->
-        </select>
-      </div>
-      <div id="countryNoteBox" class="info-banner warn" style="display:none; margin:10px 16px;"></div>
-      <div class="field-row">
-        <div class="field-label">进口关税率</div>
-        <input class="field-input" type="number" id="taxRate" value="7.5" onfocus="this.select()">
-        <div class="field-unit">%</div>
-      </div>
-      <div class="field-row">
-        <div class="field-label">当地增值税/VAT</div>
-        <input class="field-input" type="number" id="vatRate" value="0" onfocus="this.select()">
-        <div class="field-unit">%</div>
-      </div>
-      <div class="hs-toggle-bar" onclick="toggleHS()">
-        <span style="font-size:12px; font-weight:600; color:var(--text2);">🏷 品类快捷税率预估 (12 大分类)</span>
-        <span id="hs-arrow">▼</span>
-      </div>
-      <div class="hs-collapsible" id="hs-collapsible">
-        <div class="hs-grid" id="hsGrid"></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="section">
-    <div class="section-label">财务与风控</div>
-    <div class="card">
-      <div class="field-row">
-        <div class="field-label">中间汇率</div>
-        <input class="field-input" type="number" id="exchangeRate" value="7.15" onfocus="this.select()">
-        <div class="field-unit">¥/$</div>
-      </div>
-      <div class="field-row" style="background:var(--accent2-light);">
-        <div class="field-label" style="color:var(--accent2);">汇率避险点位</div>
-        <input class="field-input" type="number" id="rateBuffer" value="0.05" step="0.01" onfocus="this.select()">
-        <div class="field-unit">点</div>
-      </div>
-      <div class="field-row">
-        <div class="field-label">收款手续费</div>
-        <input class="field-input" type="number" id="paymentFee" value="3.0" onfocus="this.select()">
-        <div class="field-unit">%</div>
-      </div>
-      <div class="ptag-group">
-        <div class="ptag" data-val="10" onclick="setProfitTag(this)">大客 10%</div>
-        <div class="ptag active" data-val="20" onclick="setProfitTag(this)">普客 20%</div>
-        <div class="ptag" data-val="30" onclick="setProfitTag(this)">新客 30%</div>
-      </div>
-      <div class="slider-wrap">
-        <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-            <span style="font-weight:500;">预期净利润率</span>
-            <span id="profitDisplay" style="color:var(--accent); font-weight:700;">20%</span>
+        <div class="field-row">
+          <div class="field-label">出口退税率
+              <input type="checkbox" id="isRebate" checked style="margin-left:4px; accent-color:var(--accent);">
+          </div>
+          <input class="field-input" type="number" id="rebateRate" value="13" onfocus="this.select()">
+          <div class="field-unit">%</div>
         </div>
-        <input type="range" id="profitSlider" min="1" max="60" value="20" oninput="onSlider(this)">
+        <div class="field-row" id="row-inputVat">
+          <div class="field-label">进项票税率<small>专票默认13%</small></div>
+          <select class="field-select" id="inputVatRate" onchange="onInputVatChange(this)">
+              <option value="13">13%（标准专票）</option>
+              <option value="9">9%（农产品/部分货物）</option>
+              <option value="6">6%（服务/软件）</option>
+              <option value="0">0%（普票/不可退）</option>
+          </select>
+        </div>
+        <div class="field-row">
+          <div class="field-label">国内运杂费<small>运费/进仓/报关</small></div>
+          <input class="field-input" type="number" id="domesticFreight" value="0" onfocus="this.select()">
+          <div class="field-unit">¥</div>
+        </div>
       </div>
+    </div>
+    <button class="btn-step-next" style="width:100%" onclick="nextStep(2)">下一步：配置物流与税率 →</button>
+  </div>
+
+  <!-- [STAGE 2: 交货条款、物流与税率] -->
+  <div class="step-stage" id="stage-2">
+<div class="card">
+  <!-- 💡 插入这一行：引导语 -->
+  <div style="padding: 14px 14px 0; font-size: 13px; color: var(--accent); font-weight: 600;">请按业务场景确认报价责任范围：</div>
+  
+  <div class="mode-grid">
+    <div class="mode-btn" data-mode="EXW" onclick="setMode(this)">EXW</div>
+    <!-- ... 其余按钮保持原样 ... -->
+  </div>
+  <!-- ... modeHint 容器保持原样 ... -->
+</div>
+    <div class="section">
+      <div class="section-label">交货条款 (Incoterms 2020)</div>
+      <div class="card">
+        <div class="mode-grid">
+          <div class="mode-btn" data-mode="EXW" onclick="setMode(this)">EXW</div>
+          <div class="mode-btn active" data-mode="FOB" onclick="setMode(this)">FOB</div>
+          <div class="mode-btn" data-mode="CIF" onclick="setMode(this)">CIF</div>
+          <div class="mode-btn" data-mode="DAP" onclick="setMode(this)">DAP</div>
+          <div class="mode-btn" data-mode="DDP" onclick="setMode(this)">DDP</div>
+        </div>
+        <div class="mode-hint" id="modeHint">FOB (装运港船上交货)：卖家承担中国段国内运费及报关杂费，不含国际运费。</div>
+      </div>
+    </div>
+
+    <div class="section" id="section-international">
+      <div class="section-label">国际段费用 (美元/USD)</div>
+      <div class="card">
+        <div class="field-row dimmed" id="row-shipping">
+          <div class="field-label">国际主运费</div>
+          <input class="field-input" type="number" id="shippingFee" value="0" onfocus="this.select()">
+          <div class="field-unit">$</div>
+        </div>
+        <div class="field-row dimmed" id="row-dest">
+          <div class="field-label">目的港杂费<small>清关/附加/尾程</small></div>
+          <input class="field-input" type="number" id="destFee" value="0" onfocus="this.select()">
+          <div class="field-unit">$</div>
+        </div>
+        <div class="field-row dimmed" id="row-insurance">
+          <div class="field-label">运输保险率<small>加成110%</small></div>
+          <input class="field-input" type="number" id="insuranceRate" value="0.3" onfocus="this.select()">
+          <div class="field-unit">%</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section dimmed" id="section-tax">
+      <div class="section-label">目的国与预估税金</div>
+      <div class="card">
+        <div class="field-row">
+          <div class="field-label">目标国家</div>
+          <select class="field-select" id="countrySelect" onchange="onCountryChange()"></select>
+        </div>
+        <div id="countryNoteBox" class="info-banner warn" style="display:none; margin:10px 16px;"></div>
+        <div class="field-row">
+          <div class="field-label">进口关税率</div>
+          <input class="field-input" type="number" id="taxRate" value="7.5" onfocus="this.select()">
+          <div class="field-unit">%</div>
+        </div>
+        <div class="field-row">
+          <div class="field-label">当地增值税/VAT</div>
+          <input class="field-input" type="number" id="vatRate" value="0" onfocus="this.select()">
+          <div class="field-unit">%</div>
+        </div>
+        <div class="hs-toggle-bar" onclick="toggleHS()">
+          <span style="font-size:12px; font-weight:600; color:var(--text2);">🏷 品类快捷税率预估</span>
+          <span id="hs-arrow">▼</span>
+        </div>
+        <div class="hs-collapsible" id="hs-collapsible">
+          <div class="hs-grid" id="hsGrid"></div>
+        </div>
+      </div>
+    </div>
+    <div class="step-nav-actions">
+      <button class="btn-step-back" onclick="nextStep(1)">返回</button>
+      <button class="btn-step-next" onclick="nextStep(3)">下一步：财务风控设定 →</button>
     </div>
   </div>
 
-  <div class="section">
-    <div class="section-label">制单信息 (用于 PI)</div>
-    <div class="card">
-      <div class="field-row">
-        <div class="field-label">产品名称</div>
-        <input class="field-input" type="text" id="productName" placeholder="如: 100ml Face Cream">
+  <!-- [STAGE 3: 财务与风控] -->
+  <div class="step-stage" id="stage-3">
+    <div class="section">
+      <div class="section-label">财务与风控</div>
+      <div class="card">
+        <div class="field-row">
+          <div class="field-label">中间汇率</div>
+          <input class="field-input" type="number" id="exchangeRate" value="7.15" onfocus="this.select()">
+          <div class="field-unit">¥/$</div>
+        </div>
+        <div class="field-row" style="background:var(--accent2-light);">
+          <div class="field-label" style="color:var(--accent2);">汇率避险点位</div>
+          <input class="field-input" type="number" id="rateBuffer" value="0.05" step="0.01" onfocus="this.select()">
+          <div class="field-unit">点</div>
+        </div>
+        <div class="field-row">
+          <div class="field-label">收款手续费</div>
+          <input class="field-input" type="number" id="paymentFee" value="3.0" onfocus="this.select()">
+          <div class="field-unit">%</div>
+        </div>
+        <div class="ptag-group">
+          <div class="ptag" data-val="10" onclick="setProfitTag(this)">大客 10%</div>
+          <div class="ptag active" data-val="20" onclick="setProfitTag(this)">普客 20%</div>
+          <div class="ptag" data-val="30" onclick="setProfitTag(this)">新客 30%</div>
+        </div>
+        <div class="slider-wrap">
+          <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+              <span style="font-weight:500;">预期净利润率</span>
+              <span id="profitDisplay" style="color:var(--accent); font-weight:700;">20%</span>
+          </div>
+          <input type="range" id="profitSlider" min="1" max="60" value="20" oninput="onSlider(this)">
+        </div>
       </div>
-      <div class="field-row">
-        <div class="field-label">发货港口</div>
-        <input class="field-input" type="text" id="portInput" placeholder="如: Shenzhen, China">
-      </div>
-      <div class="field-row">
-        <div class="field-label">起订量 MOQ</div>
-        <input class="field-input" type="text" id="moqInput" placeholder="例如: 500 pcs">
-      </div>
+    </div>
+    <div class="step-nav-actions">
+      <button class="btn-step-back" onclick="nextStep(2)">返回</button>
+      <button class="btn-step-next" onclick="nextStep(4)">最后一步：制单信息 →</button>
     </div>
   </div>
 
-  <button class="btn-calc" onclick="calculate()">执行精确核算与风控 →</button>
+  <!-- [STAGE 4: 制单信息] -->
+  <div class="step-stage" id="stage-4">
+    <div class="section">
+      <div class="section-label">制单信息 (用于 PI)</div>
+      <div class="card">
+        <div class="field-row">
+          <div class="field-label">产品名称</div>
+          <input class="field-input" type="text" id="productName" placeholder="如: 100ml Face Cream">
+        </div>
+        <div class="field-row">
+          <div class="field-label">发货港口</div>
+          <input class="field-input" type="text" id="portInput" placeholder="如: Shenzhen, China">
+        </div>
+        <div class="field-row">
+          <div class="field-label">起订量 MOQ</div>
+          <input class="field-input" type="text" id="moqInput" placeholder="例如: 500 pcs">
+        </div>
+      </div>
+    </div>
+    <div class="step-nav-actions">
+      <button class="btn-step-back" onclick="nextStep(3)">返回</button>
+      <button class="btn-calc" onclick="calculate()">执行精确核算与风控 →</button>
+    </div>
+  </div>
 
   <div class="disclaimer">
-    * 免责声明：本工具汇率与税率数据仅供参考，真实交易请以银行实时牌价及目的国海关公告为准。
-  </div>
-  <div class="copyright-bar">
-    <strong>外贸报价计算器 Pro</strong> · 专为出口业务设计<br>
-    © 2026 · All Rights Reserved
+    * 注意：分步核算可有效减少因漏填物流或税金导致的报价偏差。
   </div>
 </div>
 
@@ -391,6 +597,70 @@ let state = {
     lastPrice: null,      // 最近一次核算价格，供 buildPIText() 读取
     lastSettleRate: null  // 最近一次结汇汇率
 };
+/* ==================== 引导流核心驱动引擎 (严谨版) ==================== */
+
+/**
+ * 核心跳转函数：负责步骤切换、UI更新及基础校验
+ * @param {number} targetStep - 目标步骤编号 (1-4)
+ */
+function nextStep(targetStep) {
+    // 1. 业务逻辑保护：从第1步跳往第2步时，强制校验含税底价
+    if (targetStep > 1 && state.currentStep === 1) {
+        const costRMB = document.getElementById('costRMB').value;
+        if (!costRMB || parseFloat(costRMB) <= 0) {
+            showToast('⚠️ 请先输入含税底价');
+            document.getElementById('costRMB').focus();
+            return;
+        }
+    }
+
+    // 2. 更新状态机
+    state.currentStep = targetStep;
+
+    // 3. 显隐控制：切换 Stage 容器
+    document.querySelectorAll('.step-stage').forEach((stage, index) => {
+        const stepNum = index + 1;
+        if (stepNum === targetStep) {
+            stage.style.display = 'block'; // 显示当前步
+        } else {
+            stage.style.display = 'none';  // 隐藏其他步
+        }
+    });
+
+    // 4. 进度条 UI 联动：更新圆圈状态
+    document.querySelectorAll('.step-dot').forEach((dot, index) => {
+        const stepNum = index + 1;
+        dot.classList.remove('active', 'completed');
+        
+        if (stepNum === targetStep) {
+            dot.classList.add('active');
+        } else if (stepNum < targetStep) {
+            dot.classList.add('completed');
+        }
+    });
+
+    // 5. 进度条 UI 联动：更新蓝色进度线长度
+    const progressLineFill = document.getElementById('stepProgressLine');
+    if (progressLineFill) {
+        // 计算百分比：第1步为0%，第4步为100%
+        const percentage = ((targetStep - 1) / 3) * 100;
+        progressLineFill.style.width = percentage + '%';
+    }
+
+    // 6. 交互体验优化：切换步骤后自动滚动到页面顶部
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/**
+ * 页面初始化：确保默认显示第一步
+ */
+document.addEventListener('DOMContentLoaded', () => {
+    // 初始化 state 状态
+    state.currentStep = 1;
+    // 调用一次跳转逻辑，确保 UI 正确初始化
+    nextStep(1);
+    console.log("引导流引擎初始化成功，Stage 1 已拉开幕布。");
+});
 
 function switchTab(tabId) {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -477,20 +747,52 @@ const MARKET_COMPARE_LIST = [
 
 // ==================== 逻辑驱动 ====================
 function setMode(el) {
+    // 1. UI 状态切换
     document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
     el.classList.add('active');
+    
+    // 2. 状态更新
     state.mode = el.dataset.mode;
-    document.getElementById('modeHint').innerText = {
-        EXW: 'EXW: 仅含出厂底价与利润。', FOB: 'FOB: 含国内杂费及报关，不含海运。', 
-        CIF: 'CIF: 含 FOB 费、海运及保险。',
-        DAP: 'DAP: 卖家负责运送及清关手续(Service)，但不支付进口税费(Taxes)。报价含运费、清关代理费及派送费。',
-        DDP: 'DDP: 全包价，含双清、关税及 VAT。税金基于最终售价保守估算，已含安全溢价。'
-    }[state.mode];
-    const rows = { ship: document.getElementById('row-shipping'), dest: document.getElementById('row-dest'), ins: document.getElementById('row-insurance'), tax: document.getElementById('section-tax') };
-    if(state.mode==='EXW'||state.mode==='FOB') { rows.ship.classList.add('dimmed'); rows.dest.classList.add('dimmed'); rows.ins.classList.add('dimmed'); rows.tax.classList.add('dimmed'); }
-    else if(state.mode==='CIF') { rows.ship.classList.remove('dimmed'); rows.ins.classList.remove('dimmed'); rows.dest.classList.add('dimmed'); rows.tax.classList.add('dimmed'); }
-    else if(state.mode==='DAP') { rows.ship.classList.remove('dimmed'); rows.dest.classList.remove('dimmed'); rows.ins.classList.remove('dimmed'); rows.tax.classList.add('dimmed'); }
-    else { Object.values(rows).forEach(r => r.classList.remove('dimmed')); }
+
+    // 3. 业务场景描述（针对生手优化的顾问式文案）
+    const hints = {
+        EXW: '🏠 <b>出厂价：</b>适合客户在华有指定货代自提。您仅需备货 factory gate，不负责国内段费用与报关。',
+        FOB: '🚢 <b>指定货代：</b>最常用。需送货入仓并负责中国报关。国内运杂费（入仓费/报关费）由您承担。',
+        CIF: '🌊 <b>海运含保险：</b>由您订舱排载并付海运费+保险。客户负责目的港清关，风险在越过船舷时转移。',
+        DAP: '🚚 <b>送到家(未税)：</b>双清但不含关税。您负责运送到客户门口，但“进口税金”需由买家自付。',
+        DDP: '🛡️ <b>全包价：</b>双清包税送到门。适合电商大单或小B客户。<b>警告：</b>必须精准核算目的国关税！'
+    };
+    
+    const modeHint = document.getElementById('modeHint');
+    if (modeHint) modeHint.innerHTML = hints[state.mode];
+
+    // 4. 字段显隐逻辑（严谨对应 ID 树）
+    const rows = { 
+        ship: document.getElementById('row-shipping'), 
+        dest: document.getElementById('row-dest'), 
+        ins: document.getElementById('row-insurance'), 
+        tax: document.getElementById('section-tax') 
+    };
+
+    // 这里的逻辑严格遵守您最初源码的业务规则
+    if(state.mode === 'EXW' || state.mode === 'FOB') {
+        if(rows.ship) rows.ship.classList.add('dimmed'); 
+        if(rows.dest) rows.dest.classList.add('dimmed'); 
+        if(rows.ins) rows.ins.classList.add('dimmed'); 
+        if(rows.tax) rows.tax.classList.add('dimmed');
+    } else if(state.mode === 'CIF') {
+        if(rows.ship) rows.ship.classList.remove('dimmed'); 
+        if(rows.ins) rows.ins.classList.remove('dimmed'); 
+        if(rows.dest) rows.dest.classList.add('dimmed'); 
+        if(rows.tax) rows.tax.classList.add('dimmed');
+    } else if(state.mode === 'DAP') {
+        if(rows.ship) rows.ship.classList.remove('dimmed'); 
+        if(rows.dest) rows.dest.classList.remove('dimmed'); 
+        if(rows.ins) rows.ins.classList.remove('dimmed'); 
+        if(rows.tax) rows.tax.classList.add('dimmed');
+    } else if(state.mode === 'DDP') {
+        Object.values(rows).forEach(r => r && r.classList.remove('dimmed'));
+    }
 }
 
 function calculate() {
