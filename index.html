@@ -61,16 +61,41 @@ body { background: var(--bg); color: var(--text); font-family: 'DM Sans', -apple
 .hs-item { border: 1.5px solid var(--border); border-radius: var(--radius-sm); padding: 10px 4px; text-align: center; cursor: pointer; transition: 0.2s; }
 .hs-item.selected { border-color: var(--accent); background: var(--accent-light); transform: scale(1.02); }
 
-/* 利润条 */
+/* 利润条 (优化修复版) */
 .ptag-group { display: flex; gap: 6px; padding: 12px 16px 0; }
-.ptag { flex: 1; text-align: center; font-size: 11px; font-weight: 600; padding: 6px 0; background: var(--surface2); border-radius: 20px; border: 1px solid var(--border); cursor: pointer; }
+.ptag { flex: 1; text-align: center; font-size: 11px; font-weight: 600; padding: 6px 0; background: var(--surface2); border-radius: 20px; border: 1px solid var(--border); cursor: pointer; transition: 0.2s; }
 .ptag.active { background: var(--accent); color: #fff; }
 .slider-wrap { padding: 12px 16px 14px; }
-input[type=range] { width: 100%; -webkit-appearance: none; height: 4px; background: var(--border2); border-radius: 2px; outline: none; }
-input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; background: var(--accent); border-radius: 50%; cursor: pointer; }
+
+/* 新增微调按钮，解决精确控制难点 */
+.profit-stepper {
+    flex: 0 0 32px; height: 32px; background: var(--surface); border: 1px solid var(--border); 
+    border-radius: 50%; color: var(--text2); font-size: 18px; font-weight: 500; 
+    display: flex; align-items: center; justify-content: center; cursor: pointer; 
+    transition: 0.15s ease; user-select: none; -webkit-user-select: none; touch-action: manipulation;
+}
+.profit-stepper:active { background: var(--surface2); transform: scale(0.9); color: var(--accent); border-color: var(--accent); }
+
+/* 滑块层级接管：阻断误触引起的网页侧滑退出 / 上下抖动 */
+input[type=range] { 
+    width: 100%; -webkit-appearance: none; height: 6px; background: var(--border2); 
+    border-radius: 3px; outline: none; 
+    touch-action: none; /* 核心修复：完全接管该元素的触屏滑动事件，与底层网页剥离 */
+}
+input[type=range]::-webkit-slider-thumb { 
+    -webkit-appearance: none; width: 22px; height: 22px; background: var(--accent); 
+    border-radius: 50%; cursor: pointer; box-shadow: 0 2px 8px rgba(27,79,216,0.3); 
+    transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+input[type=range]::-webkit-slider-thumb:active { transform: scale(1.15); /* 增加交互阻尼与反馈 */ }
+input[type=range]::-moz-range-thumb { 
+    width: 22px; height: 22px; background: var(--accent); border: none; border-radius: 50%; 
+    cursor: pointer; box-shadow: 0 2px 8px rgba(27,79,216,0.3); 
+    transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+input[type=range]::-moz-range-thumb:active { transform: scale(1.15); }
 
 input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
 /* V2：大号英雄卡片与结果重构 */
 .btn-calc { width: 100%; background: var(--accent); color: #fff; font-size: 15px; font-weight: 700; padding: 15px; border: none; border-radius: var(--radius); cursor: pointer; margin-top: 10px; box-shadow: 0 4px 12px rgba(27,79,216,.2); transition: 0.2s; }
@@ -313,14 +338,19 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
           <div class="ptag" data-val="30" onclick="setProfitTag(this)">新客 30%</div>
         </div>
         <div class="slider-wrap">
-          <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+          <div style="display:flex; justify-content:space-between; margin-bottom:12px; align-items:center;">
               <span style="font-weight:500;">预期净利润率</span>
-              <span id="profitDisplay" style="color:var(--accent); font-weight:700;">20%</span>
+              <span id="profitDisplay" style="color:var(--accent); font-weight:700; font-size:16px;">20%</span>
           </div>
-          <input type="range" id="profitSlider" min="1" max="60" value="20" oninput="onSlider(this)">
+          <div style="display:flex; align-items:center; gap:12px;">
+              <button class="profit-stepper" type="button" onclick="stepProfit(-1)">-</button>
+              <input type="range" id="profitSlider" min="1" max="60" value="20" oninput="onSlider(this)">
+              <button class="profit-stepper" type="button" onclick="stepProfit(1)">+</button>
+          </div>
         </div>
-      </div>
-    </div>
+      </div> <!-- 👈 补回遗漏的 .card 闭合标签 -->
+    </div> <!-- 👈 补回遗漏的 .section 闭合标签 -->
+    
     <div class="step-nav-actions">
       <button class="btn-step-back" onclick="nextStep(2)">返回</button>
       <button class="btn-step-next" onclick="nextStep(4)">最后一步：制单信息 →</button>
@@ -637,7 +667,7 @@ function setMode(el) {
         FOB: '🚢 <b>指定货代：</b>最常用。需送货入仓并负责中国报关。国内运杂费由您承担。',
         CIF: '🌊 <b>海运含保：</b>由您订舱排载并付海运费及保险。客户负责目的港清关税金。',
         DAP: '🚚 <b>送到门(未税)：</b>双清但不含税。运送到客户门口，进口税金由买家自付。',
-        DDP: '🛡️ <b>全包价：</b>双清包税送到门。适合电商与小B。务必精准评估目的国关税！'
+        DDP: '🛡️ <b>双清包税到门：</b>为客户提供全包落地价。由您负责目的国清关并承担全部税金，卖方风险最大，务必精准核实当地关税与清关门槛。'
     };
     document.getElementById('modeHint').innerHTML = hints[state.mode];
 
@@ -950,7 +980,28 @@ function fetchRate() {
         });
 }
 
-function onSlider(e) { state.profitRate = parseFloat(e.value); document.getElementById('profitDisplay').innerText = e.value+'%'; document.querySelectorAll('.ptag').forEach(p => p.classList.remove('active')); }
+function onSlider(e) { 
+    const val = parseFloat(e.value);
+    state.profitRate = val; 
+    document.getElementById('profitDisplay').innerText = val + '%'; 
+    
+    // 性能优化：避免高频滑动时重复查询与操作 DOM 导致的重绘卡顿延迟
+    const activePtags = document.querySelectorAll('.ptag.active');
+    if (activePtags.length > 0) {
+        activePtags.forEach(p => p.classList.remove('active')); 
+    }
+}
+
+// 伴生配套微调功能（处理越界阻断，保证健壮性）
+function stepProfit(step) {
+    const slider = document.getElementById('profitSlider');
+    let val = parseFloat(slider.value) + step;
+    if (val < parseFloat(slider.min)) val = parseFloat(slider.min);
+    if (val > parseFloat(slider.max)) val = parseFloat(slider.max);
+    slider.value = val;
+    onSlider(slider);
+}
+
 function showToast(m) { const t=document.getElementById('toast'); t.innerText=m; t.style.opacity=1; setTimeout(()=>t.style.opacity=0, 2500); }
 
 async function copySlip() {
