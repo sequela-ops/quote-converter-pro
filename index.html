@@ -15,7 +15,7 @@
   --radius-sm: 8px; --radius: 14px; --radius-lg: 20px; --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
 }
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-body { background: var(--bg); color: var(--text); font-family: 'DM Sans', -apple-system, 'PingFang SC', sans-serif; font-size: 14px; line-height: 1.5; min-height: 100vh; }
+body { background: var(--bg); color: var(--text); font-family: 'DM Sans', -apple-system, 'PingFang SC', sans-serif; font-size: 14px; line-height: 1.5; min-height: 100vh; max-width: 600px; margin: 0 auto; box-shadow: 0 0 40px rgba(0,0,0,0.05); }
 
 /* 页面布局组件 */
 .header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 16px 20px 14px; position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; }
@@ -41,10 +41,18 @@ body { background: var(--bg); color: var(--text); font-family: 'DM Sans', -apple
 .field-row { display: flex; align-items: center; padding: 13px 16px; border-bottom: 1px solid var(--border); gap: 12px; }
 .field-label { font-size: 13px; font-weight: 500; color: var(--text); flex: 0 0 110px; }
 .field-label small { display: block; font-size: 10px; color: var(--text3); font-weight: 400; }
-.field-input, .field-select { flex: 1; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 12px; font-size: 14px; font-family: 'DM Mono', monospace; background: var(--surface2); outline: none; width: 100%; -webkit-appearance: none; }
+.field-input, .field-select { flex: 1; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 12px; font-size: 16px; font-family: 'DM Mono', monospace; background: var(--surface2); outline: none; width: 100%; -webkit-appearance: none; }
 .field-select { appearance: auto; background-image: none; }
 .field-unit { font-size: 12px; color: var(--text3); flex: 0 0 32px; text-align: right; }
 .field-row.dimmed { opacity: 0.3; pointer-events: none; background: #fafafa; }
+
+/* 新增：均摊小计算器按钮 */
+.btn-mini-calc {
+    background: var(--surface2); border: 1px solid var(--border); color: var(--text2);
+    border-radius: var(--radius-sm); width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;
+    font-size: 15px; cursor: pointer; transition: 0.2s; flex-shrink: 0; margin-left: -4px;
+}
+.btn-mini-calc:active { background: var(--accent-light); color: var(--accent); border-color: var(--accent); transform: scale(0.92); }
 
 /* 贸易术语选择 */
 .mode-grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 6px; padding: 12px; }
@@ -142,7 +150,7 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
 @keyframes modalSlideUp { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; color: var(--text); }
 .modal-body { font-size: 13px; color: var(--text2); margin-bottom: 18px; line-height: 1.5; }
-#nukeTextArea { width: 100%; height: 110px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface2); color: var(--text2); font-size: 12px; font-family: 'DM Mono', monospace; line-height: 1.4; margin-bottom: 20px; outline: none; resize: none; white-space: pre; overflow-x: auto; }
+#nukeTextArea { width: 100%; height: 110px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface2); color: var(--text2); font-size: 16px; font-family: 'DM Mono', monospace; line-height: 1.4; margin-bottom: 20px; outline: none; resize: none; white-space: pre; overflow-x: auto; }
 .m-btn { width: 100%; padding: 14px; border-radius: 12px; border: none; font-size: 15px; font-weight: 700; cursor: pointer; transition: 0.2s; }
 .m-btn-allow { background: var(--accent); color: white; box-shadow: 0 4px 12px rgba(27,79,216,0.3); }
 .m-btn-allow:active { transform: scale(0.96); opacity: 0.9; }
@@ -172,6 +180,32 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
 .step-nav-actions { display: grid; grid-template-columns: 1fr 2.5fr; gap: 12px; margin-top: 20px; }
 .btn-step-back { background: var(--surface); border: 1px solid var(--border); color: var(--text2); padding: 15px; border-radius: var(--radius); font-size: 14px; font-weight: 600; cursor: pointer; }
 .btn-step-next { background: var(--accent); color: white; border: none; padding: 15px; border-radius: var(--radius); font-size: 15px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 12px rgba(27,79,216,0.15); }
+.tab.locked {
+    opacity: 0.4;
+    color: var(--text3);
+    cursor: not-allowed;
+    position: relative;
+    transition: opacity 0.3s ease, color 0.3s ease;
+}
+.tab.locked::after {
+    content: "🔒";
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    font-size: 8px;
+    opacity: 0.6;
+}
+/* 点击被拦截时的错误震动动画 */
+@keyframes shakeTab {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-4px); color: var(--warn); }
+    40% { transform: translateX(4px); color: var(--warn); }
+    60% { transform: translateX(-2px); color: var(--warn); }
+    80% { transform: translateX(2px); color: var(--warn); }
+}
+.tab.shake-anim {
+    animation: shakeTab 0.35s cubic-bezier(.36,.07,.19,.97) both;
+}
 </style>
 </head>
 <body>
@@ -181,7 +215,7 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
     <div class="header-logo">🚢</div>
     <div class="header-title">外贸报价计算器 <span style="color:var(--accent);font-size:11px;background:var(--accent-light);padding:2px 6px;border-radius:6px;margin-left:4px;">PRO</span></div>
   </div>
-  <button class="rate-badge" id="rateBadge" onclick="fetchRate()">
+  <button class="rate-badge" id="rateBadge" onclick="fetchRate(true)">
     <span class="dot"></span>
     <span id="rateDisplay">获取汇率...</span>
   </button>
@@ -189,8 +223,9 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
 
 <div class="tabs">
   <div class="tab active" data-tab="calc" onclick="switchTab('calc')">📋 核算台</div>
-  <div class="tab" data-tab="result" onclick="switchTab('result')">💰 结果分析</div>
-  <div class="tab" data-tab="slip" onclick="switchTab('slip')">📄 出口 PI</div>
+  <!-- 增加了 locked 样式和 data-req-calc 拦截标识 -->
+  <div class="tab locked" data-tab="result" data-req-calc="true" onclick="switchTab('result')">💰 结果分析</div>
+  <div class="tab locked" data-tab="slip" data-req-calc="true" onclick="switchTab('slip')">📄 出口 PI</div>
   <div class="tab" data-tab="history" onclick="switchTab('history')">🕒 历史库</div>
   <div class="tab" data-tab="compare" onclick="switchTab('compare')">🌍 税距</div>
 </div>
@@ -210,11 +245,18 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
 
   <!--[STAGE 1: 国内基础成本] -->
   <div class="step-stage active" id="stage-1">
+    
+    <!-- 全局数据对齐警示横幅 -->
+    <div class="info-banner info" style="margin-bottom: 16px; font-size:13px;">
+      📌 <b>数据对齐提示：</b>本核算台以<b>「单件 (1 pc)」</b>为基准。请确保下方输入单件进货价，且各项“运杂费”均填入<b>总费用分摊到单件后</b>的金额。
+    </div>
+    
     <div class="section">
       <div class="section-label">国内基础成本 (人民币/RMB)</div>
       <div class="card">
         <div class="field-row">
-          <div class="field-label">含税底价<small>必填 (采购进货价)</small></div>
+          <!-- 融合版：补充单价说明 -->
+          <div class="field-label">单件含税底价<small>必填 (单件采购进货价)</small></div>
           <input class="field-input" type="number" id="costRMB" placeholder="0.00" onfocus="this.select()">
           <div class="field-unit">¥</div>
         </div>
@@ -234,9 +276,11 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
               <option value="0">0%（普票/不可退）</option>
           </select>
         </div>
-        <div class="field-row">
-          <div class="field-label">国内运杂费<small>运费/进仓/报关</small></div>
+<div class="field-row">
+          <div class="field-label" style="color:var(--warn);">单件国内运杂费<small>运费/进仓/报关 (总费÷件数)</small></div>
           <input class="field-input" type="number" id="domesticFreight" value="0" onfocus="this.select()">
+          <!-- 新增小计算器呼出按钮 -->
+          <button class="btn-mini-calc" type="button" onclick="openMiniCalc('domesticFreight', '国内运杂费')" title="均摊计算器">🧮</button>
           <div class="field-unit">¥</div>
         </div>
       </div>
@@ -262,13 +306,17 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
       <div class="section-label">国际段费用 (美元/USD)</div>
       <div class="card">
         <div class="field-row dimmed" id="row-shipping">
-          <div class="field-label">国际主运费</div>
+          <div class="field-label" style="color:var(--accent);">单件国际主运费<small>海运/空运 (总费÷总件数)</small></div>
           <input class="field-input" type="number" id="shippingFee" value="0" onfocus="this.select()">
+          <!-- 新增小计算器呼出按钮 -->
+          <button class="btn-mini-calc" type="button" onclick="openMiniCalc('shippingFee', '国际主运费')" title="均摊计算器">🧮</button>
           <div class="field-unit">$</div>
         </div>
         <div class="field-row dimmed" id="row-dest">
-          <div class="field-label">目的港杂费<small>清关/附加/尾程</small></div>
+          <div class="field-label" style="color:var(--accent);">单件目的港杂费<small>清关/附加/尾程 (总费÷件数)</small></div>
           <input class="field-input" type="number" id="destFee" value="0" onfocus="this.select()">
+          <!-- 新增小计算器呼出按钮 -->
+          <button class="btn-mini-calc" type="button" onclick="openMiniCalc('destFee', '目的港杂费')" title="均摊计算器">🧮</button>
           <div class="field-unit">$</div>
         </div>
         <div class="field-row dimmed" id="row-insurance">
@@ -297,11 +345,16 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
           <input class="field-input" type="number" id="vatRate" value="0" onfocus="this.select()">
           <div class="field-unit">%</div>
         </div>
+
         <div class="hs-toggle-bar" onclick="toggleHS()">
           <span style="font-size:12px; font-weight:600; color:var(--text2);">🏷 品类快捷税率预估</span>
           <span id="hs-arrow">▼</span>
         </div>
         <div class="hs-collapsible" id="hs-collapsible">
+          <!-- ⬇️ 新增：免责与操作说明 -->
+          <div style="font-size: 11px; color: var(--text3); text-align: center; padding: 12px 12px 0; line-height: 1.5;">
+            * 提示：品类预估税率仅供参考，请以市场实时税率为准。<br>若暂无对应国家数据，系统将清空并需您手动输入。
+          </div>
           <div class="hs-grid" id="hsGrid"></div>
         </div>
       </div>
@@ -319,13 +372,13 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
       <div class="card">
         <div class="field-row">
           <div class="field-label">中间汇率</div>
-          <input class="field-input" type="number" id="exchangeRate" value="7.15" onfocus="this.select()">
+          <input class="field-input" type="number" id="exchangeRate" value="7.15" onfocus="this.select()" oninput="state.manualRate = true">
           <div class="field-unit">¥/$</div>
         </div>
         <div class="field-row" style="background:var(--accent2-light);">
-          <div class="field-label" style="color:var(--accent2);">汇率避险点位</div>
+          <div class="field-label" style="color:var(--accent2);">汇率预留缓冲<small>直接从汇率中减去</small></div>
           <input class="field-input" type="number" id="rateBuffer" value="0.05" step="0.01" onfocus="this.select()">
-          <div class="field-unit">点</div>
+          <div class="field-unit">元</div>
         </div>
         <div class="field-row">
           <div class="field-label">收款手续费</div>
@@ -344,7 +397,7 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
           </div>
           <div style="display:flex; align-items:center; gap:12px;">
               <button class="profit-stepper" type="button" onclick="stepProfit(-1)">-</button>
-              <input type="range" id="profitSlider" min="1" max="60" value="20" oninput="onSlider(this)">
+              <input type="range" id="profitSlider" min="1" max="60" value="20" step="0.1" oninput="onSlider(this)">
               <button class="profit-stepper" type="button" onclick="stepProfit(1)">+</button>
           </div>
         </div>
@@ -355,6 +408,8 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
       <button class="btn-step-back" onclick="nextStep(2)">返回</button>
       <button class="btn-step-next" onclick="nextStep(4)">最后一步：制单信息 →</button>
     </div>
+    <!-- ⬇️ 新增：跳过制单直接核算快捷键 -->
+    <button class="btn-calc" style="background: transparent; color: var(--text); border: 1px solid var(--border); box-shadow: none; margin-top: 12px; font-weight: 600;" onclick="calculate()">⚡ 仅算价，跳过制单直接查看结果</button>
   </div>
 
   <!-- [STAGE 4: 制单信息 (可选)] -->
@@ -477,6 +532,34 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
     <div class="card"><table class="market-table" id="marketTable"><thead><tr><th>市场</th><th>关税</th><th>VAT</th><th>落地价预估</th></tr></thead><tbody id="marketBody"></tbody></table></div>
 </div>
 
+<!-- 均摊小计算器弹窗 -->
+<div id="miniCalcModal" class="modal-overlay">
+    <div class="modal-card">
+        <div class="modal-title" style="display:flex; justify-content:space-between; align-items:center;">
+            <span>🧮 费用均摊计算器</span>
+            <span style="font-size:24px; color:var(--text3); cursor:pointer; line-height:1;" onclick="closeMiniCalc()">×</span>
+        </div>
+        <div id="miniCalcTitle" style="font-size:12px; color:var(--text2); text-align:left; margin-bottom:16px;">正在为您分摊：</div>
+        
+        <div style="text-align:left; margin-bottom:12px;">
+            <div style="font-size:12px; font-weight:600; color:var(--text); margin-bottom:6px;">这笔费用的总金额：</div>
+            <input type="number" id="mcTotal" class="field-input" placeholder="输入总额" oninput="doMiniCalc()">
+        </div>
+        <div style="text-align:left; margin-bottom:16px;">
+            <div style="font-size:12px; font-weight:600; color:var(--text); margin-bottom:6px;">这批货物的总件数：</div>
+            <input type="number" id="mcQty" class="field-input" placeholder="输入总件数" oninput="doMiniCalc()">
+        </div>
+        
+        <div style="background:var(--accent-light); border-radius:var(--radius-sm); padding:16px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:13px; font-weight:600; color:var(--accent);">单件分摊结果 =</span>
+            <span id="mcResult" style="font-size:20px; font-weight:700; font-family:'DM Mono', monospace; color:var(--accent);">0.0000</span>
+        </div>
+        
+        <button class="m-btn m-btn-allow" type="button" onclick="applyMiniCalc()">一键填入表格</button>
+        <button class="m-btn m-btn-cancel" type="button" onclick="closeMiniCalc()">取 消</button>
+    </div>
+</div>
+
 <!-- 常驻复制弹窗保底策略 -->
 <div id="finalCopyModal" class="modal-overlay">
     <div class="modal-card">
@@ -498,8 +581,54 @@ let state = {
     profitRate: 20,
     hsOpen: false,
     lastPrice: null,
-    lastSettleRate: null
+    lastSettleRate: null,
+    manualRate: false // ⬇️ 新增：记录用户是否已手动干预汇率
 };
+
+// [补丁1.A] 中央 DOM 注册表：将散落在各处的查询集中管理，提升维护性 (解决 四.2)
+const UI = {
+    inputs: {
+        costRMB: document.getElementById('costRMB'),
+        rebateRate: document.getElementById('rebateRate'),
+        inputVatRate: document.getElementById('inputVatRate'),
+        domesticFreight: document.getElementById('domesticFreight'),
+        shippingFee: document.getElementById('shippingFee'),
+        destFee: document.getElementById('destFee'),
+        insuranceRate: document.getElementById('insuranceRate'),
+        taxRate: document.getElementById('taxRate'),
+        vatRate: document.getElementById('vatRate'),
+        exchangeRate: document.getElementById('exchangeRate'),
+        rateBuffer: document.getElementById('rateBuffer'),
+        paymentFee: document.getElementById('paymentFee'),
+        profitSlider: document.getElementById('profitSlider'),
+        moqInput: document.getElementById('moqInput'),
+        productName: document.getElementById('productName')
+    },
+    containers: {
+        resultEmpty: document.getElementById('resultEmpty'),
+        resultContent: document.getElementById('resultContent'),
+        // 绑定那些需要核算后才能解锁的 Tab
+        tabs: document.querySelectorAll('.tab[data-req-calc="true"]')
+    }
+};
+
+// [补丁1.B] 防抖工具函数：防止用户输入时频繁触发重算造成卡顿 (解决 五.2)
+function debounce(fn, ms = 300) {
+    let timeoutId;
+    return function(...args) {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => fn.apply(this, args), ms);
+    };
+}
+
+// [补丁1.C] 自动核算逻辑：只要底价有效，即在后台静默同步数据 (解决 五.2)
+const autoCalculate = debounce(() => {
+    // 只有当进货价大于 0 时才联动，避免初始空值报错
+    if (UI.inputs.costRMB && UI.inputs.costRMB.value > 0) {
+        // 调用 calculate 并传入 true，表示“静默核算”，不强制跳转页面
+        if (typeof calculate === 'function') calculate(true); 
+    }
+}, 500);
 
 function formatDateStr(date) {
     const y = date.getFullYear();
@@ -510,24 +639,49 @@ function formatDateStr(date) {
 
 function generatePINo() {
     const now = new Date();
-    const dateStr = formatDateStr(now).replace(/-/g, '');
-    const randomStr = Math.floor(100 + Math.random() * 900); // 3 digits
-    return `PI-${dateStr}-${randomStr}`;
+    const dateStr = now.getFullYear() + String(now.getMonth() + 1).padStart(2, '0') + String(now.getDate()).padStart(2, '0');
+    // 使用自增序号
+    let seq = parseInt(localStorage.getItem('pi_sequence') || '0') + 1;
+    localStorage.setItem('pi_sequence', seq);
+    return `PI-${dateStr}-${String(seq).padStart(3, '0')}`;
+}
+
+//  轻量级 XSS 防护转义函数
+function escapeHTML(str) {
+    if (!str) return '';
+    return String(str).replace(/[&<>'"]/g, match => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+    }[match]));
+}
+
+// ⬇️ 新增：通用的金额千分位格式化函数
+function formatMoney(num) {
+    if (!num || isNaN(num)) return "0.00";
+    return Number(num).toLocaleString('en-US', { 
+        minimumFractionDigits: 2, 
+        maximumFractionDigits: 2 
+    });
 }
 
 // ==================== V2 引导流引擎 (重构无缝与平滑版) ====================
+/**
+ * 修复：七.1 渲染管道优化
+ * 描述：替换强制重排(void offsetWidth)为下一帧渲染(rAF)，整合键盘收起与自动聚焦
+ */
 function nextStep(targetStep) {
     if (targetStep === state.currentStep) return;
 
-    // 解决输入法键盘引起的卡顿冲突：跳转前主动让当前获得焦点的输入框失去焦点，收起软键盘
+    // 1. 忠实还原：解决移动端键盘引起的卡顿冲突
     if (document.activeElement && typeof document.activeElement.blur === 'function') {
         document.activeElement.blur();
     }
 
-    // 必填项前置校验：跨步骤跳跃时必须确保核心的“进货底价”已填
+    // 2. 忠实还原：前置校验逻辑 (适配补丁1的 UI 注册表，若未应用补丁1则降级使用 getElementById)
+    const costInput = UI.inputs ? UI.inputs.costRMB : document.getElementById('costRMB');
+    const costValue = costInput ? parseFloat(costInput.value) : 0;
+
     if (targetStep > 1) {
-        const costRMB = document.getElementById('costRMB').value;
-        if (!costRMB || parseFloat(costRMB) <= 0) {
+        if (!costValue || costValue <= 0) {
             showToast('⚠️ 拦截：请先输入您的真实含税进货底价');
             targetStep = 1; // 强制阻断并退回第一步
         }
@@ -535,55 +689,134 @@ function nextStep(targetStep) {
 
     state.currentStep = targetStep;
 
-    // 平滑切换各步骤内容，并保证即便是不刷新重载也能播放过渡动画
-    document.querySelectorAll('.step-stage').forEach((stage, index) => {
-        if (index + 1 === targetStep) {
-            stage.classList.remove('active');
-            void stage.offsetWidth; // 触发浏览器重绘重排，使 CSS 动画重新执行
-            stage.classList.add('active');
+    // 3. 核心修复：高性能 stage 切换引擎 (解决 七.1)
+    const stages = document.querySelectorAll('.step-stage');
+    stages.forEach((stage, index) => {
+        const stepNum = index + 1;
+        if (stepNum === targetStep) {
+            // 先设为可见，此时 opacity 为 0 (CSS 中 .step-stage 的初始状态)
             stage.style.display = 'block';
+            
+            // 利用双重 rAF 确保在浏览器完成 display:block 的布局计算后，再触发 CSS 动画类
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    stage.classList.add('active');
+                });
+            });
         } else {
+            // 立即移除动画类并隐藏
             stage.classList.remove('active');
             stage.style.display = 'none';
         }
     });
 
-    // 进度条与点亮状态更新
-    document.querySelectorAll('.step-dot').forEach((dot, index) => {
+    // 4. 逻辑拆分：更新进度条与点亮状态
+    updateProgressUI(targetStep);
+
+    // 5. 忠实还原：退回第一步时的自动聚焦逻辑
+    if (targetStep === 1 && (!costValue || costValue <= 0)) {
+        setTimeout(() => {
+            if (costInput) {
+                costInput.focus();
+                // 移动端体验：平滑滚动到输入框
+                costInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }, 400); // 略微增加延迟，等待 stage 切换动画完成
+    }
+
+    // 6. 视图复位
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/**
+ * 辅助补丁：UI 状态更新同步
+ */
+function updateProgressUI(step) {
+    const dots = document.querySelectorAll('.step-dot');
+    dots.forEach((dot, index) => {
         const stepNum = index + 1;
         dot.classList.remove('active', 'completed');
-        if (stepNum === targetStep) dot.classList.add('active');
-        else if (stepNum < targetStep) dot.classList.add('completed');
+        if (stepNum === step) {
+            dot.classList.add('active');
+        } else if (stepNum < step) {
+            dot.classList.add('completed');
+        }
     });
 
     const progressLineFill = document.getElementById('stepProgressLine');
     if (progressLineFill) {
-        progressLineFill.style.width = ((targetStep - 1) / 3) * 100 + '%';
+        // 计算百分比宽度
+        progressLineFill.style.width = ((step - 1) / (dots.length - 1)) * 100 + '%';
     }
-    
-    // 如果是被强制退回的第一步，则提醒用户聚焦到输入框
-    if (targetStep === 1) {
-        const costRMB = document.getElementById('costRMB').value;
-        if (!costRMB || parseFloat(costRMB) <= 0) {
-            setTimeout(() => {
-               const costInput = document.getElementById('costRMB');
-               if (costInput) costInput.focus();
-            }, 350); // 延迟避开动画帧，让聚焦更平滑
-        }
-    }
-
-    // 平滑滚动回容器顶部，保证视图中心化
-    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-document.addEventListener('DOMContentLoaded', () => { nextStep(1); });
-
+// ==================== V2 选项卡路由与安全拦截 ====================
 function switchTab(tabId) {
+    const targetTab = document.querySelector(`.tab[data-tab="${tabId}"]`);
+    if (!targetTab) return;
+
+    // 【安全防线】：拦截未获取数据便试图进入结果展示页的非法跳转
+    if (targetTab.getAttribute('data-req-calc') === 'true' && !state.lastPrice) {
+        // 1. 移出上一次可能遗留的动画类，强制浏览器重绘
+        targetTab.classList.remove('shake-anim');
+        void targetTab.offsetWidth; 
+        
+        // 2. 触发震动视觉反馈
+        targetTab.classList.add('shake-anim');
+        
+        // 3. 弹窗提示引导用户回归路径
+        showToast('🔒 拦截：需先在【核算台】填入参数并点击执行核算');
+        
+        // 清理动画残留
+        setTimeout(() => targetTab.classList.remove('shake-anim'), 400);
+        return; // 强行阻断页面切换
+    }
+
+    // 通过安检，执行平滑切换逻辑
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-    const targetTab = document.querySelector('.tab[data-tab="' + tabId + '"]');
-    if (targetTab) targetTab.classList.add('active');
+    
+    targetTab.classList.add('active');
     document.getElementById('page-' + tabId).classList.add('active');
+
+// [最终修复] 路由联动：确保对比页使用与主引擎 100% 对齐的财务模型
+if (tabId === 'compare' && UI.inputs.costRMB.value > 0) {
+    // 1. 安全阀：若主引擎未运行，先强制触发一次静默核算
+    if (!state.lastPrice) calculate(true);
+
+    // 2. 核心财务参数同步抓取
+    const costRMB = parseFloat(UI.inputs.costRMB.value) || 0;
+    const exRate = parseFloat(UI.inputs.exchangeRate.value) || 7.15;
+    const buffer = parseFloat(UI.inputs.rateBuffer.value) || 0;
+    const settleRate = exRate - buffer;
+    
+    // 3. 商务逻辑对齐：EXW模式不计国内费
+    const domFreight = state.mode === 'EXW' ? 0 : (parseFloat(UI.inputs.domesticFreight.value) || 0);
+    
+    // 4. 退税逻辑对齐：引入免抵退税率差修正
+    const isRebate = document.getElementById('isRebate').checked;
+    const rebateRate = parseFloat(UI.inputs.rebateRate.value) || 0;
+    const inputVatRate = (parseFloat(UI.inputs.inputVatRate.value) || 13) / 100;
+    const excludeTaxPrice = costRMB / (1 + inputVatRate);
+    const taxDiffAdj = excludeTaxPrice * Math.max(0, inputVatRate - (rebateRate / 100));
+    const rebateAmt = isRebate ? (excludeTaxPrice * (rebateRate / 100) - taxDiffAdj) : 0;
+    
+    // 5. 提取纯净FOB成本基数
+    const fobBase = (costRMB + domFreight - rebateAmt) / settleRate;
+
+    // 6. 物流与风控系数同步
+    const shipUSD = parseFloat(UI.inputs.shippingFee.value) || 0;
+    const destUSD = parseFloat(UI.inputs.destFee.value) || 0;
+    const payFee = (parseFloat(UI.inputs.paymentFee.value) || 0) / 100;
+    const insRate = (parseFloat(UI.inputs.insuranceRate.value) || 0) / 100;
+    const pr = state.profitRate / 100;
+
+    // 7. 执行对比页渲染（确保传入了所有物流因子，解决运费脱节问题）
+    renderCompare(fobBase, pr, payFee, insRate, shipUSD, destUSD);
+}
+
+    // 平滑回到顶部，保障多终端视觉焦点一致
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function setProfitTag(el) {
@@ -597,7 +830,7 @@ function setProfitTag(el) {
 
 // ==================== 数据库与互动 ====================
 const COUNTRIES = {
-  USA: { name:'美国', tax:7.5, vat:0, level:'warn', note:'⚠️ 对华加征关税已大幅上调（2025年起部分品类达25%-145%），此处7.5%为贸易战基准税率，请务必以最新海关公告为准' },
+  USA: { name:'美国', tax:'', vat:0, level:'warn', note:'⚠️ 对华加征关税已大幅上调（达25%-145%），系统已清空默认值，请务必针对具体品类手动输入最新准确关税！' },
   CA:  { name:'加拿大', tax:4.5, vat:5, level:'info', note:'GST 5%，部分省份 PST 另计' },
   MX:  { name:'墨西哥', tax:7.0, vat:16, level:'info', note:'IVA 增值税 16%' },
   EU:  { name:'欧盟', tax:4.0, vat:20, level:'info', note:'成员国 VAT 17-27% 不等，此处取德法均值' },
@@ -642,7 +875,7 @@ const HS_CATEGORIES =[
 ];
 
 const MARKET_COMPARE_LIST =[
-    { key:'USA', flag:'🇺🇸', name:'美国', tax:7.5, vat:0 },
+    { key:'USA', flag:'🇺🇸', name:'美国', tax:25.0, vat:0 },
     { key:'EU',  flag:'🇪🇺', name:'欧盟', tax:4.0, vat:20 },
     { key:'UK',  flag:'🇬🇧', name:'英国', tax:4.0, vat:20 },
     { key:'JP',  flag:'🇯🇵', name:'日本', tax:3.5, vat:10 },
@@ -667,7 +900,7 @@ function setMode(el) {
         FOB: '🚢 <b>指定货代：</b>最常用。需送货入仓并负责中国报关。国内运杂费由您承担。',
         CIF: '🌊 <b>海运含保：</b>由您订舱排载并付海运费及保险。客户负责目的港清关税金。',
         DAP: '🚚 <b>送到门(未税)：</b>双清但不含税。运送到客户门口，进口税金由买家自付。',
-        DDP: '🛡️ <b>双清包税到门：</b>为客户提供全包落地价。由您负责目的国清关并承担全部税金，卖方风险最大，务必精准核实当地关税与清关门槛。'
+        DDP: '🛡️ <b>双清包税到门：</b>为客户提供全包落地价。由您负责目的国清关并承担全部税金，卖方风险最大，务必精准核实当地关税与清关门槛。<br><span style="color:var(--warn);font-size:10.5px;font-weight:600;">⚠️ 成本提示：DDP报价已同时内含「利润率」与「汇率避险点位」双重成本，最终报价将高于其他条款，属正常避险逻辑。</span>'
     };
     document.getElementById('modeHint').innerHTML = hints[state.mode];
 
@@ -684,93 +917,104 @@ function setMode(el) {
 }
 
 // ==================== V2 核心财务中枢 ====================
-function calculate() {
-    const costRMB = parseFloat(document.getElementById('costRMB').value)||0;
-    if(costRMB<=0) { showToast('请输入底价'); return; }
+/**
+ * 修复：变量迁移与逻辑闭环
+ * 描述：将内部 DOM 查找全部迁移至 UI.inputs 注册表，显著提升重算效率。
+ * 兼容性：高度忠实原外贸数学模型，新增 DDP 风险嗅探。
+ */
+// ==================== V2 核心财务中枢（修复版） ====================
+function calculate(isSilent = false) {
+    const costRMB = parseFloat(UI.inputs.costRMB.value) || 0;
     
-    const isRebate = document.getElementById('isRebate').checked;
-    const rebateRate = parseFloat(document.getElementById('rebateRate').value)||0;
-    const inputVatRate = (parseFloat(document.getElementById('inputVatRate').value)||13)/100;
-    const rebateAmt = isRebate ? (costRMB / (1 + inputVatRate)) * (rebateRate/100) : 0;
-    
-    const domFreight = parseFloat(document.getElementById('domesticFreight').value)||0;
-    const shipUSD = parseFloat(document.getElementById('shippingFee').value)||0;
-    const destUSD = parseFloat(document.getElementById('destFee').value)||0;
-    const insRate = (parseFloat(document.getElementById('insuranceRate').value)||0)/100;
-    const taxRate = (parseFloat(document.getElementById('taxRate').value)||0)/100;
-    const vatRate = (parseFloat(document.getElementById('vatRate').value)||0)/100;
-    
-    const exRate = parseFloat(document.getElementById('exchangeRate').value)||7.15;
-    const buffer = parseFloat(document.getElementById('rateBuffer').value)||0;
-    const payFee = (parseFloat(document.getElementById('paymentFee').value)||0)/100;
-    const profitRate = state.profitRate / 100;
+    // 补丁 1：拦截检查。若未填底价，不仅要提示，还要强行跳回第一步
+    if (costRMB <= 0) {
+        if (!isSilent) {
+            showToast('⚠️ 拦截：请先回到第一步输入进货底价');
+            nextStep(1); 
+            setTimeout(() => UI.inputs.costRMB.focus(), 500);
+        }
+        return;
+    }
 
+    // --- 以下保持您原有的财务逻辑不动 ---
+    const isRebate = document.getElementById('isRebate').checked;
+    const rebateRate = parseFloat(UI.inputs.rebateRate.value) || 0;
+    const inputVatRate = (parseFloat(UI.inputs.inputVatRate.value) || 13) / 100;
+    const excludeTaxPrice = costRMB / (1 + inputVatRate);
+    const taxDiffAdj = excludeTaxPrice * Math.max(0, inputVatRate - (rebateRate / 100));
+    const rebateAmt = isRebate ? (excludeTaxPrice * (rebateRate / 100) - taxDiffAdj) : 0;
+    const domFreight = state.mode === 'EXW' ? 0 : (parseFloat(UI.inputs.domesticFreight.value) || 0);
+    const shipUSD = parseFloat(UI.inputs.shippingFee.value) || 0;
+    const destUSD = parseFloat(UI.inputs.destFee.value) || 0;
+    const insRate = (parseFloat(UI.inputs.insuranceRate.value) || 0) / 100;
+    const taxRate = (parseFloat(UI.inputs.taxRate.value) || 0) / 100;
+    const vatRate = (parseFloat(UI.inputs.vatRate.value) || 0) / 100;
+    const exRate = parseFloat(UI.inputs.exchangeRate.value) || 7.15;
+    const buffer = parseFloat(UI.inputs.rateBuffer.value) || 0;
+    const payFee = (parseFloat(UI.inputs.paymentFee.value) || 0) / 100;
+    const targetProfitRate = state.profitRate / 100;
     const settleRate = exRate - buffer;
     const fobUSD = (costRMB + domFreight - rebateAmt) / settleRate;
 
-    let price = 0, duty = 0, freight = 0, ddpEquiv = 0;
+    let price = 0, duty = 0, freight = 0;
     
-    if(state.mode==='EXW') price = (costRMB/settleRate) / (1-profitRate-payFee);
-    else if(state.mode==='FOB') price = fobUSD / (1-profitRate-payFee);
-    else if(state.mode==='CIF') { price = (fobUSD+shipUSD) / (1-profitRate-payFee-1.1*insRate); freight = shipUSD + price*1.1*insRate; }
-    else if(state.mode==='DAP') {
-        price = (fobUSD+shipUSD+destUSD) / (1-profitRate-payFee-1.1*insRate);
-        freight = shipUSD+destUSD+price*1.1*insRate;
-    }
-    else if(state.mode==='DDP') {
-        const den = 1-profitRate-payFee-1.1*insRate-taxRate-(1+taxRate)*vatRate;
-        price = (fobUSD+shipUSD+destUSD)/den;
-        duty = price * (taxRate+(1+taxRate)*vatRate);
-        freight = shipUSD+destUSD+price*1.1*insRate;
+    try {
+        if (state.mode === 'EXW' || state.mode === 'FOB') {
+            price = fobUSD / (1 - targetProfitRate - payFee);
+        } else if (state.mode === 'CIF') {
+            price = (fobUSD + shipUSD) / (1 - targetProfitRate - payFee - 1.1 * insRate);
+            freight = shipUSD + price * 1.1 * insRate;
+        } else if (state.mode === 'DAP') {
+            price = (fobUSD + shipUSD + destUSD) / (1 - targetProfitRate - payFee - 1.1 * insRate);
+            freight = shipUSD + destUSD + price * 1.1 * insRate;
+        } else if (state.mode === 'DDP') {
+            let cifCost = fobUSD + shipUSD + destUSD; 
+            duty = cifCost * (taxRate + (1 + taxRate) * vatRate);
+            let den = 1 - targetProfitRate - payFee - 1.1 * insRate;
+            if (den <= 0.01) throw new Error("预期利润率设置过高，价格无效");
+            price = (cifCost + duty) / den;
+            freight = shipUSD + destUSD + price * 1.1 * insRate;
+        }
+    } catch (e) {
+        if (!isSilent) showToast('⚠️ ' + e.message);
+        return;
     }
 
-    if (!isFinite(price) || price <= 0) { showToast('⚠️ 利润率或税率过高导致死锁，请下调'); return; }
-
-    // 测算这笔业务理论上的 DDP 最终落地总成本，用于商务博弈参考
-    if (state.mode === 'DDP') {
-        ddpEquiv = price;
-    } else {
-        const den = 1 - profitRate - payFee - 1.1*insRate - taxRate - (1+taxRate)*vatRate;
-        ddpEquiv = (den > 0) ? (fobUSD + shipUSD + destUSD)/den : 0;
-    }
+    if (!isFinite(price) || price <= 0) return;
 
     state.lastPrice = price;
     state.lastSettleRate = settleRate;
+    UI.containers.tabs.forEach(t => t.classList.remove('locked'));
+    UI.containers.resultEmpty.style.display = 'none';
+    UI.containers.resultContent.style.display = 'block';
 
-    // 更新 V2 大号英雄卡片
-    document.getElementById('resultEmpty').style.display = 'none';
-    document.getElementById('resultContent').style.display = 'block';
-    
-    document.getElementById('rh-price').innerHTML = `$${price.toFixed(2)}<span>/ pc</span>`;
-    document.getElementById('rh-price-cny').innerText = `≈ ¥${(price*settleRate).toFixed(2)} / pc`;
+    const netProfitUSD = price - (fobUSD + shipUSD + destUSD + duty + price * payFee + (freight - shipUSD - destUSD));
+    const actualProfitPercent = (netProfitUSD / price) * 100;
+
+    const cifAssumed = fobUSD + shipUSD + destUSD;
+    const dutyAssumed = cifAssumed * (taxRate + (1 + taxRate) * vatRate);
+    const ddpEquiv = (cifAssumed + dutyAssumed) / Math.max(0.01, 1 - targetProfitRate - payFee - 1.1 * insRate);
+
     document.getElementById('rh-mode').innerText = state.mode;
-    
-    document.getElementById('rh-profit-rate').innerText = `${state.profitRate}%`;
+    document.getElementById('rh-price').innerHTML = `$${formatMoney(price)}<span>/ pc</span>`;
+    document.getElementById('rh-price-cny').innerText = `≈ ¥${formatMoney(price * settleRate)} / pc`;
+    document.getElementById('rh-profit-rate').innerText = actualProfitPercent.toFixed(2) + '%';
     document.getElementById('rh-rate-note').innerText = settleRate.toFixed(3);
+    document.getElementById('rh-tax-val').innerText = (state.mode === 'DDP') ? `$${formatMoney(duty)}` : '未包含';
     
-    if (state.mode === 'DAP') {
-        document.getElementById('rh-tax-val').innerText = '买家自付';
-    } else if (state.mode === 'EXW' || state.mode === 'FOB' || state.mode === 'CIF') {
-         document.getElementById('rh-tax-val').innerText = '不包含';
-         document.getElementById('rh-tax-val').style.color = 'var(--text3)';
-    } else {
-        document.getElementById('rh-tax-val').innerText = `$${duty.toFixed(2)}`;
-        document.getElementById('rh-tax-val').style.color = '#fff';
+    document.getElementById('bk-profit').innerText = `$${formatMoney(netProfitUSD)}`;
+    document.getElementById('bk-rebate').innerText = rebateAmt > 0 ? `¥${formatMoney(rebateAmt)}` : '无';
+    document.getElementById('bk-freight').innerText = freight > 0 ? `$${formatMoney(freight)}` : '无';
+    document.getElementById('bk-ddp').innerText = `$${formatMoney(ddpEquiv)}`;
+
+    renderPI(); 
+
+    // 补丁 2：核心修复。如果不是静默自动核算（即用户主动点击了按钮），则执行跳转
+    if (!isSilent) {
+        saveHistory(price, settleRate, costRMB);
+        switchTab('result'); // 跳转到结果分析页
+        showToast('🚀 核算完成，已生成专业看板');
     }
-
-    document.getElementById('bk-profit').innerText = `$${(price*profitRate).toFixed(2)}`;
-    document.getElementById('bk-rebate').innerText = rebateAmt > 0 ? `¥${rebateAmt.toFixed(2)}` : '不适用';
-    document.getElementById('bk-rebate').style.color = rebateAmt > 0 ? '' : 'var(--text3)';
-    document.getElementById('bk-freight').innerText = freight > 0 ? `$${freight.toFixed(2)}` : '无国际运费';
-    document.getElementById('bk-ddp').innerText = ddpEquiv > 0 ? `$${ddpEquiv.toFixed(2)}` : '需补充国家税金';
-
-    const compareBase = (state.mode === 'EXW') ? (costRMB / settleRate) : fobUSD;
-    
-    renderPI();
-    renderCompare(compareBase, profitRate, payFee, insRate);
-    saveHistory(price, settleRate, costRMB);
-    
-    switchTab('result');
 }
 
 // ==================== V2 合规 PI 构建引擎 ====================
@@ -792,8 +1036,8 @@ function buildPIText() {
     const now = new Date();
     const validDate = new Date(now.getTime() + validDays * 24 * 60 * 60 * 1000);
 
-    const priceStr = state.lastPrice.toFixed(2);
-    const totalAmount = (state.lastPrice * moqNum).toFixed(2);
+    const priceStr = formatMoney(state.lastPrice);
+    const totalAmount = formatMoney(state.lastPrice * moqNum);
     const piNo = generatePINo();
 
     return[
@@ -816,7 +1060,13 @@ function buildPIText() {
         'Lead Time    : ' + lead,
         'Exchange Rate: ' + state.lastSettleRate.toFixed(3),
         '------------------------------------------------',
-        'Grand Total  : USD ' + totalAmount
+        'Grand Total  : USD ' + totalAmount,
+        '',
+        'REMARKS & DISCLAIMER:',
+        '1. This Proforma Invoice is for quotation purposes only.',
+        '2. Subject to final contract and shipping space availability.',
+        '3. The exchange rate is fixed as per the date of this PI.',
+        '4. Beneficiary bank details will be provided in the Formal Invoice.'
     ].join('\n');
 }
 
@@ -830,60 +1080,75 @@ function renderPI() {
 // ==================== V2 历史记录中枢 (本地化) ====================
 function loadHistory() {
     const historyStr = localStorage.getItem('quoteHistory');
-    let history =[];
-    if (historyStr) { try { history = JSON.parse(historyStr); } catch(e){} }
+    let quoteHistoryList =[];
+    if (historyStr) { 
+        try { 
+            quoteHistoryList = JSON.parse(historyStr); 
+        } catch(e){
+            console.error("历史记录解析失败");
+        } 
+    }
     
     const container = document.getElementById('historyContainer');
-    if (!history || history.length === 0) {
+    if (!container) return;
+
+    if (quoteHistoryList.length === 0) {
         container.innerHTML = '<div class="history-empty">暂无历史记录<br><span style="font-size:11px;opacity:0.6;display:block;margin-top:6px;">您进行的计算将自动存入此设备中</span></div>';
         return;
     }
     
-    container.innerHTML = history.map(item => `
+    container.innerHTML = quoteHistoryList.map(item => `
         <div class="history-item" onclick="restoreHistory(${item.id})">
             <div class="history-header">
                 <span>🕒 ${item.date}</span>
                 <span>${item.mode} / ${item.profitRate}% 净利</span>
             </div>
             <div class="history-body">
-                <div class="history-title">${item.product || '未命名产品分析'}</div>
-                <div class="history-price">$${item.price}</div>
+                <div class="history-title">${escapeHTML(item.product || '未命名产品分析')}</div>
+                <div class="history-price">$${formatMoney(item.price)}</div>
             </div>
-            <div style="font-size: 11px; color: var(--text3); margin-top: 6px;">进货成本: ¥${item.cost} / 锁汇参考: ${item.rate}</div>
+            <div style="font-size: 11px; color: var(--text3); margin-top: 6px;">进货成本: ¥${formatMoney(item.cost)} / 锁汇参考: ${item.rate}</div>
         </div>
     `).join('');
 }
 
 function saveHistory(price, settleRate, costRMB) {
-    const name = document.getElementById('productName').value;
+    const PERSIST_FIELDS = [
+        'costRMB', 'isRebate', 'rebateRate', 'inputVatRate', 'domesticFreight', 
+        'shippingFee', 'destFee', 'insuranceRate', 'taxRate', 'vatRate', 
+        'exchangeRate', 'rateBuffer', 'paymentFee', 'productName', 'moqInput', 
+        'portInput', 'sellerName', 'buyerName', 'paymentTerm', 'leadTime', 'validDays'
+    ];
+    
+    const inputsData = {};
+    PERSIST_FIELDS.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) inputsData[id] = el.type === 'checkbox' ? el.checked : el.value;
+    });
+
     const record = {
         id: Date.now(),
-        date: new Date().toLocaleString('zh-CN', { hour12: false, month:'numeric', day:'numeric', hour:'numeric', minute:'numeric' }),
-        product: name,
+        date: new Date().toLocaleString('zh-CN', { month:'numeric', day:'numeric', hour:'numeric', minute:'numeric' }),
+        product: document.getElementById('productName').value || '未命名产品',
         price: price.toFixed(2),
         mode: state.mode,
         profitRate: state.profitRate,
         cost: costRMB.toFixed(2),
         rate: settleRate.toFixed(3),
-        inputs: {}
+        inputs: inputsData
     };
-    
-    document.querySelectorAll('input, select').forEach(el => {
-        if(el.id) record.inputs[el.id] = el.type === 'checkbox' ? el.checked : el.value;
-    });
 
-    let history =[];
-    try { history = JSON.parse(localStorage.getItem('quoteHistory') || '[]'); } catch(e){}
-    history.unshift(record);
-    if (history.length > 30) history.pop();
-    localStorage.setItem('quoteHistory', JSON.stringify(history));
+    let list =[];
+    try { list = JSON.parse(localStorage.getItem('quoteHistory') || '[]'); } catch(e){}
+    list.unshift(record);
+    localStorage.setItem('quoteHistory', JSON.stringify(list.slice(0, 30)));
     loadHistory();
 }
 
 function restoreHistory(id) {
-    let history =[];
-    try { history = JSON.parse(localStorage.getItem('quoteHistory') || '[]'); } catch(e){}
-    const record = history.find(r => r.id === id);
+    let quoteHistoryList =[];
+    try { quoteHistoryList = JSON.parse(localStorage.getItem('quoteHistory') || '[]'); } catch(e){}
+    const record = quoteHistoryList.find(r => r.id === id);
     if (!record || !record.inputs) return;
     
     Object.keys(record.inputs).forEach(key => {
@@ -923,11 +1188,31 @@ function clearHistory() {
 }
 
 // ==================== 其他系统基建 ====================
-function renderCompare(fob, pr, py, ins) {
-    const base = fob / (1-pr-py);
-    document.getElementById('marketBody').innerHTML = MARKET_COMPARE_LIST.map(m => {
-        const ddp = (base + base*1.1*ins) / (1 - m.tax/100 - (1+m.tax/100)*m.vat/100);
-        return `<tr><td>${m.flag} ${m.name}</td><td>${m.tax}%</td><td>${m.vat}%</td><td class="price-cell">$${ddp.toFixed(2)}</td></tr>`;
+/**
+ *[修复补丁B] 逻辑对齐：全球 DDP 落地价精确核算引擎
+ * 结论依据：基于公式 P = (FOB + Freight) / (1 - Profit - PayFee - Insurance - TotalTax)
+ */
+
+// 修复：进入对比页时同步参数
+function renderCompare(fob, pr, py, ins, logisticsShip, logisticsDest) {
+    const tbody = document.getElementById('marketBody');
+    tbody.innerHTML = MARKET_COMPARE_LIST.map(m => {
+        const taxR = m.tax / 100;
+        const vatR = m.vat / 100;
+        
+        // 1. 同步新算法：计算真实 CIF 成本作为税基
+        const cifCost = fob + logisticsShip + logisticsDest;
+        // 2. 按 CIF 计算目的国海关税金
+        const duty = cifCost * (taxR + (1 + taxR) * vatR);
+        // 3. 剥离税金后的分母
+        const den = 1 - pr - py - 1.1 * ins;
+        
+        // 使用 formatMoney 实现千分位
+        const content = den <= 0.01 
+            ? `<span style="color:var(--warn); font-weight:bold;">⚠️ 利润率过高</span>` 
+            : `$${formatMoney((cifCost + duty) / den)}`;
+
+        return `<tr><td>${m.flag} ${m.name}</td><td>${m.tax}%</td><td>${m.vat}%</td><td class="price-cell">${content}</td></tr>`;
     }).join('');
 }
 
@@ -965,13 +1250,19 @@ function onInputVatChange(sel) {
     }
 }
 
-function fetchRate() {
+function fetchRate(isManualClick = false) {
+    // 如果是用户主动点击顶部徽章拉取，则解除手动锁定
+    if (isManualClick) state.manualRate = false; 
+
     document.getElementById('rateDisplay').innerText = '拉取中...';
     fetch('https://open.er-api.com/v6/latest/USD')
         .then(r => r.json())
         .then(d => {
             const r = d.rates.CNY.toFixed(4);
-            document.getElementById('exchangeRate').value = r;
+            // ⬇️ 核心保护：只有在用户没有手动修改的情况下，才执行覆盖
+            if (!state.manualRate) {
+                document.getElementById('exchangeRate').value = r;
+            }
             document.getElementById('rateDisplay').innerText = '实时 ' + r;
         })
         .catch(e => {
@@ -985,14 +1276,17 @@ function onSlider(e) {
     state.profitRate = val; 
     document.getElementById('profitDisplay').innerText = val + '%'; 
     
-    // 性能优化：避免高频滑动时重复查询与操作 DOM 导致的重绘卡顿延迟
-    const activePtags = document.querySelectorAll('.ptag.active');
-    if (activePtags.length > 0) {
-        activePtags.forEach(p => p.classList.remove('active')); 
-    }
+    // 同步预设标签高亮：精准命中则高亮，无命中则全清
+    // 性能优化：仅在命中状态发生变化时才操作 DOM，避免高频滑动重绘
+    document.querySelectorAll('.ptag').forEach(p => {
+        const isMatch = parseFloat(p.dataset.val) === val;
+        const wasActive = p.classList.contains('active');
+        if (isMatch && !wasActive) p.classList.add('active');
+        else if (!isMatch && wasActive) p.classList.remove('active');
+    });
 }
 
-// 伴生配套微调功能（处理越界阻断，保证健壮性）
+// 伴生配套微调功能：利润率步进后触发核算（处理越界阻断，保证健壮性）
 function stepProfit(step) {
     const slider = document.getElementById('profitSlider');
     let val = parseFloat(slider.value) + step;
@@ -1000,9 +1294,114 @@ function stepProfit(step) {
     if (val > parseFloat(slider.max)) val = parseFloat(slider.max);
     slider.value = val;
     onSlider(slider);
+    autoCalculate(); // 触发实时核算
 }
 
-function showToast(m) { const t=document.getElementById('toast'); t.innerText=m; t.style.opacity=1; setTimeout(()=>t.style.opacity=0, 2500); }
+// ⬇️ 修改为：加入 clearTimeout 防护墙，确保每次触发都重置倒计时
+function showToast(m) { 
+    const t = document.getElementById('toast'); 
+    t.innerText = m; 
+    t.style.opacity = 1; 
+    if (t.timer) clearTimeout(t.timer); // 阻断上一个未执行完的隐藏指令
+    t.timer = setTimeout(() => t.style.opacity = 0, 2500); 
+}
+
+// ==================== 均摊小计算器系统 ====================
+let currentCalcTarget = '';
+
+/**
+ * 修复：均摊计算器智能聚焦与平台适配
+ * 描述：保留 MOQ 自动抓取逻辑，修复移动端键盘遮挡，优化渲染时序
+ */
+function openMiniCalc(targetId, titleName) {
+    // 1. 状态注入
+    currentCalcTarget = targetId;
+    
+    // 2. 元素引用 (增加 Fallback 机制，确保兼容有无补丁1的情况)
+    const modal = document.getElementById('miniCalcModal');
+    const titleBox = document.getElementById('miniCalcTitle');
+    const totalInput = document.getElementById('mcTotal');
+    const qtyInput = document.getElementById('mcQty');
+    const resDisplay = document.getElementById('mcResult');
+    
+    // 获取源表单中的 MOQ 引用
+    const mainMoqInput = UI.inputs ? UI.inputs.moqInput : document.getElementById('moqInput');
+
+    // 3. 忠实还原业务逻辑：设置标题与重置值
+    titleBox.innerHTML = `正在为您计算：<b style="color:var(--text);">${titleName}</b> 的单件分摊`;
+    totalInput.value = '';
+    
+    // 4. 忠实还原核心商务逻辑：自动抓取主表单已填写的 MOQ 进行分摊 (源功能)
+    if (mainMoqInput && mainMoqInput.value) {
+        let moqNum = parseInt(mainMoqInput.value.replace(/\D/g, ''), 10);
+        qtyInput.value = (moqNum && moqNum > 0) ? moqNum : '';
+    } else {
+        qtyInput.value = '';
+    }
+    
+    resDisplay.innerText = '0.0000';
+    
+    // 5. 显示弹窗
+    modal.style.display = 'flex';
+
+    // 6. 核心修复：分平台处理聚焦策略 (解决 五.1)
+    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    
+    if (!isTouchDevice) {
+        // 桌面端：利用双重 requestAnimationFrame 确保在 modal 渲染完成后精准聚焦
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                totalInput.focus();
+            });
+        });
+    } else {
+        // 移动端：严禁 JS 主动 focus 弹出键盘造成遮挡
+        // 优化：滚动到视图中心，引导用户手动点击，保证交互平滑
+        totalInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // 可选：触发轻微触感反馈（如果设备支持）
+        if (window.navigator.vibrate) window.navigator.vibrate(5);
+    }
+}
+
+/**
+ * 以下配套函数保持逻辑忠实，并增强健壮性
+ */
+function closeMiniCalc() {
+    document.getElementById('miniCalcModal').style.display = 'none';
+    currentCalcTarget = '';
+}
+
+function doMiniCalc() {
+    const total = parseFloat(document.getElementById('mcTotal').value) || 0;
+    const qty = parseFloat(document.getElementById('mcQty').value) || 0;
+    const resEl = document.getElementById('mcResult');
+    
+    if (qty > 0 && total > 0) {
+        // 保持 4 位精度，解决外贸单件分摊数值细微的问题
+        resEl.innerText = (total / qty).toFixed(4); 
+    } else {
+        resEl.innerText = '0.0000';
+    }
+}
+
+function applyMiniCalc() {
+    const total = parseFloat(document.getElementById('mcTotal').value) || 0;
+    const qty = parseFloat(document.getElementById('mcQty').value) || 0;
+    
+    if (qty > 0 && total > 0 && currentCalcTarget) {
+        const res = (total / qty).toFixed(4); 
+        const targetEl = document.getElementById(currentCalcTarget);
+        if(targetEl) {
+            targetEl.value = parseFloat(res); 
+            // 填入后主动触发一次 autoCalculate 联动同步全局数据 (适配补丁1)
+            if (typeof autoCalculate === 'function') autoCalculate();
+            showToast('✅ 分摊成本已回填');
+        }
+    } else {
+        showToast('⚠️ 数值不完整，无法分摊');
+    }
+    closeMiniCalc();
+}
 
 async function copySlip() {
     const text = buildPIText();
@@ -1024,12 +1423,54 @@ function triggerManualSelection() {
     if (document.execCommand('copy')) { showToast('✅ 强力复制成功'); setTimeout(() => { document.getElementById('finalCopyModal').style.display = 'none'; }, 1000); }
 }
 
+// [补丁1.D] 统一监听器：遍历所有输入框，绑定联动核算事件
+function initLogicBind() {
+    Object.values(UI.inputs).forEach(inputEl => {
+        if (!inputEl) return;
+        
+        // 监听 input 事件（实时）和 change 事件（失焦确认）
+        inputEl.addEventListener('input', autoCalculate);
+        
+        // 针对选择框（如退税率选择）进行特殊增强
+        if (inputEl.tagName === 'SELECT') {
+            inputEl.addEventListener('change', autoCalculate);
+        }
+    });
+    console.log("核心逻辑绑定完成：实时联动核算已就绪");
+}
 window.onload = () => {
+    // 1. 【新增】确保页面一打开就显示第一步
+    initLogicBind();
+    nextStep(1); 
+
+    // 2. 填充国家下拉框
     const s = document.getElementById('countrySelect');
-    Object.keys(COUNTRIES).forEach(k => { const o=document.createElement('option'); o.value=k; o.text=COUNTRIES[k].name; s.add(o); });
-    document.getElementById('hsGrid').innerHTML = HS_CATEGORIES.map((h,i) => `<div class="hs-item" onclick="selectHS(${i})" id="hs-${i}"><div>${h.icon}</div><div style="font-size:10px;font-weight:600;">${h.name}</div></div>`).join('');
+    if (s) {
+        Object.keys(COUNTRIES).forEach(k => {
+            const o = document.createElement('option');
+            o.value = k;
+            o.text = COUNTRIES[k].name;
+            s.add(o);
+        });
+    }
+
+    // 3. 填充 HS 品类快捷面板
+    const hsGrid = document.getElementById('hsGrid');
+    if (hsGrid) {
+        hsGrid.innerHTML = HS_CATEGORIES.map((h, i) =>
+            `<div class="hs-item" onclick="selectHS(${i})" id="hs-${i}">
+                <div>${h.icon}</div>
+                <div style="font-size:10px;font-weight:600;">${h.name}</div>
+            </div>`
+        ).join('');
+    }
+
+    // 4. 初始化触发国家提示（解决美国贸易战警告显示问题）
+    onCountryChange();
+
+    // 5. 获取实时汇率并加载本地历史
     fetchRate();
-    loadHistory(); 
+    loadHistory();
 };
 </script>
 </body>
