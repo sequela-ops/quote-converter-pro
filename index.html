@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>专业外贸报价计算器 Pro - v2</title>
+<title>专业外贸报价计算器 Pro - v4</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 /* 1:1 完整保留原件所有样式设计系统，并扩展 V2 样式 */
@@ -312,7 +312,7 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
 <div class="header">
   <div class="header-left" style="display:flex; align-items:center;">
     <div class="header-logo">🚢</div>
-    <div class="header-title">外贸报价计算器 <span style="color:var(--accent);font-size:11px;background:var(--accent-light);padding:2px 6px;border-radius:6px;margin-left:4px;">PRO</span></div>
+    <div class="header-title">外贸报价计算器 <span style="color:var(--accent);font-size:11px;background:var(--accent-light);padding:2px 6px;border-radius:6px;margin-left:4px;">V4</span></div>
   </div>
   <div style="display:flex; align-items:center; gap:8px;">
     <!-- 用户状态按钮 -->
@@ -1084,76 +1084,113 @@ function setMode(el) {
     };
     document.getElementById('modeHint').innerHTML = hints[state.mode];
 
-    const rows = { ship: document.getElementById('row-shipping'), dest: document.getElementById('row-dest'), ins: document.getElementById('row-insurance'), tax: document.getElementById('section-tax') };
-    if(state.mode === 'EXW' || state.mode === 'FOB') {
-        if(rows.ship) rows.ship.classList.add('dimmed'); if(rows.dest) rows.dest.classList.add('dimmed'); if(rows.ins) rows.ins.classList.add('dimmed'); if(rows.tax) rows.tax.classList.add('dimmed');
-    } else if(state.mode === 'CIF') {
-        if(rows.ship) rows.ship.classList.remove('dimmed'); if(rows.ins) rows.ins.classList.remove('dimmed'); if(rows.dest) rows.dest.classList.add('dimmed'); if(rows.tax) rows.tax.classList.add('dimmed');
-    } else if(state.mode === 'DAP') {
-        if(rows.ship) rows.ship.classList.remove('dimmed'); if(rows.dest) rows.dest.classList.remove('dimmed'); if(rows.ins) rows.ins.classList.remove('dimmed'); if(rows.tax) rows.tax.classList.add('dimmed');
-    } else if(state.mode === 'DDP') {
-        Object.values(rows).forEach(r => r && r.classList.remove('dimmed'));
-    }
+    // [V4借鉴v3] 用 includes() 白名单取代多重 if-else，逻辑与计算引擎白名单完全对称
+    const m = state.mode;
+    const showShip = ['CIF', 'DAP', 'DDP'].includes(m);
+    const showDest = ['DAP', 'DDP'].includes(m);
+    const showIns  = ['CIF', 'DAP', 'DDP'].includes(m);
+    const showTax  = m === 'DDP';
+
+    document.getElementById('row-shipping') ?.classList.toggle('dimmed', !showShip);
+    document.getElementById('row-dest')     ?.classList.toggle('dimmed', !showDest);
+    document.getElementById('row-insurance')?.classList.toggle('dimmed', !showIns);
+    document.getElementById('section-tax')  ?.classList.toggle('dimmed', !showTax);
 }
 
 // ==================== V2 核心财务中枢 ====================
 /**
- * 修复：变量迁移与逻辑闭环
- * 描述：将内部 DOM 查找全部迁移至 UI.inputs 注册表，显著提升重算效率。
- * 兼容性：高度忠实原外贸数学模型，新增 DDP 风险嗅探。
+ * [修复二] 财务专用舍入函数
+ * 使用 Number.EPSILON 补偿浮点误差，对负数（退税差额）同样安全。
+ * 替代字符串拼接方案，避免负数传入时产生 NaN。
  */
-// ==================== V2 核心财务中枢（修复版） ====================
+function financialRound(num, decimals = 2) {
+    const factor = Math.pow(10, decimals);
+    return Math.round((num + Number.EPSILON) * factor) / factor;
+}
+
+// ==================== V4 核心财务中枢（v2基座 + v3白名单优化）====================
 function calculate(isSilent = false) {
     const costRMB = parseFloat(UI.inputs.costRMB.value) || 0;
-    
-    // 补丁 1：拦截检查。若未填底价，不仅要提示，还要强行跳回第一步
+
+    // 前置拦截：底价为空时强行引导
     if (costRMB <= 0) {
         if (!isSilent) {
             showToast('⚠️ 拦截：请先回到第一步输入进货底价');
-            nextStep(1); 
+            nextStep(1);
             setTimeout(() => UI.inputs.costRMB.focus(), 500);
         }
         return;
     }
 
-    // --- 以下保持您原有的财务逻辑不动 ---
-    const isRebate = document.getElementById('isRebate').checked;
-    const rebateRate = parseFloat(UI.inputs.rebateRate.value) || 0;
+    // ── 参数抓取 ──────────────────────────────────────────────
+    const isRebate     = document.getElementById('isRebate').checked;
+    const rebateRate   = parseFloat(UI.inputs.rebateRate.value) || 0;
     const inputVatRate = (parseFloat(UI.inputs.inputVatRate.value) || 13) / 100;
-    const excludeTaxPrice = costRMB / (1 + inputVatRate);
-    const taxDiffAdj = excludeTaxPrice * Math.max(0, inputVatRate - (rebateRate / 100));
-    const rebateAmt = isRebate ? (excludeTaxPrice * (rebateRate / 100) - taxDiffAdj) : 0;
-    const domFreight = state.mode === 'EXW' ? 0 : (parseFloat(UI.inputs.domesticFreight.value) || 0);
-    const shipUSD = parseFloat(UI.inputs.shippingFee.value) || 0;
-    const destUSD = parseFloat(UI.inputs.destFee.value) || 0;
-    const insRate = (parseFloat(UI.inputs.insuranceRate.value) || 0) / 100;
-    const taxRate = (parseFloat(UI.inputs.taxRate.value) || 0) / 100;
-    const vatRate = (parseFloat(UI.inputs.vatRate.value) || 0) / 100;
-    const exRate = parseFloat(UI.inputs.exchangeRate.value) || 7.15;
-    const buffer = parseFloat(UI.inputs.rateBuffer.value) || 0;
-    const payFee = (parseFloat(UI.inputs.paymentFee.value) || 0) / 100;
+    const exRate       = parseFloat(UI.inputs.exchangeRate.value) || 7.15;
+    const buffer       = parseFloat(UI.inputs.rateBuffer.value) || 0;
+    const payFee       = (parseFloat(UI.inputs.paymentFee.value) || 0) / 100;
+    const insRate      = (parseFloat(UI.inputs.insuranceRate.value) || 0) / 100;
+    const taxRate      = (parseFloat(UI.inputs.taxRate.value) || 0) / 100;
+    const vatRate      = (parseFloat(UI.inputs.vatRate.value) || 0) / 100;
     const targetProfitRate = state.profitRate / 100;
-    const settleRate = exRate - buffer;
-    const fobUSD = (costRMB + domFreight - rebateAmt) / settleRate;
 
+    // [修复二] 财务精度：汇率保留4位，消除 7.15-0.05=7.099999... 类误差
+    const settleRate = financialRound(exRate - buffer, 4);
+
+    // [修复二] 退税额中间变量同步精确舍入
+    const excludeTaxPrice = costRMB / (1 + inputVatRate);
+    const taxDiffAdj      = excludeTaxPrice * Math.max(0, inputVatRate - (rebateRate / 100));
+    const rebateAmt       = isRebate
+        ? financialRound(excludeTaxPrice * (rebateRate / 100) - taxDiffAdj, 2)
+        : 0;
+
+    // EXW 模式不计国内运费
+    const domFreight = state.mode === 'EXW' ? 0 : (parseFloat(UI.inputs.domesticFreight.value) || 0);
+
+    // [V4借鉴v3] 条款参数白名单：与 setMode 的 includes() 逻辑完全镜像
+    // CIF/DAP/DDP 才计海运费；DAP/DDP 才计目的港费；CIF/DAP/DDP 才计保险；DDP 才计税
+    const activeShipUSD = ['CIF', 'DAP', 'DDP'].includes(state.mode)
+        ? (parseFloat(UI.inputs.shippingFee.value) || 0) : 0;
+    const activeDestUSD = ['DAP', 'DDP'].includes(state.mode)
+        ? (parseFloat(UI.inputs.destFee.value) || 0) : 0;
+    const activeInsRate = ['CIF', 'DAP', 'DDP'].includes(state.mode)
+        ? insRate : 0;
+
+    const fobUSD = financialRound((costRMB + domFreight - rebateAmt) / settleRate, 4);
+
+    // ── [修复一] 安全分母校验（按模式分别判断，EXW/FOB 不含保险费）──
+    const denBase = 1 - targetProfitRate - payFee;            // EXW/FOB 分母
+    const denFull = denBase - 1.1 * activeInsRate;            // CIF/DAP/DDP 分母
+
+    if (state.mode === 'EXW' || state.mode === 'FOB') {
+        if (denBase <= 0.05) {
+            if (!isSilent) showToast('⚠️ 利润率与收款手续费之和过高，无法定价，请调低');
+            return;
+        }
+    } else {
+        if (denFull <= 0.05) {
+            if (!isSilent) showToast('⚠️ 费用与利润率总和过高，导致无法定价，请调低预期');
+            return;
+        }
+    }
+
+    // ── 核心定价计算 ──────────────────────────────────────────
     let price = 0, duty = 0, freight = 0;
-    
+
     try {
         if (state.mode === 'EXW' || state.mode === 'FOB') {
-            price = fobUSD / (1 - targetProfitRate - payFee);
+            price = fobUSD / denBase;
         } else if (state.mode === 'CIF') {
-            price = (fobUSD + shipUSD) / (1 - targetProfitRate - payFee - 1.1 * insRate);
-            freight = shipUSD + price * 1.1 * insRate;
+            price   = (fobUSD + activeShipUSD) / denFull;
+            freight = financialRound(activeShipUSD + price * 1.1 * activeInsRate, 2);
         } else if (state.mode === 'DAP') {
-            price = (fobUSD + shipUSD + destUSD) / (1 - targetProfitRate - payFee - 1.1 * insRate);
-            freight = shipUSD + destUSD + price * 1.1 * insRate;
+            price   = (fobUSD + activeShipUSD + activeDestUSD) / denFull;
+            freight = financialRound(activeShipUSD + activeDestUSD + price * 1.1 * activeInsRate, 2);
         } else if (state.mode === 'DDP') {
-            let cifCost = fobUSD + shipUSD + destUSD; 
-            duty = cifCost * (taxRate + (1 + taxRate) * vatRate);
-            let den = 1 - targetProfitRate - payFee - 1.1 * insRate;
-            if (den <= 0.01) throw new Error("预期利润率设置过高，价格无效");
-            price = (cifCost + duty) / den;
-            freight = shipUSD + destUSD + price * 1.1 * insRate;
+            const cifCost = fobUSD + activeShipUSD + activeDestUSD;
+            duty    = financialRound(cifCost * (taxRate + (1 + taxRate) * vatRate), 2);
+            price   = (cifCost + duty) / denFull;
+            freight = financialRound(activeShipUSD + activeDestUSD + price * 1.1 * activeInsRate, 2);
         }
     } catch (e) {
         if (!isSilent) showToast('⚠️ ' + e.message);
@@ -1162,37 +1199,52 @@ function calculate(isSilent = false) {
 
     if (!isFinite(price) || price <= 0) return;
 
-    state.lastPrice = price;
+    // [修复二] 最终报价精确到4位（外贸惯例），人民币换算精确到2位
+    price = financialRound(price, 4);
+
+    // ── 状态更新 ───────────────────────────────────────────────
+    state.lastPrice      = price;
     state.lastSettleRate = settleRate;
     UI.containers.tabs.forEach(t => t.classList.remove('locked'));
     UI.containers.resultEmpty.style.display = 'none';
     UI.containers.resultContent.style.display = 'block';
 
-    const netProfitUSD = price - (fobUSD + shipUSD + destUSD + duty + price * payFee + (freight - shipUSD - destUSD));
+    // 净利计算（使用 activeInsRate 与定价模型完全对齐）
+    const insAmt       = financialRound(price * 1.1 * activeInsRate, 2);
+    const netProfitUSD = financialRound(
+        price - (fobUSD + activeShipUSD + activeDestUSD + duty + price * payFee + insAmt), 2
+    );
     const actualProfitPercent = (netProfitUSD / price) * 100;
 
-    const cifAssumed = fobUSD + shipUSD + destUSD;
-    const dutyAssumed = cifAssumed * (taxRate + (1 + taxRate) * vatRate);
-    const ddpEquiv = (cifAssumed + dutyAssumed) / Math.max(0.01, 1 - targetProfitRate - payFee - 1.1 * insRate);
+    // DDP 等价落地价（读取原始输入，不受白名单过滤，用于参考展示）
+    const rawShip     = parseFloat(UI.inputs.shippingFee.value) || 0;
+    const rawDest     = parseFloat(UI.inputs.destFee.value) || 0;
+    const cifAssumed  = fobUSD + rawShip + rawDest;
+    const dutyAssumed = financialRound(cifAssumed * (taxRate + (1 + taxRate) * vatRate), 2);
+    const ddpEquiv    = financialRound(
+        (cifAssumed + dutyAssumed) / Math.max(0.05, denFull), 4
+    );
 
-    document.getElementById('rh-mode').innerText = state.mode;
-    document.getElementById('rh-price').innerHTML = `$${formatMoney(price)}<span>/ pc</span>`;
-    document.getElementById('rh-price-cny').innerText = `≈ ¥${formatMoney(price * settleRate)} / pc`;
-    document.getElementById('rh-profit-rate').innerText = actualProfitPercent.toFixed(2) + '%';
-    document.getElementById('rh-rate-note').innerText = settleRate.toFixed(3);
-    document.getElementById('rh-tax-val').innerText = (state.mode === 'DDP') ? `$${formatMoney(duty)}` : '未包含';
-    
-    document.getElementById('bk-profit').innerText = `$${formatMoney(netProfitUSD)}`;
-    document.getElementById('bk-rebate').innerText = rebateAmt > 0 ? `¥${formatMoney(rebateAmt)}` : '无';
+    // ── UI 渲染 ────────────────────────────────────────────────
+    document.getElementById('rh-mode').innerText         = state.mode;
+    document.getElementById('rh-price').innerHTML        = `$${formatMoney(price)}<span>/ pc</span>`;
+    document.getElementById('rh-price-cny').innerText    = `≈ ¥${formatMoney(financialRound(price * settleRate, 2))} / pc`;
+    document.getElementById('rh-profit-rate').innerText  = actualProfitPercent.toFixed(2) + '%';
+    document.getElementById('rh-rate-note').innerText    = settleRate.toFixed(4);
+    document.getElementById('rh-tax-val').innerText      = (state.mode === 'DDP') ? `$${formatMoney(duty)}` : '未包含';
+
+    document.getElementById('bk-profit').innerText  = `$${formatMoney(netProfitUSD)}`;
+    document.getElementById('bk-rebate').innerText  = rebateAmt > 0 ? `¥${formatMoney(rebateAmt)}` : '无';
     document.getElementById('bk-freight').innerText = freight > 0 ? `$${formatMoney(freight)}` : '无';
-    document.getElementById('bk-ddp').innerText = `$${formatMoney(ddpEquiv)}`;
+    document.getElementById('bk-ddp').innerText     = `$${formatMoney(ddpEquiv)}`;
 
-    renderPI(); 
+    // [修复四] PI 渲染在 calculate 内部统一调用，确保 state.lastPrice 已赋值
+    renderPI();
 
-    // 补丁 2：核心修复。如果不是静默自动核算（即用户主动点击了按钮），则执行跳转
+    // 主动核算（非静默）：保存历史并跳转结果页
     if (!isSilent) {
         saveHistory(price, settleRate, costRMB);
-        switchTab('result'); // 跳转到结果分析页
+        switchTab('result');
         showToast('🚀 核算完成，已生成专业看板');
     }
 }
@@ -1457,13 +1509,15 @@ function onSlider(e) {
     document.getElementById('profitDisplay').innerText = val + '%'; 
     
     // 同步预设标签高亮：精准命中则高亮，无命中则全清
-    // 性能优化：仅在命中状态发生变化时才操作 DOM，避免高频滑动重绘
     document.querySelectorAll('.ptag').forEach(p => {
         const isMatch = parseFloat(p.dataset.val) === val;
         const wasActive = p.classList.contains('active');
         if (isMatch && !wasActive) p.classList.add('active');
         else if (!isMatch && wasActive) p.classList.remove('active');
     });
+
+    // [修复四] 滑块变化触发静默核算，PI 渲染由 calculate 内部统一负责
+    autoCalculate();
 }
 
 // 伴生配套微调功能：利润率步进后触发核算（处理越界阻断，保证健壮性）
