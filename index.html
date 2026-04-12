@@ -206,6 +206,105 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
 .tab.shake-anim {
     animation: shakeTab 0.35s cubic-bezier(.36,.07,.19,.97) both;
 }
+
+/* ==================== AUTH 系统样式 ==================== */
+/* 顶部用户状态区 */
+.auth-btn {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 20px; padding: 6px 12px; cursor: pointer;
+    font-size: 12px; font-weight: 600; color: var(--text2);
+    transition: 0.2s; white-space: nowrap;
+}
+.auth-btn:active { background: var(--accent-light); color: var(--accent); border-color: var(--accent); }
+.auth-avatar {
+    width: 24px; height: 24px; background: var(--accent);
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; color: white; flex-shrink: 0;
+}
+
+/* Auth 弹窗 */
+.auth-modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.75); backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px); display: none;
+    align-items: flex-end; justify-content: center; z-index: 20000;
+}
+.auth-modal-overlay.open { display: flex; }
+.auth-sheet {
+    background: var(--surface); width: 100%; max-width: 600px;
+    border-radius: 24px 24px 0 0; padding: 28px 24px 40px;
+    animation: sheetUp 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.auth-handle { width: 40px; height: 4px; background: var(--border2); border-radius: 2px; margin: 0 auto 24px; }
+.auth-sheet-title { font-size: 20px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+.auth-sheet-sub { font-size: 13px; color: var(--text2); margin-bottom: 24px; line-height: 1.5; }
+.auth-email-input {
+    width: 100%; border: 1.5px solid var(--border); border-radius: var(--radius);
+    padding: 14px 16px; font-size: 16px; background: var(--surface2);
+    outline: none; margin-bottom: 12px; font-family: 'DM Sans', sans-serif;
+    transition: border-color 0.2s;
+}
+.auth-email-input:focus { border-color: var(--accent); }
+.auth-submit-btn {
+    width: 100%; background: var(--accent); color: white;
+    border: none; border-radius: var(--radius); padding: 15px;
+    font-size: 15px; font-weight: 700; cursor: pointer;
+    box-shadow: 0 4px 12px rgba(27,79,216,0.25); transition: 0.2s;
+    margin-bottom: 12px;
+}
+.auth-submit-btn:active { transform: scale(0.97); }
+.auth-submit-btn:disabled { opacity: 0.6; pointer-events: none; }
+.auth-cancel-btn {
+    width: 100%; background: transparent; border: none;
+    color: var(--text3); font-size: 13px; padding: 10px;
+    cursor: pointer;
+}
+.auth-divider { display: flex; align-items: center; gap: 12px; margin: 16px 0; color: var(--text3); font-size: 12px; }
+.auth-divider::before, .auth-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+/* 用户菜单弹窗 */
+.user-menu-sheet {
+    background: var(--surface); width: 100%; max-width: 600px;
+    border-radius: 24px 24px 0 0; padding: 28px 24px 40px;
+    animation: sheetUp 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.user-menu-email { font-size: 13px; color: var(--text2); margin-bottom: 20px; word-break: break-all; }
+.menu-item {
+    display: flex; align-items: center; gap: 14px;
+    padding: 16px 0; border-bottom: 1px solid var(--border);
+    cursor: pointer; font-size: 14px; font-weight: 500; color: var(--text);
+    transition: 0.15s;
+}
+.menu-item:active { color: var(--accent); }
+.menu-item.danger { color: var(--warn); }
+.menu-icon { font-size: 20px; width: 28px; text-align: center; }
+
+/* 云端同步徽章（历史库tab内） */
+.sync-banner {
+    background: var(--accent-light); border: 1px solid rgba(27,79,216,0.15);
+    border-radius: var(--radius); padding: 14px 16px;
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 16px; cursor: pointer;
+}
+.sync-banner-text { font-size: 12px; color: var(--accent); font-weight: 500; flex: 1; line-height: 1.4; }
+.sync-banner-cta { font-size: 12px; font-weight: 700; color: var(--accent); white-space: nowrap; }
+
+/* 加载状态 */
+.auth-spinner {
+    width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.4);
+    border-top-color: white; border-radius: 50%;
+    animation: spin 0.7s linear infinite; display: inline-block; margin-right: 6px;
+    vertical-align: middle;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Magic Link 发送成功状态 */
+.auth-success-state { text-align: center; padding: 10px 0 20px; }
+.auth-success-icon { font-size: 48px; margin-bottom: 16px; }
+.auth-success-title { font-size: 18px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+.auth-success-body { font-size: 13px; color: var(--text2); line-height: 1.6; }
 </style>
 </head>
 <body>
@@ -215,10 +314,16 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
     <div class="header-logo">🚢</div>
     <div class="header-title">外贸报价计算器 <span style="color:var(--accent);font-size:11px;background:var(--accent-light);padding:2px 6px;border-radius:6px;margin-left:4px;">PRO</span></div>
   </div>
-  <button class="rate-badge" id="rateBadge" onclick="fetchRate(true)">
-    <span class="dot"></span>
-    <span id="rateDisplay">获取汇率...</span>
-  </button>
+  <div style="display:flex; align-items:center; gap:8px;">
+    <!-- 用户状态按钮 -->
+    <div id="authBtn" class="auth-btn" onclick="openAuthSheet()">
+      <span>👤</span><span id="authBtnLabel">登录</span>
+    </div>
+    <button class="rate-badge" id="rateBadge" onclick="fetchRate(true)">
+      <span class="dot"></span>
+      <span id="rateDisplay">获取汇率...</span>
+    </button>
+  </div>
 </div>
 
 <div class="tabs">
@@ -519,7 +624,17 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
 <!-- PAGE 4: 历史记录 (V2 新增底层系统) -->
 <div id="page-history" class="page">
     <div class="card" style="padding: 16px; background:transparent; border:none; box-shadow:none;">
-        <div style="font-size: 14px; font-weight: 700; margin-bottom: 16px; color: var(--text);">本地核算历史 (支持一键恢复重算)</div>
+        <div style="font-size: 14px; font-weight: 700; margin-bottom: 16px; color: var(--text);">核算历史 <span id="historySourceLabel" style="font-size:11px; font-weight:400; color:var(--text3);">（本机）</span></div>
+        
+        <!-- 游客版云同步引导横幅 -->
+        <div id="syncBanner" class="sync-banner" onclick="openAuthSheet()" style="display:none;">
+          <span style="font-size:22px;">☁️</span>
+          <div class="sync-banner-text">
+            <b>登录后历史记录自动同步云端</b><br>跨设备访问，永不丢失
+          </div>
+          <div class="sync-banner-cta">立即登录 →</div>
+        </div>
+        
         <div id="historyContainer">
             <div class="history-empty">暂无历史记录<br><span style="font-size:11px;opacity:0.6;display:block;margin-top:6px;">您进行的计算将自动留存在此浏览器中</span></div>
         </div>
@@ -569,6 +684,71 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
         <button class="m-btn m-btn-allow" onclick="triggerManualSelection()">点击高亮文本</button>
         <button class="m-btn m-btn-cancel" onclick="document.getElementById('finalCopyModal').style.display='none'">关 闭</button>
     </div>
+</div>
+
+<!-- ==================== AUTH 弹窗系统 ==================== -->
+
+<!-- 登录弹窗（底部抽屉） -->
+<div id="authModalOverlay" class="auth-modal-overlay" onclick="handleOverlayClick(event)">
+  <div class="auth-sheet" onclick="event.stopPropagation()">
+    <div class="auth-handle"></div>
+    
+    <!-- 登录表单态 -->
+    <div id="authFormState">
+      <div class="auth-sheet-title">✉️ 邮件免密登录</div>
+      <div class="auth-sheet-sub">输入工作邮箱，我们将发送一个登录链接。无需注册，无需密码。</div>
+      <input type="email" id="authEmailInput" class="auth-email-input" placeholder="your@company.com" autocomplete="email" inputmode="email">
+      <button class="auth-submit-btn" id="authSubmitBtn" onclick="sendMagicLink()">
+        发送登录链接
+      </button>
+      <div class="auth-divider">游客模式说明</div>
+      <div style="font-size:12px; color:var(--text3); line-height:1.6; text-align:center;">
+        不登录也可以完整使用所有核算功能。<br>登录后额外获得：历史记录云端同步 ☁️
+      </div>
+      <button class="auth-cancel-btn" onclick="closeAuthSheet()">暂不登录，继续使用游客版</button>
+    </div>
+    
+    <!-- 发送成功态 -->
+    <div id="authSuccessState" class="auth-success-state" style="display:none;">
+      <div class="auth-success-icon">📬</div>
+      <div class="auth-success-title">登录链接已发出！</div>
+      <div class="auth-success-body">
+        请检查邮箱 <b id="sentEmailDisplay"></b><br>
+        点击邮件中的链接即可完成登录。<br><br>
+        <span style="color:var(--text3);">链接有效期 1 小时，请勿分享给他人。</span>
+      </div>
+      <button class="auth-cancel-btn" style="margin-top:20px;" onclick="closeAuthSheet()">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 用户菜单弹窗（已登录状态） -->
+<div id="userMenuOverlay" class="auth-modal-overlay" onclick="handleUserMenuClick(event)">
+  <div class="user-menu-sheet" onclick="event.stopPropagation()">
+    <div class="auth-handle"></div>
+    <div style="display:flex; align-items:center; gap:14px; margin-bottom:6px;">
+      <div class="auth-avatar" id="menuAvatar" style="width:40px;height:40px;font-size:16px;">U</div>
+      <div>
+        <div style="font-weight:700; font-size:15px;">已登录用户</div>
+        <div class="user-menu-email" id="menuEmail" style="margin-bottom:0;">-</div>
+      </div>
+    </div>
+    
+    <div style="margin-top:20px;">
+      <div class="menu-item" onclick="syncNow()">
+        <span class="menu-icon">☁️</span>
+        <div>
+          <div>立即同步历史记录</div>
+          <div style="font-size:11px; color:var(--text3); margin-top:2px;">将本机记录上传至云端</div>
+        </div>
+      </div>
+      <div class="menu-item danger" onclick="signOut()">
+        <span class="menu-icon">🚪</span>
+        <div>退出登录</div>
+      </div>
+    </div>
+    <button class="auth-cancel-btn" style="margin-top:8px;" onclick="closeUserMenu()">取消</button>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -1438,10 +1618,302 @@ function initLogicBind() {
     });
     console.log("核心逻辑绑定完成：实时联动核算已就绪");
 }
+// ==================== SUPABASE AUTH 系统 ====================
+/**
+ * 使用说明：
+ * 1. 前往 https://supabase.com 创建免费项目
+ * 2. 在 Project Settings > API 中获取 URL 和 anon key
+ * 3. 将下方两个占位符替换为你的实际值
+ * 4. 在 Supabase 控制台 > Authentication > URL Configuration
+ *    将 Site URL 设置为你的工具访问地址
+ * 5. 在 Supabase 控制台执行以下 SQL 建表：
+ *
+ *    create table quote_history (
+ *      id uuid default gen_random_uuid() primary key,
+ *      user_id uuid references auth.users(id) on delete cascade,
+ *      created_at timestamptz default now(),
+ *      snapshot jsonb not null
+ *    );
+ *    alter table quote_history enable row level security;
+ *    create policy "users own their quotes"
+ *      on quote_history for all
+ *      using (auth.uid() = user_id);
+ */
+
+const SUPABASE_URL = 'https://ehotaizdxfhwuuitjhty.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVob3RhaXpkeGZod3V1aXRqaHR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5OTQ1MjMsImV4cCI6MjA5MTU3MDUyM30.z2YNyQxY2_VjkaZhXfb-qKejBikOOoNXKlVcYsALglM';
+
+let supabaseClient = null;
+let currentUser = null;
+
+// 判断是否已完成 Supabase 配置
+function isSupabaseConfigured() {
+    return SUPABASE_URL !== 'YOUR_SUPABASE_URL' && SUPABASE_ANON_KEY !== 'YOUR_SUPABASE_ANON_KEY';
+}
+
+async function initSupabase() {
+    if (!isSupabaseConfigured()) {
+        console.log('[Auth] Supabase 尚未配置，以游客模式运行');
+        renderGuestUI();
+        return;
+    }
+    
+    try {
+        // 动态加载 Supabase SDK（CDN，无需构建工具）
+        await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js');
+        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        // 监听 Auth 状态变化（含 Magic Link 回调）
+        supabaseClient.auth.onAuthStateChange(async (event, session) => {
+            currentUser = session?.user ?? null;
+            if (event === 'SIGNED_IN') {
+                renderLoggedInUI(currentUser);
+                await mergeLocalToCloud(); // 登录时自动迁移本机数据
+                loadHistory();
+                showToast('🎉 登录成功，历史记录已同步至云端');
+            } else if (event === 'SIGNED_OUT') {
+                renderGuestUI();
+                loadHistory();
+            }
+        });
+        
+        // 获取当前 session（页面刷新后恢复登录态）
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        currentUser = session?.user ?? null;
+        if (currentUser) {
+            renderLoggedInUI(currentUser);
+        } else {
+            renderGuestUI();
+        }
+    } catch (err) {
+        console.warn('[Auth] Supabase 初始化失败，降级为游客模式', err);
+        renderGuestUI();
+    }
+}
+
+function loadScript(src) {
+    return new Promise((resolve, reject) => {
+        if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
+        const s = document.createElement('script');
+        s.src = src; s.onload = resolve; s.onerror = reject;
+        document.head.appendChild(s);
+    });
+}
+
+// ---- UI 渲染 ----
+function renderGuestUI() {
+    const btn = document.getElementById('authBtn');
+    btn.innerHTML = '<span>👤</span><span id="authBtnLabel">登录</span>';
+    btn.onclick = () => {
+        if (!isSupabaseConfigured()) {
+            showToast('⚙️ 请先在代码中填写 Supabase 配置');
+            return;
+        }
+        openAuthSheet();
+    };
+    // 历史库标题与同步横幅
+    const lbl = document.getElementById('historySourceLabel');
+    if (lbl) lbl.textContent = '（本机）';
+    const banner = document.getElementById('syncBanner');
+    if (banner) banner.style.display = isSupabaseConfigured() ? 'flex' : 'none';
+}
+
+function renderLoggedInUI(user) {
+    const email = user?.email || '';
+    const initial = email ? email[0].toUpperCase() : 'U';
+    const btn = document.getElementById('authBtn');
+    btn.innerHTML = `<div class="auth-avatar" style="width:20px;height:20px;font-size:10px;">${initial}</div><span>${email.split('@')[0]}</span>`;
+    btn.onclick = openUserMenu;
+    // 历史库标题
+    const lbl = document.getElementById('historySourceLabel');
+    if (lbl) lbl.textContent = '（云端同步）';
+    const banner = document.getElementById('syncBanner');
+    if (banner) banner.style.display = 'none';
+    // 用户菜单信息填充
+    document.getElementById('menuAvatar').textContent = initial;
+    document.getElementById('menuEmail').textContent = email;
+}
+
+// ---- 弹窗控制 ----
+function openAuthSheet() {
+    document.getElementById('authFormState').style.display = 'block';
+    document.getElementById('authSuccessState').style.display = 'none';
+    document.getElementById('authEmailInput').value = '';
+    document.getElementById('authModalOverlay').classList.add('open');
+    setTimeout(() => document.getElementById('authEmailInput').focus(), 400);
+}
+function closeAuthSheet() {
+    document.getElementById('authModalOverlay').classList.remove('open');
+}
+function handleOverlayClick(e) {
+    if (e.target === document.getElementById('authModalOverlay')) closeAuthSheet();
+}
+function openUserMenu() {
+    document.getElementById('userMenuOverlay').classList.add('open');
+}
+function closeUserMenu() {
+    document.getElementById('userMenuOverlay').classList.remove('open');
+}
+function handleUserMenuClick(e) {
+    if (e.target === document.getElementById('userMenuOverlay')) closeUserMenu();
+}
+
+// ---- Magic Link 登录 ----
+async function sendMagicLink() {
+    const email = document.getElementById('authEmailInput').value.trim();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        showToast('⚠️ 请输入有效的邮箱地址');
+        return;
+    }
+    const btn = document.getElementById('authSubmitBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="auth-spinner"></span>发送中...';
+    
+    try {
+        const { error } = await supabaseClient.auth.signInWithOtp({
+            email,
+            options: { emailRedirectTo: window.location.href }
+        });
+        if (error) throw error;
+        document.getElementById('sentEmailDisplay').textContent = email;
+        document.getElementById('authFormState').style.display = 'none';
+        document.getElementById('authSuccessState').style.display = 'block';
+    } catch (err) {
+        showToast('❌ 发送失败：' + (err.message || '请检查网络'));
+        btn.disabled = false;
+        btn.innerHTML = '发送登录链接';
+    }
+}
+
+// ---- 退出登录 ----
+async function signOut() {
+    closeUserMenu();
+    if (supabaseClient) {
+        await supabaseClient.auth.signOut();
+    }
+    showToast('👋 已退出登录');
+}
+
+// ---- 云端历史记录 CRUD ----
+
+// 保存一条记录到云端（由 saveHistory 调用）
+async function saveToCloud(record) {
+    if (!supabaseClient || !currentUser) return false;
+    try {
+        const { error } = await supabaseClient
+            .from('quote_history')
+            .insert({ user_id: currentUser.id, snapshot: record });
+        if (error) throw error;
+        return true;
+    } catch (err) {
+        console.warn('[Cloud] 保存失败', err);
+        return false;
+    }
+}
+
+// 从云端读取历史记录
+async function loadFromCloud() {
+    if (!supabaseClient || !currentUser) return null;
+    try {
+        const { data, error } = await supabaseClient
+            .from('quote_history')
+            .select('snapshot, created_at')
+            .eq('user_id', currentUser.id)
+            .order('created_at', { ascending: false })
+            .limit(50);
+        if (error) throw error;
+        return data.map(row => row.snapshot);
+    } catch (err) {
+        console.warn('[Cloud] 读取失败', err);
+        return null;
+    }
+}
+
+// 登录后：将本机 localStorage 记录批量同步到云端
+async function mergeLocalToCloud() {
+    if (!supabaseClient || !currentUser) return;
+    let local = [];
+    try { local = JSON.parse(localStorage.getItem('quoteHistory') || '[]'); } catch(e){}
+    if (local.length === 0) return;
+    
+    try {
+        const rows = local.map(r => ({ user_id: currentUser.id, snapshot: r }));
+        await supabaseClient.from('quote_history').upsert(rows, { onConflict: 'id' });
+        // 迁移成功后清理本机缓存（避免重复）
+        localStorage.removeItem('quoteHistory');
+        console.log(`[Cloud] 已迁移 ${local.length} 条本机记录至云端`);
+    } catch (err) {
+        console.warn('[Cloud] 迁移失败', err);
+    }
+}
+
+// 手动触发同步（用户菜单按钮）
+async function syncNow() {
+    closeUserMenu();
+    showToast('⏳ 同步中...');
+    await mergeLocalToCloud();
+    loadHistory();
+    showToast('✅ 同步完成');
+}
+
+// ==================== 覆盖原有 saveHistory，增加云端写入 ====================
+const _originalSaveHistory = saveHistory;
+saveHistory = async function(price, settleRate, costRMB) {
+    // 先执行原始逻辑（写 localStorage）
+    _originalSaveHistory(price, settleRate, costRMB);
+    
+    // 如果已登录，额外写云端
+    if (currentUser && supabaseClient) {
+        let list = [];
+        try { list = JSON.parse(localStorage.getItem('quoteHistory') || '[]'); } catch(e){}
+        const latest = list[0]; // 刚写入的最新记录
+        if (latest) await saveToCloud(latest);
+    }
+};
+
+// ==================== 覆盖 loadHistory，登录时读云端 ====================
+const _originalLoadHistory = loadHistory;
+loadHistory = async function() {
+    if (currentUser && supabaseClient) {
+        const cloudData = await loadFromCloud();
+        if (cloudData !== null) {
+            // 用云端数据渲染（不覆盖 localStorage）
+            renderHistoryList(cloudData);
+            return;
+        }
+    }
+    // 游客或云端加载失败时降级本机
+    _originalLoadHistory();
+};
+
+// 抽离历史渲染逻辑（供云端数据使用）
+function renderHistoryList(list) {
+    const container = document.getElementById('historyContainer');
+    if (!container) return;
+    if (!list || list.length === 0) {
+        container.innerHTML = '<div class="history-empty">暂无历史记录<br><span style="font-size:11px;opacity:0.6;display:block;margin-top:6px;">您进行的计算将自动同步至云端</span></div>';
+        return;
+    }
+    container.innerHTML = list.map(item => `
+        <div class="history-item" onclick="restoreHistory(${item.id})">
+            <div class="history-header">
+                <span>🕒 ${item.date}</span>
+                <span>${item.mode} / ${item.profitRate}% 净利</span>
+            </div>
+            <div class="history-body">
+                <div class="history-title">${escapeHTML(item.product || '未命名产品分析')}</div>
+                <div class="history-price">$${formatMoney(item.price)}</div>
+            </div>
+            <div style="font-size: 11px; color: var(--text3); margin-top: 6px;">进货成本: ¥${formatMoney(item.cost)} / 锁汇参考: ${item.rate}</div>
+        </div>
+    `).join('');
+}
+
+
 window.onload = () => {
-    // 1. 【新增】确保页面一打开就显示第一步
+    initSupabase();
     initLogicBind();
-    nextStep(1); 
+    nextStep(1);
 
     // 2. 填充国家下拉框
     const s = document.getElementById('countrySelect');
