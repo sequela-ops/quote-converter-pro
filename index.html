@@ -264,6 +264,42 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
 .auth-divider { display: flex; align-items: center; gap: 12px; margin: 16px 0; color: var(--text3); font-size: 12px; }
 .auth-divider::before, .auth-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 
+/* 新增：登录页安全保障卡样式 */
+.auth-security-card {
+    display: flex;
+    justify-content: space-around;
+    gap: 8px;
+    background: var(--accent2-light);
+    border: 1px dashed var(--accent2);
+    border-radius: var(--radius-sm);
+    padding: 12px 8px;
+    margin-bottom: 20px;
+}
+.security-item {
+    text-align: center;
+    flex: 1;
+}
+.security-icon {
+    font-size: 18px;
+    margin-bottom: 4px;
+    display: block;
+}
+.security-text {
+    font-size: 10px;
+    color: var(--accent2);
+    font-weight: 700;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+.security-tag {
+    font-size: 9px;
+    background: white;
+    padding: 1px 4px;
+    border-radius: 4px;
+    margin-top: 4px;
+    display: inline-block;
+}
+
 /* 用户菜单弹窗 */
 .user-menu-sheet {
     background: var(--surface); width: 100%; max-width: 600px;
@@ -696,7 +732,28 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
     <!-- 登录表单态 -->
     <div id="authFormState">
       <div class="auth-sheet-title">✉️ 邮件免密登录</div>
-      <div class="auth-sheet-sub">输入工作邮箱，我们将发送一个登录链接。无需注册，无需密码。</div>
+      <div class="auth-sheet-sub">
+    采用<b>金融级无密码登录</b>技术。为了保护您的报价底价与商业机密，系统将向邮箱发送唯一身份令牌，有效杜绝密码被黑客撞库泄露的风险。
+  </div>
+
+  <div class="auth-security-card">
+    <div class="security-item">
+      <span class="security-icon">🛡️</span>
+      <span class="security-text">加密传输</span>
+      <span class="security-tag">AES-256</span>
+    </div>
+    <div class="security-item">
+      <span class="security-icon">🚫</span>
+      <span class="security-text">隐私保障</span>
+      <span class="security-tag">零广告骚扰</span>
+    </div>
+    <div class="security-item">
+      <span class="security-icon">🕵️</span>
+      <span class="security-text">数据隔离</span>
+      <span class="security-tag">个人独占</span>
+    </div>
+  </div>
+
       <input type="email" id="authEmailInput" class="auth-email-input" placeholder="your@company.com" autocomplete="email" inputmode="email">
       <button class="auth-submit-btn" id="authSubmitBtn" onclick="sendMagicLink()">
         发送登录链接
