@@ -1,0 +1,54 @@
+name: Smart Deploy Pipeline
+
+on:
+  push:
+    branches:
+      - main   # 如使用 master 分支，改为 master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. 拉代码（fetch-depth: 5 保证 git log 能取到最近5条 commit）
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 5
+
+      # 2. 生成时间 & 版本号（Asia/Shanghai 时区，避免 UTC 差8小时）
+      - name: Generate Version Info
+        run: |
+          export TZ='Asia/Shanghai'
+          echo "BUILD_TIME=$(date '+%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
+          echo "VERSION=v$(date '+%Y.%m.%d.%H%M')" >> $GITHUB_ENV
+
+      # 3. 写入版本文件
+      - name: Create version file
+        run: |
+          echo "Version: $VERSION" > version.txt
+          echo "Last updated: $BUILD_TIME" >> version.txt
+
+      # 4. 生成 changelog（最近5条 commit）
+      - name: Generate Changelog
+        run: |
+          git log -5 --pretty=format:"- %s (%h)" > changelog.txt
+
+      # 5. 打包 dist（只部署需要的文件，不暴露 .github 等目录）
+      - name: Prepare dist
+        run: |
+          mkdir dist
+          cp index.html dist/
+          cp version.txt dist/
+          cp changelog.txt dist/
+
+      # 6. Debug 确认文件
+      - name: Check files
+        run: ls -la dist/
+
+      # 7. 部署到 GitHub Pages
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
