@@ -1,5 +1,5 @@
-- Add files via upload (55122aa)
-- Add files via upload (4f7b591)
-- Add GitHub Actions workflow for deployment (049f861)
-- Add files via upload (f61a3e8)
-- Add files via upload (bf82238)
+- v4.1.6: 加入了版本号和更新时间记录系统。
+- v4.1.5: 修复了一些bug。
+- v4.1.4: 加入了分享链接系统。
+- v4.1.3: 加入了邮件登录系统安全和保密声明。
+- v4.1.2: UI 界面全维度升级，优化了iOS端视觉体验。
