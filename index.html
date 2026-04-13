@@ -3,13 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>专业外贸报价计算器 Pro - v4</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<title>专业外贸报价计算器 Pro - v2.2</title>
+<!-- 字体预连接：减少 DNS + TLS 握手延迟约 100-300ms -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 /* 1:1 完整保留原件所有样式设计系统，并扩展 V2 样式 */
 :root {
   --bg: #F5F4F0; --surface: #FFFFFF; --surface2: #F9F8F6; --border: #E8E5DF;
-  --border2: #D4CFC6; --text: #1A1A1A; --text2: #6B6860; --text3: #9E9B95;
+  --border2: #D4CFC6; --text: #1A1A1A; --text2: #5D5A54; 
+  /* v2.2: --text3 从 #9E9B95(2.6:1) 加深至 #706D67(5.4:1)，通过 WCAG AA */
+  --text3: #706D67;
   --accent: #1B4FD8; --accent-light: #EEF2FF; --accent2: #0EA47A;
   --accent2-light: #ECFDF5; --warn: #D4500A; --warn-light: #FFF4ED;
   --radius-sm: 8px; --radius: 14px; --radius-lg: 20px; --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
@@ -341,6 +346,235 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
 .auth-success-icon { font-size: 48px; margin-bottom: 16px; }
 .auth-success-title { font-size: 18px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
 .auth-success-body { font-size: 13px; color: var(--text2); line-height: 1.6; }
+
+/* ==================== SHARE SYSTEM v2 ==================== */
+/* v2.2: share-fab 移到英雄卡外部，独立全宽按钮，消除与 rh-mode 标签的视觉冲突 */
+.share-fab {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    background: var(--surface); color: var(--accent);
+    border: 1.5px solid var(--accent-light); border-radius: var(--radius);
+    padding: 13px; width: 100%; margin-top: 12px;
+    font-size: 14px; font-weight: 700; cursor: pointer; transition: 0.2s;
+}
+.share-fab:active { background: var(--accent-light); transform: scale(0.98); }
+
+/* 分享底部抽屉 */
+.share-sheet-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    display: none; align-items: flex-end; justify-content: center; z-index: 20000;
+}
+.share-sheet-overlay.open { display: flex; }
+.share-sheet {
+    background: var(--surface); width: 100%; max-width: 600px;
+    border-radius: 24px 24px 0 0; padding: 0 0 44px; overflow: hidden;
+    animation: sheetUp 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.share-sheet-handle-area {
+    padding: 14px 24px 0; display: flex; justify-content: center;
+}
+.share-sheet-handle { width: 40px; height: 4px; background: var(--border2); border-radius: 2px; }
+.share-sheet-header { padding: 16px 24px 20px; border-bottom: 1px solid var(--border); }
+.share-sheet-title { font-size: 18px; font-weight: 800; color: var(--text); }
+.share-sheet-sub { font-size: 12px; color: var(--text2); margin-top: 4px; line-height: 1.5; }
+
+/* 模式选择 tab */
+.share-mode-tabs { display: flex; gap: 8px; padding: 20px 24px 0; }
+.share-mode-tab {
+    flex: 1; padding: 12px 8px; border-radius: 12px;
+    border: 1.5px solid var(--border); background: var(--surface2);
+    text-align: center; cursor: pointer; transition: 0.2s;
+}
+.share-mode-tab.active {
+    border-color: var(--accent); background: var(--accent-light);
+}
+.share-mode-tab-icon { font-size: 22px; margin-bottom: 6px; }
+.share-mode-tab-label { font-size: 13px; font-weight: 700; color: var(--text); }
+.share-mode-tab-sub { font-size: 10px; color: var(--text3); margin-top: 2px; line-height: 1.3; }
+.share-mode-tab.active .share-mode-tab-label { color: var(--accent); }
+.share-mode-tab.active .share-mode-tab-sub { color: var(--accent); opacity: 0.8; }
+
+/* 模式说明栏 */
+.share-mode-desc {
+    margin: 12px 24px 0;
+    border-radius: var(--radius-sm); padding: 12px 14px;
+    font-size: 12px; line-height: 1.6;
+    border-left: 3px solid;
+}
+.share-mode-desc.full {
+    background: var(--accent-light); border-color: var(--accent); color: var(--accent);
+}
+.share-mode-desc.quote {
+    background: var(--accent2-light); border-color: var(--accent2); color: #0a7a5b;
+}
+
+/* 生成链接按钮 */
+.share-generate-btn {
+    margin: 16px 24px 0; width: calc(100% - 48px);
+    background: var(--accent); color: white; border: none;
+    border-radius: var(--radius); padding: 15px; font-size: 15px; font-weight: 700;
+    cursor: pointer; transition: 0.2s; box-shadow: 0 4px 12px rgba(27,79,216,0.25);
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.share-generate-btn:active { transform: scale(0.97); }
+.share-generate-btn:disabled { opacity: 0.6; pointer-events: none; }
+.share-generate-btn.quote-mode { background: var(--accent2); box-shadow: 0 4px 12px rgba(14,164,122,0.25); }
+
+/* 链接结果区 */
+.share-link-result {
+    margin: 14px 24px 0; background: var(--surface2);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 14px; display: none;
+}
+.share-link-result.visible { display: block; }
+.share-link-label {
+    font-size: 11px; font-weight: 700; color: var(--text3);
+    text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px;
+}
+.share-link-url {
+    font-family: 'DM Mono', monospace; font-size: 12px; color: var(--accent);
+    word-break: break-all; line-height: 1.5; padding: 10px 12px;
+    background: var(--accent-light); border-radius: var(--radius-sm);
+    margin-bottom: 10px;
+}
+.share-link-actions { display: flex; gap: 8px; }
+.share-link-btn {
+    flex: 1; padding: 10px; border-radius: var(--radius-sm); border: none;
+    font-size: 12px; font-weight: 700; cursor: pointer; transition: 0.2s;
+}
+.share-link-btn.copy { background: var(--accent); color: white; }
+.share-link-btn.copy:active { opacity: 0.8; }
+.share-link-btn.share-native { background: var(--surface); border: 1px solid var(--border); color: var(--text2); }
+
+/* 有效期提示 */
+.share-expiry-note {
+    margin: 10px 24px 0; font-size: 11px; color: var(--text3); 
+    text-align: center; line-height: 1.5;
+}
+
+/* ==================== SHARE VIEW PAGE ==================== */
+/* 分享只读页 — 覆盖整个视口 */
+#shareViewPage {
+    display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: var(--bg); z-index: 99999; overflow-y: auto;
+    padding-bottom: 40px;
+}
+#shareViewPage.visible { display: block; }
+
+.sv-header {
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: 16px 20px 14px; display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 10;
+}
+.sv-logo { display: flex; align-items: center; gap: 10px; }
+.sv-logo-icon { width: 32px; height: 32px; background: var(--accent); border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 15px; color: white; }
+.sv-logo-name { font-size: 14px; font-weight: 700; color: var(--text); }
+.sv-logo-badge { font-size: 10px; background: var(--accent-light); color: var(--accent); padding: 2px 7px; border-radius: 10px; font-weight: 600; margin-left: 4px; }
+
+/* 分享内容卡 */
+.sv-body { padding: 16px; max-width: 600px; margin: 0 auto; }
+
+/* 英雄报价卡 — quote模式 */
+.sv-quote-hero {
+    background: linear-gradient(135deg, #1B4FD8 0%, #1340b8 100%);
+    border-radius: 20px; padding: 28px 24px 24px;
+    color: white; position: relative; overflow: hidden;
+    box-shadow: 0 12px 32px rgba(27,79,216,0.3); margin-bottom: 16px;
+}
+.sv-quote-hero::before {
+    content: ''; position: absolute; top: -40px; right: -40px;
+    width: 140px; height: 140px; background: rgba(255,255,255,0.06);
+    border-radius: 50%;
+}
+.sv-quote-hero::after {
+    content: ''; position: absolute; bottom: -60px; left: -20px;
+    width: 180px; height: 180px; background: rgba(255,255,255,0.04);
+    border-radius: 50%;
+}
+.sv-qh-tag { font-size: 11px; font-weight: 700; opacity: 0.8; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
+.sv-qh-product { font-size: 22px; font-weight: 800; margin-bottom: 4px; line-height: 1.2; }
+.sv-qh-mode { font-size: 13px; opacity: 0.8; margin-bottom: 24px; }
+.sv-qh-price-label { font-size: 12px; opacity: 0.75; margin-bottom: 4px; }
+.sv-qh-price { font-size: 52px; font-weight: 800; font-family: 'DM Mono', monospace; letter-spacing: -2px; line-height: 1; }
+.sv-qh-price-sub { font-size: 16px; opacity: 0.8; font-weight: 500; margin-left: 6px; font-family: 'DM Sans', sans-serif; letter-spacing: 0; }
+.sv-qh-validity {
+    margin-top: 20px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.2);
+    font-size: 12px; opacity: 0.85; display: flex; justify-content: space-between; align-items: center;
+}
+.sv-qh-validity-val { font-weight: 700; font-family: 'DM Mono', monospace; font-size: 13px; }
+
+/* Full 模式 — 内部看板 */
+.sv-full-banner {
+    background: var(--warn-light); border: 1px solid var(--warn);
+    border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 14px;
+    font-size: 12px; color: var(--warn); line-height: 1.5;
+}
+
+/* Full 模式 — 价格英雄卡（与 quote 模式保持结构一致，统一维护）*/
+.sv-full-hero {
+    background: var(--accent); border-radius: 16px; padding: 22px 20px;
+    color: white; margin-bottom: 12px;
+    box-shadow: 0 8px 24px rgba(27,79,216,0.25);
+}
+.sv-full-hero-mode { font-size: 11px; opacity: 0.8; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 1px; }
+.sv-full-hero-price { font-size: 44px; font-weight: 800; font-family: 'DM Mono', monospace; letter-spacing: -1px; }
+.sv-full-hero-cny { font-size: 13px; opacity: 0.85; margin-top: 2px; }
+.sv-full-hero-stats { display: flex; gap: 20px; margin-top: 16px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.2); }
+.sv-full-hero-stat-label { font-size: 10px; opacity: 0.75; }
+.sv-full-hero-stat-val { font-weight: 700; font-size: 14px; }
+
+/* 通用信息行 */
+.sv-info-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); margin-bottom: 12px; }
+.sv-info-row { display: flex; align-items: center; justify-content: space-between; padding: 13px 16px; border-bottom: 1px solid var(--border); }
+.sv-info-row:last-child { border-bottom: none; }
+.sv-info-key { font-size: 12px; color: var(--text2); font-weight: 500; }
+.sv-info-val { font-size: 13px; font-weight: 700; color: var(--text); font-family: 'DM Mono', monospace; text-align: right; }
+.sv-info-val.accent { color: var(--accent); }
+.sv-info-val.warn { color: var(--warn); }
+.sv-info-val.green { color: var(--accent2); }
+
+/* 已过期遮罩 — z-index 须高于 .sv-header(10)，确保完全覆盖 */
+.sv-expired-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.75); backdrop-filter: blur(16px);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100; flex-direction: column; color: white; text-align: center; padding: 40px;
+}
+.sv-expired-icon { font-size: 56px; margin-bottom: 16px; }
+.sv-expired-title { font-size: 22px; font-weight: 800; margin-bottom: 8px; }
+.sv-expired-sub { font-size: 14px; opacity: 0.75; line-height: 1.6; margin-bottom: 28px; }
+
+/* CTA 按钮 */
+.sv-cta {
+    background: var(--accent); color: white; border: none;
+    border-radius: var(--radius); padding: 16px 24px;
+    font-size: 15px; font-weight: 700; cursor: pointer;
+    width: 100%; box-shadow: 0 4px 16px rgba(27,79,216,0.3); transition: 0.2s;
+    display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 6px;
+}
+.sv-cta:active { transform: scale(0.97); }
+.sv-cta.secondary {
+    background: var(--surface); color: var(--text); 
+    border: 1px solid var(--border); box-shadow: var(--shadow);
+    margin-top: 10px;
+}
+.sv-branding {
+    text-align: center; margin-top: 24px; font-size: 11px; color: var(--text3); line-height: 1.8;
+}
+.sv-branding a { color: var(--accent); text-decoration: none; font-weight: 600; }
+
+/* 加载态 */
+.sv-loading {
+    display: flex; align-items: center; justify-content: center;
+    height: 60vh; flex-direction: column; gap: 16px;
+}
+.sv-spinner {
+    width: 36px; height: 36px; border: 3px solid var(--border);
+    border-top-color: var(--accent); border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+.sv-load-text { font-size: 13px; color: var(--text3); }
 </style>
 </head>
 <body>
@@ -518,7 +752,7 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
         </div>
         <div class="field-row" style="background:var(--accent2-light);">
           <div class="field-label" style="color:var(--accent2);">汇率预留缓冲<small>直接从汇率中减去</small></div>
-          <input class="field-input" type="number" id="rateBuffer" value="0.05" step="0.01" onfocus="this.select()">
+          <input class="field-input" type="number" id="rateBuffer" value="0.05" step="0.01" min="0" onfocus="this.select()">
           <div class="field-unit">元</div>
         </div>
         <div class="field-row">
@@ -612,8 +846,7 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
     <div id="resultContent" style="display:none;">
         <div class="result-hero">
             <div id="rh-mode" style="position:absolute; top:20px; right:20px; background:rgba(255,255,255,0.2); padding:4px 12px; border-radius:20px; font-size:12px; font-weight:700;">FOB</div>
-            <div style="font-size:13px; opacity:0.9; margin-bottom: 2px;">建议单价报价 (USD)</div>
-            <div class="rh-price" id="rh-price">$0.00<span>/ pc</span></div>
+            <div style="font-size:13px; opacity:0.9; margin-bottom: 2px;">建议单价报价 (USD)</div>            <div class="rh-price" id="rh-price">$0.00<span>/ pc</span></div>
             <div style="font-size:14px; opacity:0.85; margin-top:4px;" id="rh-price-cny">≈ ¥0.00 / pc</div>
             
             <div class="rh-sub-info">
@@ -627,10 +860,13 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
                 </div>
                 <div class="rh-sub-item">
                     <div class="rh-sub-label">目标国总税金</div>
-                    <div class="rh-sub-val" id="rh-tax-val">$0.00</div>
+                    <div class="rh-sub-val" id="rh-tax-val">—</div>
                 </div>
             </div>
         </div>
+
+        <!-- v2.2: 分享按钮移至英雄卡外部，独立全宽，消除视觉冲突 -->
+        <button class="share-fab" onclick="openShareSheet()" title="生成分享链接">🔗 生成分享链接</button>
         
         <div class="breakdown-grid">
             <div class="bk-item"><div style="font-size:11px; color:var(--text3);">单件绝对净利</div><div class="bk-val" id="bk-profit" style="color:var(--accent2);">$0.00</div></div>
@@ -709,6 +945,86 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
         <button class="m-btn m-btn-allow" type="button" onclick="applyMiniCalc()">一键填入表格</button>
         <button class="m-btn m-btn-cancel" type="button" onclick="closeMiniCalc()">取 消</button>
     </div>
+</div>
+
+<!-- ==================== SHARE SHEET ==================== -->
+<div id="shareSheetOverlay" class="share-sheet-overlay" onclick="handleShareOverlayClick(event)">
+  <div class="share-sheet" onclick="event.stopPropagation()">
+    <div class="share-sheet-handle-area"><div class="share-sheet-handle"></div></div>
+    <div class="share-sheet-header">
+      <div class="share-sheet-title">🔗 生成分享链接</div>
+      <div class="share-sheet-sub">选择分享模式，系统将自动存储本次报价快照并生成唯一链接。</div>
+    </div>
+    
+    <!-- 模式选择 -->
+    <div class="share-mode-tabs">
+      <div class="share-mode-tab active" id="shareTabFull" onclick="selectShareMode('full')">
+        <div class="share-mode-tab-icon">👥</div>
+        <div class="share-mode-tab-label">内部协作</div>
+        <div class="share-mode-tab-sub">含进货底价<br>利润等核心参数</div>
+      </div>
+      <div class="share-mode-tab" id="shareTabQuote" onclick="selectShareMode('quote')">
+        <div class="share-mode-tab-icon">📄</div>
+        <div class="share-mode-tab-label">客户报价</div>
+        <div class="share-mode-tab-sub">仅展示报价结果<br>隐藏所有成本数据</div>
+      </div>
+    </div>
+
+    <!-- 说明栏 -->
+    <div class="share-mode-desc full" id="shareModeDesc">
+      ⚠️ 包含：进货底价、退税率、利润率设定、汇率缓冲等所有内部参数。<b>请仅在内部团队成员之间传阅，切勿发送给客户。</b>
+    </div>
+
+    <!-- 有效期提示 -->
+    <div class="share-expiry-note" id="shareExpiryNote">
+      📅 链接将于 <b id="shareExpiryDays">10</b> 天后失效（与报价有效期对齐）
+    </div>
+
+    <!-- 生成按钮 -->
+    <button class="share-generate-btn" id="shareGenerateBtn" onclick="generateShareLink()">
+      <span>✨</span><span>生成链接</span>
+    </button>
+
+    <!-- 链接结果 -->
+    <div class="share-link-result" id="shareLinkResult">
+      <div class="share-link-label">🔗 您的专属分享链接</div>
+      <div class="share-link-url" id="shareLinkUrl"></div>
+      <div class="share-link-actions">
+        <button class="share-link-btn copy" onclick="copyShareLink()">📋 复制链接</button>
+        <button class="share-link-btn share-native" onclick="nativeShare()" id="shareNativeBtn" style="display:none;">📤 分享</button>
+      </div>
+    </div>
+
+    <div class="share-expiry-note" style="margin-top:16px;">
+      数据安全加密存储于云端，仅链接持有者可访问
+    </div>
+  </div>
+</div>
+
+<!-- ==================== SHARE VIEW PAGE ==================== -->
+<div id="shareViewPage">
+  <!-- Header -->
+  <div class="sv-header">
+    <div class="sv-logo">
+      <div class="sv-logo-icon">🚢</div>
+      <div>
+        <span class="sv-logo-name">外贸报价计算器</span>
+        <span class="sv-logo-badge">Pro</span>
+      </div>
+    </div>
+    <div id="sv-type-badge" style="font-size:11px; font-weight:700; padding:4px 10px; border-radius:12px; background:var(--accent-light); color:var(--accent);">报价单</div>
+  </div>
+  
+  <!-- 内容区 -->
+  <div class="sv-body" id="svBody">
+    <!-- 加载态 -->
+    <div class="sv-loading" id="svLoading">
+      <div class="sv-spinner"></div>
+      <div class="sv-load-text">正在加载报价数据…</div>
+    </div>
+    <!-- 动态内容注入点 -->
+    <div id="svContent" style="display:none;"></div>
+  </div>
 </div>
 
 <!-- 常驻复制弹窗保底策略 -->
@@ -799,6 +1115,13 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
           <div style="font-size:11px; color:var(--text3); margin-top:2px;">将本机记录上传至云端</div>
         </div>
       </div>
+      <div class="menu-item" onclick="closeUserMenu(); switchTab('history')">
+        <span class="menu-icon">🔗</span>
+        <div>
+          <div>我的分享链接</div>
+          <div style="font-size:11px; color:var(--text3); margin-top:2px;">管理已生成的分享记录</div>
+        </div>
+      </div>
       <div class="menu-item danger" onclick="signOut()">
         <span class="menu-icon">🚪</span>
         <div>退出登录</div>
@@ -819,7 +1142,8 @@ let state = {
     hsOpen: false,
     lastPrice: null,
     lastSettleRate: null,
-    manualRate: false // ⬇️ 新增：记录用户是否已手动干预汇率
+    manualRate: false, // ⬇️ 新增：记录用户是否已手动干预汇率
+    currentPiNo: null  // v2.2: 缓存 PI 序号，仅在非静默核算时刷新，防止滑块拖动消耗序号
 };
 
 // [补丁1.A] 中央 DOM 注册表：将散落在各处的查询集中管理，提升维护性 (解决 四.2)
@@ -1180,11 +1504,13 @@ function calculate(isSilent = false) {
     }
 
     // ── 参数抓取 ──────────────────────────────────────────────
-    const isRebate     = document.getElementById('isRebate').checked;
-    const rebateRate   = parseFloat(UI.inputs.rebateRate.value) || 0;
+    // v2.2: 计算层退税防御 — inputVatRate=0 时强制关闭退税，阻断 restoreHistory 绕过 UI 的路径
     const inputVatRate = (parseFloat(UI.inputs.inputVatRate.value) || 13) / 100;
+    const isRebate     = inputVatRate > 0 && document.getElementById('isRebate').checked;
+    const rebateRate   = parseFloat(UI.inputs.rebateRate.value) || 0;
     const exRate       = parseFloat(UI.inputs.exchangeRate.value) || 7.15;
-    const buffer       = parseFloat(UI.inputs.rateBuffer.value) || 0;
+    // v2.2: 缓冲下限保护 — 防止负值导致锁汇点高于中间价，与 rateBuffer input 的 min="0" 双重保护
+    const buffer       = Math.max(0, parseFloat(UI.inputs.rateBuffer.value) || 0);
     const payFee       = (parseFloat(UI.inputs.paymentFee.value) || 0) / 100;
     const insRate      = (parseFloat(UI.inputs.insuranceRate.value) || 0) / 100;
     const taxRate      = (parseFloat(UI.inputs.taxRate.value) || 0) / 100;
@@ -1298,8 +1624,9 @@ function calculate(isSilent = false) {
     // [修复四] PI 渲染在 calculate 内部统一调用，确保 state.lastPrice 已赋值
     renderPI();
 
-    // 主动核算（非静默）：保存历史并跳转结果页
+    // 主动核算（非静默）：刷新 PI 序号、保存历史并跳转结果页
     if (!isSilent) {
+        state.currentPiNo = generatePINo(); // v2.2: 仅此处消耗序号，静默核算不触发
         saveHistory(price, settleRate, costRMB);
         switchTab('result');
         showToast('🚀 核算完成，已生成专业看板');
@@ -1326,8 +1653,9 @@ function buildPIText() {
     const validDate = new Date(now.getTime() + validDays * 24 * 60 * 60 * 1000);
 
     const priceStr = formatMoney(state.lastPrice);
-    const totalAmount = formatMoney(state.lastPrice * moqNum);
-    const piNo = generatePINo();
+    // v2.2: 复用 calculate() 已生成的序号，不重复消耗 pi_sequence
+    const piNo = state.currentPiNo || generatePINo();
+    const totalAmount = formatMoney(financialRound(state.lastPrice * moqNum, 2));
 
     return[
         'PROFORMA INVOICE',
@@ -1727,7 +2055,6 @@ function initLogicBind() {
             inputEl.addEventListener('change', autoCalculate);
         }
     });
-    console.log("核心逻辑绑定完成：实时联动核算已就绪");
 }
 // ==================== SUPABASE AUTH 系统 ====================
 /**
@@ -1749,6 +2076,23 @@ function initLogicBind() {
  *    create policy "users own their quotes"
  *      on quote_history for all
  *      using (auth.uid() = user_id);
+ *
+ *  [分享系统] 同时执行以下 SQL 建立 shares 表：
+ *
+ *    create table shares (
+ *      id text primary key,
+ *      user_id uuid references auth.users(id) on delete set null,
+ *      type text not null check (type in ('full','quote')),
+ *      data jsonb not null,
+ *      created_at timestamptz default now(),
+ *      expires_at timestamptz not null
+ *    );
+ *    -- shares 表不启用 RLS（分享链接设计为公开可读）
+ *    -- anon key 可 SELECT（读取分享）和 INSERT（生成分享）
+ *    -- 如需防滥用，在 Supabase Dashboard > API > Rate Limits 配置
+ *    -- 定期清理过期数据（可选 pg_cron）：
+ *    -- select cron.schedule('cleanup-expired-shares','0 3 * * *',
+ *    --   $$ delete from shares where expires_at < now() $$);
  */
 
 const SUPABASE_URL = 'https://ehotaizdxfhwuuitjhty.supabase.co';
@@ -1940,19 +2284,35 @@ async function loadFromCloud() {
     }
 }
 
-// 登录后：将本机 localStorage 记录批量同步到云端
+// 登录后：将本机 localStorage 记录增量同步到云端
+// v2.2: 修正 upsert onConflict:'id' 类型不匹配问题
+// quote_history 主键为 uuid，本地 id 为时间戳整数，直接 upsert 会退化成全量重复写入
+// 改为：先拉取云端已有的 local_id 列表，过滤后仅 insert 差异记录
 async function mergeLocalToCloud() {
     if (!supabaseClient || !currentUser) return;
     let local = [];
     try { local = JSON.parse(localStorage.getItem('quoteHistory') || '[]'); } catch(e){}
     if (local.length === 0) return;
-    
+
     try {
-        const rows = local.map(r => ({ user_id: currentUser.id, snapshot: r }));
-        await supabaseClient.from('quote_history').upsert(rows, { onConflict: 'id' });
-        // 迁移成功后清理本机缓存（避免重复）
+        // 1. 拉取云端已同步的本机 id（存储在 snapshot->>'id' 字段）
+        const { data: existing } = await supabaseClient
+            .from('quote_history')
+            .select('snapshot->id')
+            .eq('user_id', currentUser.id);
+        const existingIds = new Set((existing || []).map(r => String(r.id)));
+
+        // 2. 只 insert 云端没有的记录
+        const newRows = local
+            .filter(r => !existingIds.has(String(r.id)))
+            .map(r => ({ user_id: currentUser.id, snapshot: r }));
+
+        if (newRows.length > 0) {
+            await supabaseClient.from('quote_history').insert(newRows);
+        }
+
+        // 3. 迁移成功后清理本机缓存
         localStorage.removeItem('quoteHistory');
-        console.log(`[Cloud] 已迁移 ${local.length} 条本机记录至云端`);
     } catch (err) {
         console.warn('[Cloud] 迁移失败', err);
     }
@@ -2021,14 +2381,533 @@ function renderHistoryList(list) {
 }
 
 
-window.onload = () => {
-    initSupabase();
-    initLogicBind();
-    nextStep(1);
+// ==================== SHARE SYSTEM v2 ====================
+/**
+ * 架构说明：
+ * - URL 方案：Hash 方案 window.location.hash = #share={id}，纯前端路由，无需服务端配置
+ * - 存储：Supabase shares 表（双模式：full / quote）
+ * - 字段脱敏：quote 模式在客户端过滤所有成本类字段，绝不入库
+ * - 有效期：与表单 validDays 字段对齐，expires_at 自动计算
+ * - user_id：登录用户自动关联，游客为 null
+ */
 
-    // 2. 填充国家下拉框
+// -- 状态 --
+let shareState = {
+    mode: 'full',       // 'full' | 'quote'
+    generatedId: null,
+    generatedUrl: null
+};
+
+// -- Supabase shares 表 DDL (参考，需在 Supabase 控制台执行) --
+/*
+create table shares (
+  id text primary key,
+  user_id uuid references auth.users(id) on delete set null,
+  type text not null check (type in ('full','quote')),
+  data jsonb not null,
+  created_at timestamptz default now(),
+  expires_at timestamptz not null
+);
+-- 不启用 RLS（分享链接公开可读），但写入要校验 anon key 的 insert 权限
+-- 如需限流，在 Supabase Dashboard > API > Rate Limits 配置
+*/
+
+// -- 收集报价快照 --
+// piNo 由调用方传入，避免在 collectSnapshot 内消耗 PI 流水号
+function collectSnapshot(mode, piNo) {
+    // 两种模式都需要的展示字段（来自 PI / 结果页）
+    const shared = {
+        product:     (document.getElementById('productName').value || '').trim() || 'Product',
+        moq:         document.getElementById('moqInput').value || '',
+        port:        document.getElementById('portInput').value || '',
+        seller:      document.getElementById('sellerName').value || '',
+        buyer:       document.getElementById('buyerName').value || '',
+        payment:     document.getElementById('paymentTerm').value || '',
+        lead:        document.getElementById('leadTime').value || '',
+        validDays:   parseInt(document.getElementById('validDays').value) || 10,
+        tradeMode:   state.mode,
+        priceUSD:    state.lastPrice,
+        settleRate:  state.lastSettleRate,
+        country:     document.getElementById('countrySelect').value,
+        piNo:        piNo || ''
+    };
+
+    if (mode === 'quote') {
+        // 客户报价版：只含上方安全字段，不含任何成本数据
+        // type 字段由 shares 表顶层列维护，不在 data JSONB 内重复存储
+        return { ...shared };
+    }
+
+    // 内部协作版：追加完整参数
+    const INTERNAL_FIELDS = [
+        'costRMB', 'rebateRate', 'inputVatRate', 'domesticFreight',
+        'shippingFee', 'destFee', 'insuranceRate',
+        'taxRate', 'vatRate', 'exchangeRate', 'rateBuffer', 'paymentFee'
+    ];
+    const internal = {};
+    INTERNAL_FIELDS.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) internal[id] = el.type === 'checkbox' ? el.checked : el.value;
+    });
+    internal.isRebate    = document.getElementById('isRebate').checked;
+    internal.profitRate  = state.profitRate;
+
+    // 结果快照（运算结果，方便分享页直接展示无需重算）
+    const resultSnapshot = {
+        netProfitUSD:   parseFloat(document.getElementById('bk-profit').innerText.replace(/[^0-9.-]/g, '')) || 0,
+        rebateAmt:      document.getElementById('bk-rebate').innerText,
+        freightTotal:   document.getElementById('bk-freight').innerText,
+        ddpEquiv:       document.getElementById('bk-ddp').innerText,
+        actualProfit:   document.getElementById('rh-profit-rate').innerText,
+        taxVal:         document.getElementById('rh-tax-val').innerText
+    };
+
+    return { ...shared, internal, result: resultSnapshot };
+}
+
+// -- 生成随机 ID (12位，密码学安全) --
+function generateShareId() {
+    const arr = new Uint8Array(9);
+    crypto.getRandomValues(arr);
+    // base36 编码后取前12位，保证等长且无 Math.random 短 ID 风险
+    return Array.from(arr, b => b.toString(36).padStart(2, '0')).join('').substring(0, 12);
+}
+
+// -- 打开分享抽屉 --
+function openShareSheet() {
+    if (!state.lastPrice) {
+        showToast('⚠️ 请先完成核算再生成分享链接');
+        return;
+    }
+    // 同步有效期显示
+    const validDays = parseInt(document.getElementById('validDays').value) || 10;
+    document.getElementById('shareExpiryDays').textContent = validDays;
+
+    // 重置链接结果区
+    document.getElementById('shareLinkResult').classList.remove('visible');
+    document.getElementById('shareGenerateBtn').disabled = false;
+    document.getElementById('shareGenerateBtn').innerHTML = '<span>✨</span><span>生成链接</span>';
+    shareState.generatedId = null;
+    shareState.generatedUrl = null;
+
+    // native share 按钮可见性
+    if (navigator.share) {
+        document.getElementById('shareNativeBtn').style.display = 'flex';
+    }
+
+    document.getElementById('shareSheetOverlay').classList.add('open');
+}
+
+function handleShareOverlayClick(e) {
+    if (e.target === document.getElementById('shareSheetOverlay')) closeShareSheet();
+}
+
+function closeShareSheet() {
+    document.getElementById('shareSheetOverlay').classList.remove('open');
+}
+
+// -- 切换模式 --
+function selectShareMode(mode) {
+    shareState.mode = mode;
+    document.getElementById('shareTabFull').classList.toggle('active', mode === 'full');
+    document.getElementById('shareTabQuote').classList.toggle('active', mode === 'quote');
+
+    const descEl = document.getElementById('shareModeDesc');
+    const btnEl  = document.getElementById('shareGenerateBtn');
+
+    if (mode === 'full') {
+        descEl.className = 'share-mode-desc full';
+        descEl.innerHTML = '⚠️ 包含：进货底价、退税率、利润率设定、汇率缓冲等所有内部参数。<b>请仅在内部团队成员之间传阅，切勿发送给客户。</b>';
+        btnEl.className = 'share-generate-btn';
+    } else {
+        descEl.className = 'share-mode-desc quote';
+        descEl.innerHTML = '✅ 仅展示：产品名称、单价（美元）、贸易条款、付款条件、有效期等报价结果。<b>进货成本、利润率等商业机密完全隐藏，可安全发送给客户。</b>';
+        btnEl.className = 'share-generate-btn quote-mode';
+    }
+
+    // 重置已生成的链接（v2.2：同步重置按钮文案和状态，防止切换后显示「已生成」）
+    document.getElementById('shareLinkResult').classList.remove('visible');
+    shareState.generatedId = null;
+    shareState.generatedUrl = null;
+    btnEl.disabled = false;
+    btnEl.innerHTML = '<span>✨</span><span>生成链接</span>';
+}
+
+// -- 核心：生成链接 --
+async function generateShareLink() {
+    if (!isSupabaseConfigured() || !supabaseClient) {
+        showToast('⚠️ 分享功能需要配置 Supabase，请联系管理员');
+        return;
+    }
+
+    const btn = document.getElementById('shareGenerateBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="auth-spinner"></span><span>正在生成…</span>';
+
+    try {
+        const snapshot = collectSnapshot(shareState.mode, null); // piNo 先留空
+        const id = generateShareId();
+        const validDays = snapshot.validDays || 10;
+        const expiresAt = new Date(Date.now() + validDays * 24 * 60 * 60 * 1000).toISOString();
+
+        const row = {
+            id,
+            user_id: currentUser ? currentUser.id : null,
+            type: shareState.mode,
+            data: snapshot,
+            expires_at: expiresAt
+        };
+
+        const { error } = await supabaseClient.from('shares').insert(row);
+        if (error) throw error;
+
+        // 仅在写库成功后才消耗 PI 流水号，避免失败时序号空洞
+        const piNo = generatePINo();
+        // 回写 piNo 到已存储的记录（非阻塞，失败不影响链接生成）
+        supabaseClient.from('shares').update({ data: { ...snapshot, piNo } }).eq('id', id).then(() => {});
+
+        // 构建 hash URL
+        const baseUrl = window.location.origin + window.location.pathname;
+        const shareUrl = `${baseUrl}#share=${id}`;
+
+        shareState.generatedId = id;
+        shareState.generatedUrl = shareUrl;
+
+        // 渲染链接结果区
+        document.getElementById('shareLinkUrl').textContent = shareUrl;
+        document.getElementById('shareLinkResult').classList.add('visible');
+
+        btn.innerHTML = '<span>✅</span><span>已生成</span>';
+        showToast('🔗 链接已生成，请复制发送');
+
+    } catch (err) {
+        console.error('[Share] 生成失败', err);
+        btn.disabled = false;
+        btn.innerHTML = '<span>✨</span><span>生成链接</span>';
+        showToast('❌ 生成失败：' + (err.message || '请检查网络或 Supabase 配置'));
+    }
+}
+
+// -- 复制链接 --
+async function copyShareLink() {
+    if (!shareState.generatedUrl) return;
+    try {
+        await navigator.clipboard.writeText(shareState.generatedUrl);
+        showToast('✅ 链接已复制到剪贴板');
+    } catch {
+        // 降级：选中文本
+        const el = document.getElementById('shareLinkUrl');
+        const range = document.createRange();
+        range.selectNode(el);
+        window.getSelection().removeAllRanges();
+        window.getSelection().addRange(range);
+        showToast('📋 请手动复制上方链接');
+    }
+}
+
+// -- 原生分享（iOS/Android WebShare API）--
+async function nativeShare() {
+    if (!shareState.generatedUrl) return;
+    const modeLabel = shareState.mode === 'full' ? '内部协作' : '客户报价';
+    try {
+        await navigator.share({
+            title: `外贸报价 — ${document.getElementById('productName').value || 'Product'}`,
+            text: `[${modeLabel}] 查看我发送的报价`,
+            url: shareState.generatedUrl
+        });
+    } catch (e) { /* 用户取消 */ }
+}
+
+// ==================== SHARE VIEW — 读取与渲染 ====================
+
+/**
+ * 入口：页面加载时检测 hash，若含 share={id} 则渲染只读分享页
+ */
+async function checkShareHash() {
+    const hash = window.location.hash;
+    const match = hash.match(/^#share=([a-z0-9]+)$/i);
+    if (!match) return false;
+
+    const shareId = match[1];
+    // 立即显示只读页，隐藏主应用
+    document.getElementById('shareViewPage').classList.add('visible');
+    document.body.style.overflow = 'hidden'; // 主页内容不可滚动
+
+    await loadShareView(shareId);
+    return true;
+}
+
+async function loadShareView(id) {
+    const loadingEl = document.getElementById('svLoading');
+    const contentEl = document.getElementById('svContent');
+
+    try {
+        // 等待 Supabase client 就绪，最多轮询 4 秒
+        if (!supabaseClient) {
+            await new Promise((resolve, reject) => {
+                let elapsed = 0;
+                const poll = setInterval(() => {
+                    elapsed += 100;
+                    if (supabaseClient) { clearInterval(poll); resolve(); }
+                    else if (elapsed >= 4000) { clearInterval(poll); reject(new Error('数据服务连接超时，请稍后刷新重试')); }
+                }, 100);
+            });
+        }
+        if (!isSupabaseConfigured()) throw new Error('分享功能未启用，请联系工具管理员');
+
+        const { data, error } = await supabaseClient
+            .from('shares')
+            .select('type, data, expires_at')
+            .eq('id', id)
+            .single();
+
+        if (error || !data) throw new Error('链接无效或已被删除');
+
+        loadingEl.style.display = 'none';
+        contentEl.style.display = 'block';
+
+        // 检查过期
+        const now = new Date();
+        const expires = new Date(data.expires_at);
+        if (now > expires) {
+            renderShareExpired(contentEl, data.data, expires);
+            return;
+        }
+
+        // 正常渲染
+        if (data.type === 'quote') {
+            renderShareQuote(contentEl, data.data, expires);
+        } else {
+            renderShareFull(contentEl, data.data, expires);
+        }
+
+    } catch (err) {
+        loadingEl.style.display = 'none';
+        contentEl.style.display = 'block';
+        contentEl.innerHTML = `
+            <div style="text-align:center;padding:60px 20px;color:var(--text3);">
+                <div style="font-size:48px;margin-bottom:16px;">🔍</div>
+                <div style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:8px;">链接无效</div>
+                <div style="font-size:13px;line-height:1.6;">${escapeHTML(err.message)}</div>
+            </div>
+            ${renderShareCTA(null)}
+        `;
+        bindShareCTAEvents(null);
+    }
+}
+
+// -- 渲染：客户报价版（quote）--
+function renderShareQuote(container, d, expires) {
+    document.getElementById('sv-type-badge').textContent = '📄 报价单';
+    document.getElementById('sv-type-badge').style.background = 'var(--accent2-light)';
+    document.getElementById('sv-type-badge').style.color = 'var(--accent2)';
+
+    const expiryStr = formatDateStr(expires);
+    const priceStr = formatMoney(d.priceUSD);
+
+    let moqNum = 1;
+    if (d.moq) { const n = parseInt(d.moq.replace(/\D/g,''),10); if (n>0) moqNum = n; }
+    const totalUSD = formatMoney((d.priceUSD || 0) * moqNum);
+
+    container.innerHTML = `
+        <div class="sv-quote-hero">
+            <div class="sv-qh-tag">PROFORMA QUOTATION · ${d.tradeMode || 'FOB'}</div>
+            <div class="sv-qh-product">${escapeHTML(d.product)}</div>
+            <div class="sv-qh-mode">${d.port ? 'Port of Loading: ' + escapeHTML(d.port) : ''}</div>
+            <div class="sv-qh-price-label">Unit Price (USD)</div>
+            <div style="display:flex;align-items:baseline;">
+                <div class="sv-qh-price">$${priceStr}</div>
+                <span class="sv-qh-price-sub">/ pc</span>
+            </div>
+            <div class="sv-qh-validity">
+                <span>Valid Until</span>
+                <span class="sv-qh-validity-val">${expiryStr}</span>
+            </div>
+        </div>
+
+        <div class="sv-info-card">
+            ${d.moq ? `<div class="sv-info-row"><span class="sv-info-key">MOQ</span><span class="sv-info-val">${escapeHTML(d.moq)}</span></div>` : ''}
+            ${d.moq ? `<div class="sv-info-row"><span class="sv-info-key">Total Amount (MOQ)</span><span class="sv-info-val accent">USD ${totalUSD}</span></div>` : ''}
+            <div class="sv-info-row"><span class="sv-info-key">Trade Term</span><span class="sv-info-val">${escapeHTML(d.tradeMode || 'FOB')}</span></div>
+            ${d.payment ? `<div class="sv-info-row"><span class="sv-info-key">Payment</span><span class="sv-info-val">${escapeHTML(d.payment)}</span></div>` : ''}
+            ${d.lead ? `<div class="sv-info-row"><span class="sv-info-key">Lead Time</span><span class="sv-info-val">${escapeHTML(d.lead)}</span></div>` : ''}
+            ${d.piNo ? `<div class="sv-info-row"><span class="sv-info-key">PI No.</span><span class="sv-info-val">${escapeHTML(d.piNo)}</span></div>` : ''}
+        </div>
+
+        ${d.seller ? `
+        <div class="sv-info-card">
+            ${d.seller ? `<div class="sv-info-row"><span class="sv-info-key">Seller</span><span class="sv-info-val">${escapeHTML(d.seller)}</span></div>` : ''}
+            ${d.buyer  ? `<div class="sv-info-row"><span class="sv-info-key">Buyer</span><span class="sv-info-val">${escapeHTML(d.buyer)}</span></div>` : ''}
+        </div>` : ''}
+
+        ${renderShareCTA(d)}
+        ${renderShareBranding()}
+    `;
+    bindShareCTAEvents(d);
+}
+
+// -- 渲染：内部协作版（full）--
+function renderShareFull(container, d, expires) {
+    document.getElementById('sv-type-badge').textContent = '👥 内部协作';
+    document.getElementById('sv-type-badge').style.background = 'var(--warn-light)';
+    document.getElementById('sv-type-badge').style.color = 'var(--warn)';
+
+    const expiryStr = formatDateStr(expires);
+    const r = d.result || {};
+    const inp = d.internal || {};
+
+    container.innerHTML = `
+        <div class="sv-full-banner">
+            ⚠️ <b>内部机密文件</b> — 此报价快照包含进货成本与利润设定等商业机密，请勿转发至外部。
+        </div>
+
+        <div class="sv-full-hero">
+            <div class="sv-full-hero-mode">${escapeHTML(d.tradeMode || 'FOB')} · 建议单价</div>
+            <div class="sv-full-hero-price">$${formatMoney(d.priceUSD)}</div>
+            <div class="sv-full-hero-cny">≈ ¥${formatMoney((d.priceUSD||0) * (d.settleRate||7.1))} / pc</div>
+            <div class="sv-full-hero-stats">
+                <div><div class="sv-full-hero-stat-label">净利润率</div><div class="sv-full-hero-stat-val">${escapeHTML(r.actualProfit||inp.profitRate+'%')}</div></div>
+                <div><div class="sv-full-hero-stat-label">锁汇点位</div><div class="sv-full-hero-stat-val" style="font-family:'DM Mono',monospace;">${d.settleRate ? d.settleRate.toFixed(4) : '-'}</div></div>
+                <div><div class="sv-full-hero-stat-label">目标国税金</div><div class="sv-full-hero-stat-val">${escapeHTML(r.taxVal || '未含')}</div></div>
+            </div>
+        </div>
+
+        <div class="sv-info-card">
+            <div class="sv-info-row"><span class="sv-info-key">产品名称</span><span class="sv-info-val">${escapeHTML(d.product)}</span></div>
+            <div class="sv-info-row"><span class="sv-info-key">贸易条款</span><span class="sv-info-val">${escapeHTML(d.tradeMode||'FOB')}</span></div>
+            ${d.moq ? `<div class="sv-info-row"><span class="sv-info-key">MOQ</span><span class="sv-info-val">${escapeHTML(d.moq)}</span></div>` : ''}
+            <div class="sv-info-row"><span class="sv-info-key">链接有效期</span><span class="sv-info-val warn">${expiryStr}</span></div>
+        </div>
+
+        <div class="sv-info-card">
+            <div class="sv-info-row"><span class="sv-info-key">进货含税底价</span><span class="sv-info-val warn">¥${formatMoney(inp.costRMB)}</span></div>
+            <div class="sv-info-row"><span class="sv-info-key">退税率</span><span class="sv-info-val">${inp.isRebate ? escapeHTML(String(inp.rebateRate))+'%' : '不退税'}</span></div>
+            <div class="sv-info-row"><span class="sv-info-key">目标利润率</span><span class="sv-info-val green">${escapeHTML(String(inp.profitRate))}%</span></div>
+            <div class="sv-info-row"><span class="sv-info-key">中间汇率</span><span class="sv-info-val">${escapeHTML(String(inp.exchangeRate))}</span></div>
+            <div class="sv-info-row"><span class="sv-info-key">汇率缓冲</span><span class="sv-info-val">-${escapeHTML(String(inp.rateBuffer))}</span></div>
+            <div class="sv-info-row"><span class="sv-info-key">收款手续费</span><span class="sv-info-val">${escapeHTML(String(inp.paymentFee))}%</span></div>
+        </div>
+
+        <div class="sv-info-card">
+            <div class="sv-info-row"><span class="sv-info-key">单件净利润</span><span class="sv-info-val green">${escapeHTML(r.netProfitUSD ? '$'+formatMoney(r.netProfitUSD) : '-')}</span></div>
+            <div class="sv-info-row"><span class="sv-info-key">退税额外收益</span><span class="sv-info-val">${escapeHTML(r.rebateAmt || '-')}</span></div>
+            <div class="sv-info-row"><span class="sv-info-key">国际段总成本</span><span class="sv-info-val">${escapeHTML(r.freightTotal || '-')}</span></div>
+            <div class="sv-info-row"><span class="sv-info-key">买家DDP落地价（参考）</span><span class="sv-info-val warn">${escapeHTML(r.ddpEquiv || '-')}</span></div>
+        </div>
+
+        ${renderShareCTA(d)}
+        ${renderShareBranding()}
+    `;
+    bindShareCTAEvents(d);
+}
+
+// -- 渲染：已过期 --
+function renderShareExpired(container, d, expires) {
+    document.getElementById('sv-type-badge').textContent = '已过期';
+    container.innerHTML = `
+        <div class="sv-expired-overlay">
+            <div class="sv-expired-icon">⏰</div>
+            <div class="sv-expired-title">此报价已过期</div>
+            <div class="sv-expired-sub">
+                该报价链接已于 <b>${formatDateStr(expires)}</b> 失效。<br>
+                如需最新报价，请联系发件方重新生成。
+            </div>
+            ${renderShareCTA(d)}
+        </div>
+    `;
+    bindShareCTAEvents(d);
+}
+
+// -- CTA 区块 --
+// 使用 data-* 属性传递数据，addEventListener 绑定事件，彻底规避内联 onclick XSS 风险
+function renderShareCTA(d) {
+    return `
+        <button class="sv-cta" id="sv-cta-prefill">
+            🚢 用此参数模版重新报价
+        </button>
+        <button class="sv-cta secondary" id="sv-cta-clean">
+            📋 打开报价计算器
+        </button>
+    `;
+}
+
+// 在内容注入 DOM 后调用，绑定 CTA 事件
+function bindShareCTAEvents(d) {
+    const prefillBtn = document.getElementById('sv-cta-prefill');
+    const cleanBtn   = document.getElementById('sv-cta-clean');
+    if (cleanBtn) cleanBtn.addEventListener('click', openToolClean);
+    if (prefillBtn) {
+        prefillBtn.addEventListener('click', () => {
+            // 在事件处理里直接使用闭包变量 d，无需序列化到 HTML 属性
+            openToolWithPrefillData(d);
+        });
+    }
+}
+
+function renderShareBranding() {
+    return `
+        <div class="sv-branding">
+            由 <a href="${window.location.origin + window.location.pathname}">外贸报价计算器 Pro</a> 生成<br>
+            专业外贸人的报价定价工具
+        </div>
+    `;
+}
+
+// -- CTA 跳转逻辑 --
+function openToolWithPrefillData(d) {
+    // 关闭分享页，显示主工具，并将非敏感字段预填到表单
+    document.getElementById('shareViewPage').classList.remove('visible');
+    document.body.style.overflow = '';
+    history.replaceState(null, '', window.location.pathname);
+
+    if (!d) { switchTab('calc'); return; }
+
+    try {
+        // 预填安全字段（直接操作对象属性，无需 URL 编解码）
+        if (d.product)   document.getElementById('productName').value  = d.product;
+        if (d.moq)       document.getElementById('moqInput').value     = d.moq;
+        if (d.port)      document.getElementById('portInput').value    = d.port;
+        if (d.payment)   document.getElementById('paymentTerm').value  = d.payment;
+        if (d.lead)      document.getElementById('leadTime').value     = d.lead;
+
+        // 贸易条款同步
+        if (d.tradeMode) {
+            const modeBtn = document.querySelector(`.mode-btn[data-mode="${d.tradeMode}"]`);
+            if (modeBtn) setMode(modeBtn);
+        }
+        // 目标国家 — 依赖 countrySelect 已有 options（见 Fix 9）
+        if (d.country) {
+            const sel = document.getElementById('countrySelect');
+            if (sel && sel.options.length > 1) {
+                sel.value = d.country;
+                onCountryChange();
+            }
+        }
+        showToast('✅ 已预填产品模板，请继续完善参数');
+        switchTab('calc');
+        nextStep(1);
+        setTimeout(() => UI.inputs.costRMB && UI.inputs.costRMB.focus(), 400);
+    } catch(e) {
+        console.warn('[Share] 预填失败', e);
+        switchTab('calc');
+    }
+}
+
+function openToolClean() {
+    document.getElementById('shareViewPage').classList.remove('visible');
+    document.body.style.overflow = '';
+    history.replaceState(null, '', window.location.pathname);
+    switchTab('calc');
+}
+
+// v2.2: DOMContentLoaded 比 window.onload 更早触发（无需等待图片/字体资源加载完成）
+window.addEventListener('DOMContentLoaded', async () => {
+    initSupabase();
+
+    // ── 共享静态数据初始化（两个模式都需要）──
+    // 填充国家下拉框（countrySelect）
     const s = document.getElementById('countrySelect');
-    if (s) {
+    if (s && s.options.length <= 1) {
         Object.keys(COUNTRIES).forEach(k => {
             const o = document.createElement('option');
             o.value = k;
@@ -2037,7 +2916,19 @@ window.onload = () => {
         });
     }
 
-    // 3. 填充 HS 品类快捷面板
+    // ── 分享链接检测：优先于主应用初始化 ──
+    const isShareView = window.location.hash.startsWith('#share=');
+    if (isShareView) {
+        initLogicBind();
+        // 等待 Supabase SDK 加载，最多 4 秒，单一等待点
+        await new Promise(resolve => setTimeout(resolve, 300));
+        checkShareHash();
+        return; // 分享页模式，跳过主应用其余初始化
+    }
+    initLogicBind();
+    nextStep(1);
+
+    // 填充 HS 品类快捷面板
     const hsGrid = document.getElementById('hsGrid');
     if (hsGrid) {
         hsGrid.innerHTML = HS_CATEGORIES.map((h, i) =>
