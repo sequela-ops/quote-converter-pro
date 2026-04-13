@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>专业外贸报价计算器 Pro - v2.2</title>
+<title>专业外贸报价计算器 Pro</title>
 <!-- 字体预连接：减少 DNS + TLS 握手延迟约 100-300ms -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -575,6 +575,55 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
     animation: spin 0.8s linear infinite;
 }
 .sv-load-text { font-size: 13px; color: var(--text3); }
+
+/* ==================== VERSION FOOTER ==================== */
+.version-footer {
+    text-align: center;
+    padding: 20px 16px 32px;
+    border-top: 1px solid var(--border);
+    margin-top: 8px;
+}
+.version-footer-text {
+    font-size: 11px;
+    color: var(--text3);
+    line-height: 2;
+    font-family: 'DM Mono', monospace;
+}
+.version-footer-text strong {
+    color: var(--accent);
+    font-weight: 600;
+}
+.changelog-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 6px;
+    font-size: 11px;
+    color: var(--text3);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px 0;
+    font-family: 'DM Sans', sans-serif;
+    transition: color 0.2s;
+}
+.changelog-toggle:hover { color: var(--accent); }
+.changelog-box {
+    display: none;
+    text-align: left;
+    margin-top: 10px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    font-size: 11px;
+    color: var(--text2);
+    font-family: 'DM Mono', monospace;
+    line-height: 2;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+.changelog-box.open { display: block; }
 </style>
 </head>
 <body>
@@ -2951,7 +3000,62 @@ window.addEventListener('DOMContentLoaded', async () => {
     // 5. 获取实时汇率并加载本地历史
     fetchRate();
     loadHistory();
+
+    // 6. 加载版本信息（CI 生成的 version.txt / changelog.txt）
+    async function loadVersionInfo() {
+        // version.txt
+        const versionEl = document.getElementById('versionText');
+        const timeEl    = document.getElementById('buildTime');
+        try {
+            const res  = await fetch('version.txt');
+            if (!res.ok) throw new Error('not found');
+            const text = await res.text();
+            // 解析两行：Version: vXXXX  /  Last updated: XXXX
+            const vMatch = text.match(/Version:\s*(.+)/);
+            const tMatch = text.match(/Last updated:\s*(.+)/);
+            if (vMatch) versionEl.innerHTML = `<strong>${vMatch[1].trim()}</strong>`;
+            if (tMatch) timeEl.textContent   = tMatch[1].trim();
+        } catch {
+            // 本地文件协议或 version.txt 尚未生成时静默降级
+            versionEl.innerHTML = '<strong>dev build</strong>';
+            timeEl.textContent  = '—';
+        }
+
+        // changelog.txt
+        const changelogEl = document.getElementById('changelogContent');
+        try {
+            const res  = await fetch('changelog.txt');
+            if (!res.ok) throw new Error('not found');
+            const text = await res.text();
+            changelogEl.textContent = text.trim() || '暂无记录';
+        } catch {
+            changelogEl.textContent = '暂无记录';
+        }
+    }
+    loadVersionInfo();
 });
+
+// changelog 展开/收起
+function toggleChangelog() {
+    const box = document.getElementById('changelogContent');
+    const btn = document.getElementById('changelogToggleBtn');
+    const isOpen = box.classList.toggle('open');
+    btn.textContent = isOpen ? '▲ 收起更新日志' : '▼ 查看更新日志';
+}
 </script>
+
+<!-- ==================== VERSION FOOTER ==================== -->
+<div class="version-footer">
+    <div class="version-footer-text">
+        <span id="versionText"><strong>—</strong></span>
+        &nbsp;·&nbsp;
+        Last updated: <span id="buildTime">—</span>
+    </div>
+    <button class="changelog-toggle" id="changelogToggleBtn" onclick="toggleChangelog()">
+        ▼ 查看更新日志
+    </button>
+    <div class="changelog-box" id="changelogContent"></div>
+</div>
+
 </body>
 </html>
