@@ -2114,8 +2114,14 @@ async function initSupabase() {
     }
     
     try {
-        // 动态加载 Supabase SDK（CDN，无需构建工具）
-        await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js');
+        // 【修改点：增加5秒超时逻辑，防止 CDN 抽风卡死网页】
+        await Promise.race([
+            loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js'),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('SDK 加载超时')), 5000))
+        ]);
+
+        if (!window.supabase) throw new Error('Supabase SDK 加载失败');
+
         supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         
         // 监听 Auth 状态变化（含 Magic Link 回调）
@@ -2945,7 +2951,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     // 5. 获取实时汇率并加载本地历史
     fetchRate();
     loadHistory();
-};
+});
 </script>
 </body>
 </html>
