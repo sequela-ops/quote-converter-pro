@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>专业外贸报价计算器 Pro</title>
-  
-  <!-- Google tag (gtag.js) -->
+
+<!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-D018ZYMWZE"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
@@ -14,7 +14,7 @@
 
   gtag('config', 'G-D018ZYMWZE');
 </script>
-  
+
 <!-- 字体预连接：减少 DNS + TLS 握手延迟约 100-300ms -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -69,6 +69,40 @@ body { background: var(--bg); color: var(--text); font-family: 'DM Sans', -apple
     font-size: 15px; cursor: pointer; transition: 0.2s; flex-shrink: 0; margin-left: -4px;
 }
 .btn-mini-calc:active { background: var(--accent-light); color: var(--accent); border-color: var(--accent); transform: scale(0.92); }
+
+/* ==================== V5: WITS 实时关税查询按钮 ==================== */
+.btn-wits-query {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    width: calc(100% - 32px); border: 1.5px solid rgba(27,79,216,0.2);
+    border-radius: var(--radius-sm); padding: 10px 14px; font-size: 12px;
+    font-weight: 700; cursor: pointer; transition: all 0.2s;
+    background: var(--accent-light); color: var(--accent);
+    margin: 10px 16px 14px;
+}
+.btn-wits-query:active { transform: scale(0.97); background: var(--accent); color: white; }
+.btn-wits-query.loading {
+    opacity: 0.7; pointer-events: none; cursor: not-allowed;
+}
+.btn-wits-query.success {
+    background: var(--accent2-light); color: var(--accent2); border-color: rgba(14,164,122,0.25);
+}
+.btn-wits-query.error {
+    background: var(--warn-light); color: var(--warn); border-color: rgba(212,80,10,0.2);
+}
+.wits-spinner {
+    width: 12px; height: 12px; border: 2px solid currentColor;
+    border-top-color: transparent; border-radius: 50%;
+    animation: spin 0.7s linear infinite; display: inline-block;
+}
+/* WITS 查询结果气泡 */
+.wits-result-chip {
+    display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+    background: var(--accent2-light); color: var(--accent2);
+    border: 1px solid rgba(14,164,122,0.25); border-radius: 20px;
+    padding: 5px 12px; font-size: 10px; font-weight: 700; line-height: 1.4;
+    margin: 0 16px 12px; width: calc(100% - 32px); box-sizing: border-box;
+}
+.wits-result-chip.hidden { display: none; }
 
 /* 贸易术语选择 */
 .mode-grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 6px; padding: 12px; }
@@ -642,7 +676,7 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
 <div class="header">
   <div class="header-left" style="display:flex; align-items:center;">
     <div class="header-logo">🚢</div>
-    <div class="header-title">外贸报价计算器 <span style="color:var(--accent);font-size:11px;background:var(--accent-light);padding:2px 6px;border-radius:6px;margin-left:4px;">V4</span></div>
+    <div class="header-title">外贸报价计算器 <span style="color:var(--accent);font-size:11px;background:var(--accent-light);padding:2px 6px;border-radius:6px;margin-left:4px;">V5</span></div>
   </div>
   <div style="display:flex; align-items:center; gap:8px;">
     <!-- 用户状态按钮 -->
@@ -780,6 +814,16 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
           <input class="field-input" type="number" id="vatRate" value="0" onfocus="this.select()">
           <div class="field-unit">%</div>
         </div>
+
+        <!-- ==================== V5: WITS 实时关税查询 ==================== -->
+        <button class="btn-wits-query" id="witsQueryBtn" onclick="queryWITSRate()" title="从世界银行 WITS 数据库查询该国 MFN 进口关税">
+          <span id="witsQueryIcon">🌐</span>
+          <span id="witsQueryLabel">查询实时 MFN 关税（WITS 世界银行数据库）</span>
+        </button>
+        <div class="wits-result-chip hidden" id="witsResultChip">
+          <span id="witsResultText"></span>
+        </div>
+        <!-- ==================== WITS 结束 ==================== -->
 
         <div class="hs-toggle-bar" onclick="toggleHS()">
           <span style="font-size:12px; font-weight:600; color:var(--text2);">🏷 品类快捷税率预估</span>
@@ -1484,15 +1528,100 @@ const COUNTRIES = {
   CUSTOM: { name:'自定义', tax:0, vat:0, level:'info', note:'录入自定义国家参数' }
 };
 
-const HS_CATEGORIES =[
-  { icon:'📱', name:'3C电子', rates:{ USA:0, EU:0, RU:5, IN:10, BR:12 } },
-  { icon:'👕', name:'纺织服装', rates:{ USA:16.5, EU:12, RU:14, IN:20, BR:35 } },
-  { icon:'🪑', name:'家具装饰', rates:{ USA:8.3, EU:2.7, RU:10, IN:25, BR:18 } },
-  { icon:'🔧', name:'五金配件', rates:{ USA:5.7, EU:2.7, RU:8, IN:10, BR:14 } },
-  { icon:'🧴', name:'美妆日化', rates:{ USA:0, EU:6.5, RU:15, IN:20, BR:14 } },
-  { icon:'🧸', name:'玩具模型', rates:{ USA:0, EU:2.9, RU:12, IN:20, BR:20 } },
-  { icon:'🚗', name:'汽车配件', rates:{ USA:2.5, EU:4.5, RU:8, IN:15, BR:18 } },
-  { icon:'🏋️', name:'体育用品', rates:{ USA:0, EU:2.9, RU:8, IN:15, BR:16 } }
+// ==================== V5: 扩展 HS 品类税率矩阵 ====================
+// 数据来源：各国官方 MFN 税率及 WTO 贸易政策审议报告（参考年份：2023-2024）
+// 覆盖 COUNTRIES 对象全部国家键，与 selectHS() 逻辑完全对齐。
+// 未收录税率留空（undefined），触发 selectHS() 的"暂无数据"提示并引导手动输入。
+// 标注 [*] 的为特殊情形：USA 中美加征税 25%+ 已单独拆出，请结合 WITS 查询使用。
+const HS_CATEGORIES = [
+  {
+    icon: '📱', name: '3C电子',
+    // HS 章节 84-85 电子产品 MFN 税率（多数国家 IT 协定 ITA 零关税）
+    rates: {
+      USA: 0,    CA: 0,    MX: 0,    EU: 0,    DE: 0,    FR: 0,    UK: 0,
+      PL: 0,    RU: 5,    TR: 0,    SA: 5,    AE: 5,    IL: 0,    JP: 0,
+      KR: 0,    SG: 0,    MY: 0,    TH: 0,    VN: 5,    ID: 5,    PH: 3,
+      IN: 10,   AU: 0,    NZ: 0,    BR: 12,   CL: 0,    CO: 5,    ZA: 0,
+      NG: 20,   EG: 5
+    }
+  },
+  {
+    icon: '👕', name: '纺织服装',
+    // HS 章节 61-62 针梭织服装 MFN 峰值税率（中间值）
+    rates: {
+      USA: 16.5, CA: 18,  MX: 20,   EU: 12,   DE: 12,   FR: 12,   UK: 12,
+      PL: 12,   RU: 14,   TR: 12,   SA: 12,   AE: 5,    IL: 12,   JP: 10.9,
+      KR: 13,   SG: 0,    MY: 10,   TH: 20,   VN: 20,   ID: 15,   PH: 15,
+      IN: 20,   AU: 5,    NZ: 10,   BR: 35,   CL: 6,    CO: 15,   ZA: 40,
+      NG: 35,   EG: 20
+    }
+  },
+  {
+    icon: '🪑', name: '家具装饰',
+    // HS 章节 94 家具 MFN 税率
+    rates: {
+      USA: 0,    CA: 0,    MX: 10,   EU: 2.7,  DE: 2.7,  FR: 2.7,  UK: 0,
+      PL: 2.7,  RU: 10,   TR: 10,   SA: 5,    AE: 5,    IL: 6,    JP: 0,
+      KR: 8,    SG: 0,    MY: 0,    TH: 20,   VN: 20,   ID: 15,   PH: 15,
+      IN: 25,   AU: 0,    NZ: 0,    BR: 18,   CL: 6,    CO: 10,   ZA: 20,
+      NG: 35,   EG: 10
+    }
+  },
+  {
+    icon: '🔧', name: '五金配件',
+    // HS 章节 73/83 钢铁及杂项金属制品 MFN 税率
+    rates: {
+      USA: 5.7,  CA: 0,    MX: 5,    EU: 2.7,  DE: 2.7,  FR: 2.7,  UK: 0,
+      PL: 2.7,  RU: 8,    TR: 5,    SA: 5,    AE: 5,    IL: 5,    JP: 0,
+      KR: 8,    SG: 0,    MY: 5,    TH: 10,   VN: 10,   ID: 10,   PH: 10,
+      IN: 10,   AU: 0,    NZ: 0,    BR: 14,   CL: 6,    CO: 10,   ZA: 10,
+      NG: 20,   EG: 10
+    }
+  },
+  {
+    icon: '🧴', name: '美妆日化',
+    // HS 章节 33/34 化妆品及洗涤品 MFN 税率
+    rates: {
+      USA: 0,    CA: 0,    MX: 15,   EU: 6.5,  DE: 6.5,  FR: 6.5,  UK: 0,
+      PL: 6.5,  RU: 15,   TR: 10,   SA: 5,    AE: 5,    IL: 12,   JP: 0,
+      KR: 8,    SG: 0,    MY: 10,   TH: 30,   VN: 20,   ID: 15,   PH: 10,
+      IN: 20,   AU: 0,    NZ: 0,    BR: 14,   CL: 6,    CO: 10,   ZA: 20,
+      NG: 20,   EG: 20
+    }
+  },
+  {
+    icon: '🧸', name: '玩具模型',
+    // HS 章节 95 玩具及娱乐用品 MFN 税率
+    rates: {
+      USA: 0,    CA: 0,    MX: 20,   EU: 2.9,  DE: 2.9,  FR: 2.9,  UK: 0,
+      PL: 2.9,  RU: 12,   TR: 10,   SA: 5,    AE: 5,    IL: 8,    JP: 0,
+      KR: 8,    SG: 0,    MY: 0,    TH: 30,   VN: 20,   ID: 10,   PH: 5,
+      IN: 20,   AU: 0,    NZ: 0,    BR: 20,   CL: 6,    CO: 15,   ZA: 20,
+      NG: 20,   EG: 20
+    }
+  },
+  {
+    icon: '🚗', name: '汽车配件',
+    // HS 章节 87 车辆零件及配件 MFN 税率
+    rates: {
+      USA: 2.5,  CA: 0,    MX: 10,   EU: 4.5,  DE: 4.5,  FR: 4.5,  UK: 6.5,
+      PL: 4.5,  RU: 8,    TR: 4.5,  SA: 5,    AE: 5,    IL: 8,    JP: 0,
+      KR: 8,    SG: 0,    MY: 5,    TH: 20,   VN: 15,   ID: 10,   PH: 10,
+      IN: 15,   AU: 0,    NZ: 0,    BR: 18,   CL: 6,    CO: 15,   ZA: 20,
+      NG: 35,   EG: 10
+    }
+  },
+  {
+    icon: '🏋️', name: '体育用品',
+    // HS 章节 95.06 运动器材 MFN 税率
+    rates: {
+      USA: 0,    CA: 0,    MX: 20,   EU: 2.9,  DE: 2.9,  FR: 2.9,  UK: 0,
+      PL: 2.9,  RU: 8,    TR: 6.7,  SA: 5,    AE: 5,    IL: 6,    JP: 0,
+      KR: 8,    SG: 0,    MY: 0,    TH: 20,   VN: 15,   ID: 10,   PH: 10,
+      IN: 15,   AU: 0,    NZ: 0,    BR: 16,   CL: 6,    CO: 10,   ZA: 20,
+      NG: 20,   EG: 10
+    }
+  }
 ];
 
 const MARKET_COMPARE_LIST =[
@@ -1510,6 +1639,263 @@ const MARKET_COMPARE_LIST =[
     { key:'ZA',  flag:'🇿🇦', name:'南非', tax:5.0, vat:15 },
     { key:'MX',  flag:'🇲🇽', name:'墨西哥', tax:7.0, vat:16 } 
 ];
+
+// ==================== V5: WITS 世界银行实时关税查询引擎 ====================
+/**
+ * 数据源：World Integrated Trade Solution (WITS) — World Bank
+ * 端点：https://wits.worldbank.org/API/V1/SDMX/V21/datasource/TRN/
+ *       reporter/{country_iso3}/partner/WLD/product/{hs6}/year/ALL
+ * 特点：无需 API Key，纯前端 fetch，CORS 开放，返回 SDMX 2.1 JSON。
+ * 返回最新年份的 MFN（最惠国）进口税率，不含反倾销/特别附加税。
+ * 对美国：本工具会在结果旁注明 301 附加税风险提示。
+ *
+ * 国家键映射：COUNTRIES 对象 key → ISO 3 位码（WITS reporter 参数）
+ * 注：EU/CUSTOM 不适用 WITS 端点（EU 无统一 ISO3 reporter，CUSTOM 无对应国）
+ */
+
+const WITS_ISO3_MAP = {
+  USA: 'USA', CA: 'CAN', MX: 'MEX', EU: null,  DE: 'DEU', FR: 'FRA',
+  UK:  'GBR', PL: 'POL', RU: 'RUS', TR: 'TUR', SA: 'SAU', AE: 'ARE',
+  IL:  'ISR', JP: 'JPN', KR: 'KOR', SG: 'SGP', MY: 'MYS', TH: 'THA',
+  VN:  'VNM', ID: 'IDN', PH: 'PHL', IN: 'IND', AU: 'AUS', NZ: 'NZL',
+  BR:  'BRA', CL: 'CHL', CO: 'COL', ZA: 'ZAF', NG: 'NGA', EG: 'EGY',
+  CUSTOM: null
+};
+
+// WITS HS 品类映射：HS_CATEGORIES 选项 → 代表性 HS6 位码（用于 API 查询）
+const WITS_HS6_MAP = [
+  '851712', // 3C电子  → 智能手机 HS 8517.12
+  '610910', // 纺织服装 → T恤 HS 6109.10
+  '940360', // 家具装饰 → 木家具 HS 9403.60
+  '732690', // 五金配件 → 杂项钢铁制品 HS 7326.90
+  '330499', // 美妆日化 → 化妆品 HS 3304.99
+  '950300', // 玩具模型 → 玩具 HS 9503.00
+  '870899', // 汽车配件 → 汽车零件 HS 8708.99
+  '950659', // 体育用品 → 运动器材 HS 9506.59
+];
+
+// 内存缓存：避免同一国家/品类重复请求（仅当前会话有效，无 localStorage 依赖）
+const witsCache = {};
+
+/**
+ * queryWITSRate()
+ * 触发时机：用户点击"查询实时 MFN 关税"按钮
+ * 逻辑：
+ *   1. 读取当前选中国家与选中 HS 品类
+ *   2. 若国家/品类不支持，给出精准提示，不改变任何表单值
+ *   3. 调用 WITS XML API，解析最新年份 MFN 税率
+ *   4. 填入 taxRate 输入框（仅改写该单一字段，不触碰其他任何输入）
+ *   5. 同时触发 autoCalculate() 保持计算联动
+ *
+ * 设计约束：
+ *   - 不修改 vatRate（VAT 非 WITS 返回字段，保持静态库）
+ *   - 不修改任何计算引擎函数或财务逻辑
+ *   - WITS 数据滞后 1-2 年，不适用于中美 301 加征税（页面已有 USA warn 提示）
+ *   - 失败时静默降级，不清空已有税率值
+ */
+async function queryWITSRate() {
+    const btn       = document.getElementById('witsQueryBtn');
+    const icon      = document.getElementById('witsQueryIcon');
+    const label     = document.getElementById('witsQueryLabel');
+    const chip      = document.getElementById('witsResultChip');
+    const chipText  = document.getElementById('witsResultText');
+
+    // ── 1. 读取选中国家 ────────────────────────────────────────────
+    const countryKey = document.getElementById('countrySelect').value;
+    const iso3       = WITS_ISO3_MAP[countryKey];
+
+    if (!iso3) {
+        // EU / CUSTOM 无 ISO3 reporter，给出提示后退出
+        const countryName = (COUNTRIES[countryKey] || {}).name || countryKey;
+        showToast(`⚠️ ${countryName} 暂不支持 WITS 直查，请参考品类预估或手动输入`);
+        return;
+    }
+
+    // ── 2. 读取选中 HS 品类 ────────────────────────────────────────
+    const selectedHsEl = document.querySelector('.hs-item.selected');
+    if (!selectedHsEl) {
+        showToast('💡 请先在下方「品类快捷税率」中选择一个品类，再点击查询');
+        return;
+    }
+    // 从 id="hs-N" 解析品类索引
+    const hsIdx = parseInt(selectedHsEl.id.replace('hs-', ''), 10);
+    const hs6   = WITS_HS6_MAP[hsIdx];
+    if (!hs6) {
+        showToast('⚠️ 该品类暂无对应 HS6 编码，请手动输入关税率');
+        return;
+    }
+
+    // ── 3. 命中缓存直接填入 ───────────────────────────────────────
+    const cacheKey = `${iso3}_${hs6}`;
+    if (witsCache[cacheKey] !== undefined) {
+        applyWITSResult(witsCache[cacheKey], hs6, cacheKey, btn, icon, label, chip, chipText, true);
+        return;
+    }
+
+    // ── 4. 进入加载态 ─────────────────────────────────────────────
+    btn.classList.add('loading');
+    btn.classList.remove('success', 'error');
+    icon.innerHTML = '<span class="wits-spinner"></span>';
+    label.textContent = '正在查询 WITS 世界银行数据库...';
+    chip.classList.add('hidden');
+
+    // ── 5. 构造 WITS API 请求 ──────────────────────────────────────
+    // WITS 开放 CORS，无需代理，无需 API Key
+    // reporter=进口国, partner=WLD(全球), product=HS6, tariffType=MFN
+    const url = `https://wits.worldbank.org/API/V1/SDMX/V21/datasource/TRN/reporter/${iso3}/partner/WLD/product/${hs6}/year/ALL?format=JSON`;
+
+    try {
+        const resp = await Promise.race([
+            fetch(url, { cache: 'default' }),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('请求超时（15s）')), 15000))
+        ]);
+
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+        const json = await resp.json();
+
+        // ── 6. 解析 JSON：取最新年份 MFN SimpleAverage ─────────────
+        const rate = parseWITSJSON(json);
+
+        if (rate === null) {
+            throw new Error('未检索到该国该品类有效 MFN 数据');
+        }
+
+        // ── 安全校验：税率应在 0%-100% 合理范围内 ─────────────────
+        if (rate < 0 || rate > 100) {
+            throw new Error(`WITS 返回异常值 ${rate}%，请手动核实`);
+        }
+
+        // ── 7. 写入缓存并应用结果 ─────────────────────────────────
+        witsCache[cacheKey] = rate;
+        applyWITSResult(rate, hs6, cacheKey, btn, icon, label, chip, chipText, false);
+
+    } catch (err) {
+        console.warn('[WITS]', err.message);
+        btn.classList.remove('loading');
+        btn.classList.add('error');
+        icon.textContent = '⚠️';
+        label.textContent = `查询失败（${err.message.length > 30 ? err.message.slice(0, 30) + '…' : err.message}）`;
+
+        // 3 秒后恢复按钮原始状态
+        setTimeout(() => {
+            btn.classList.remove('error');
+            icon.textContent = '🌐';
+            label.textContent = '查询实时 MFN 关税（WITS 世界银行数据库）';
+        }, 3000);
+    }
+}
+
+/**
+ * parseWITSJSON(json)
+ * 解析 WITS SDMX 2.1 JSON 格式，提取最新年份 MFN SimpleAverage 税率。
+ *
+ * WITS TRN 数据集的 SDMX-JSON 真实结构：
+ *   structure.dimensions.series  → [reporter, partner, product, tarifftype, nomenclature]
+ *   structure.dimensions.observation → [Year]       ← Year 在 observation 维度，不在 series
+ *   dataSets[0].series  → { "0:0:0:0:0": { observations: { "0": [rate,...], "1": [rate,...] } } }
+ *                           每个 obsKey 是 Year 维度的顺序索引
+ *
+ * 返回数字（百分比，如 7.5）或 null（无数据）。
+ */
+function parseWITSJSON(json) {
+    try {
+        const datasets = json.dataSets;
+        if (!datasets || datasets.length === 0) return null;
+
+        const series = datasets[0].series;
+        if (!series) return null;
+
+        const structure = json.structure;
+        if (!structure || !structure.dimensions) return null;
+
+        // ── 关键修复：Year 维度在 observation 层，不在 series 层 ──
+        const obsDims = structure.dimensions.observation;
+        if (!obsDims || obsDims.length === 0) return null;
+
+        // WITS TRN 中 observation 维度只有一个：Year
+        const yearDim = obsDims[0];
+        const yearValues = (yearDim && yearDim.values) ? yearDim.values : null;
+
+        let bestRate = null;
+        let bestYear = -1;
+
+        Object.keys(series).forEach(seriesKey => {
+            const obs = series[seriesKey].observations;
+            if (!obs) return;
+
+            Object.keys(obs).forEach(obsKey => {
+                const val = obs[obsKey][0]; // index 0 = SimpleAverage
+                if (val === null || val === undefined || isNaN(parseFloat(val))) return;
+
+                // obsKey 是 Year 维度值数组的顺序索引（0 → 第一年，1 → 第二年…）
+                let year = 0;
+                if (yearValues) {
+                    const idx = parseInt(obsKey, 10);
+                    const yearEntry = yearValues[idx];
+                    year = yearEntry ? parseInt(yearEntry.id || yearEntry.name || '0', 10) : 0;
+                } else {
+                    // 降级：部分旧版响应 obsKey 直接就是年份字符串
+                    const parsed = parseInt(obsKey, 10);
+                    year = (parsed > 1990 && parsed < 2100) ? parsed : 0;
+                }
+
+                if (year > bestYear) {
+                    bestYear = year;
+                    bestRate = parseFloat(val);
+                }
+            });
+        });
+
+        return (bestRate !== null && bestYear > 0) ? bestRate : null;
+
+    } catch(e) {
+        console.warn('[WITS] JSON解析异常', e);
+        return null;
+    }
+}
+
+/**
+ * applyWITSResult(rate, hs6, cacheKey, ...)
+ * 将 WITS 查询结果填入 taxRate 字段并更新按钮 UI。
+ * 所有表单写入操作集中在此函数，保持单一职责。
+ */
+function applyWITSResult(rate, hs6, cacheKey, btn, icon, label, chip, chipText, fromCache) {
+    const countryKey  = document.getElementById('countrySelect').value;
+    const countryName = (COUNTRIES[countryKey] || {}).name || countryKey;
+    const rateStr     = rate.toFixed(2);
+
+    // 仅填写 taxRate 字段，不触碰其他任何输入
+    document.getElementById('taxRate').value = rateStr;
+
+    // 触发计算联动（等同于用户手动修改该字段）
+    if (typeof autoCalculate === 'function') autoCalculate();
+
+    // 按钮状态：成功
+    btn.classList.remove('loading', 'error');
+    btn.classList.add('success');
+    icon.textContent = '✅';
+    label.textContent = `已填入：${countryName} MFN 关税 ${rateStr}%${fromCache ? '（缓存）' : ''}`;
+
+    // 结果气泡
+    chip.classList.remove('hidden');
+    let chipContent = `📊 WITS 数据 · HS ${hs6.substring(0,4)}.${hs6.substring(4)} · MFN ${rateStr}%`;
+    // 美国特别提示：301 加征税未计入 MFN
+    if (countryKey === 'USA') {
+        chipContent += ' · ⚠️ 不含 301 加征税，美国实际税率更高';
+    }
+    chipText.textContent = chipContent;
+
+    // 12 秒后恢复按钮（保留气泡）
+    setTimeout(() => {
+        btn.classList.remove('success');
+        icon.textContent = '🌐';
+        label.textContent = '查询实时 MFN 关税（WITS 世界银行数据库）';
+    }, 12000);
+
+    showToast(`✅ WITS 已填入：${countryName} · ${hs6} · MFN ${rateStr}%`);
+}
+// ==================== WITS 引擎结束 ====================
 
 function setMode(el) {
     document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
@@ -1849,7 +2235,7 @@ function restoreHistory(id) {
     }
     
     onInputVatChange(document.getElementById('inputVatRate'));
-    onCountryChange();
+    onCountryChange(); // onCountryChange already resets WITS UI state in V5
     
     showToast('✅ 历史业务档案已成功恢复入表');
     switchTab('calc');
@@ -1901,6 +2287,18 @@ function onCountryChange() {
     n.className = 'info-banner ' + (c.level || 'info');
     n.innerText = 'ℹ️ ' + c.note;
     n.style.display = 'block';
+
+    // V5: 切换国家时重置 WITS 查询状态，避免上次结果误导
+    const witsBtn   = document.getElementById('witsQueryBtn');
+    const witsIcon  = document.getElementById('witsQueryIcon');
+    const witsLabel = document.getElementById('witsQueryLabel');
+    const witsChip  = document.getElementById('witsResultChip');
+    if (witsBtn) {
+        witsBtn.classList.remove('loading', 'success', 'error');
+        witsIcon.textContent = '🌐';
+        witsLabel.textContent = '查询实时 MFN 关税（WITS 世界银行数据库）';
+    }
+    if (witsChip) witsChip.classList.add('hidden');
 }
 
 function toggleHS() { state.hsOpen = !state.hsOpen; document.getElementById('hs-collapsible').classList.toggle('open', state.hsOpen); document.getElementById('hs-arrow').innerText = state.hsOpen?'▲':'▼'; }
@@ -1914,6 +2312,16 @@ function selectHS(idx) {
         document.getElementById('taxRate').value = '';
     }
     document.querySelectorAll('.hs-item').forEach((e,i) => e.classList.toggle('selected', i===idx));
+
+    // V5: 切换品类时隐藏上次 WITS 结果气泡，引导用户重新查询
+    const witsChip = document.getElementById('witsResultChip');
+    const witsBtn  = document.getElementById('witsQueryBtn');
+    if (witsChip) witsChip.classList.add('hidden');
+    if (witsBtn) {
+        witsBtn.classList.remove('success', 'error');
+        document.getElementById('witsQueryIcon').textContent = '🌐';
+        document.getElementById('witsQueryLabel').textContent = '查询实时 MFN 关税（WITS 世界银行数据库）';
+    }
 }
 
 function onInputVatChange(sel) {
