@@ -111,6 +111,17 @@ body { background: var(--bg); color: var(--text); font-family: 'DM Sans', -apple
 .mode-btn.active::after { content: "✓"; position: absolute; top: -5px; right: -5px; background: var(--accent); color: white; width: 14px; height: 14px; border-radius: 50%; font-size: 10px; line-height: 14px; text-align: center; }
 .mode-hint { font-size: 11px; color: var(--text3); padding: 0 12px 12px; min-height: 42px; line-height: 1.4; background: var(--surface2); border-left: 3px solid var(--border); margin: 0 12px 12px; padding: 10px 12px; }
 
+<!-- ====================V6 新增: AI HS 智能预测 ==================== -->
+<button class="btn-wits-query" id="btn-ai-hs" style="border-color: rgba(14,164,122,0.25); color: var(--accent2); background: var(--accent2-light); margin-top: 0; margin-bottom: 14px;" onclick="predictHSCode()">
+  <span id="ai-hs-icon">✨</span>
+  <span id="ai-hs-label">AI 智能分析 HS Code 与清关风险</span>
+</button>
+<!-- 修复：去除了 .card 避免双重阴影，采用扁平虚线面板设计 -->
+<div id="ai-hs-result-card" style="display:none; margin: 0 16px 14px; padding: 14px; background: var(--accent2-light); border: 1px dashed var(--accent2); border-radius: var(--radius-sm);">
+  <div style="font-size: 11px; font-weight: 700; color: var(--accent2); margin-bottom: 6px;">🤖 AI 报关专家评估结果：</div>
+  <div id="ai-hs-result-text" style="font-size: 12px; line-height: 1.6; color: var(--text2); white-space: pre-wrap; font-family: 'DM Sans', sans-serif;"></div>
+</div>
+
 /* HS 分类 */
 .hs-toggle-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px; cursor: pointer; border-top: 1px solid var(--border); background: var(--surface2); }
 .hs-collapsible { overflow: hidden; max-height: 0; transition: max-height 0.35s ease; background: var(--surface); }
@@ -676,7 +687,7 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
 <div class="header">
   <div class="header-left" style="display:flex; align-items:center;">
     <div class="header-logo">🚢</div>
-    <div class="header-title">外贸报价计算器 <span style="color:var(--accent);font-size:11px;background:var(--accent-light);padding:2px 6px;border-radius:6px;margin-left:4px;">V5</span></div>
+    <div class="header-title">外贸报价计算器 <span style="color:var(--accent);font-size:11px;background:var(--accent-light);padding:2px 6px;border-radius:6px;margin-left:4px;">V6</span></div>
   </div>
   <div style="display:flex; align-items:center; gap:8px;">
     <!-- 用户状态按钮 -->
@@ -993,10 +1004,26 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
             <!-- 采用预格式化排版，确保终端式对齐 -->
             <div id="slip-body" style="font-size:12px; white-space: pre-wrap; word-wrap: normal; color: #1A1A1A; min-width: max-content; line-height: 1.6;"></div>
         </div>
-        <button class="btn-calc" style="background:#1A1A1A; margin-top:20px;" onclick="copySlip()">📋 一键复制发送给客户</button>
-    </div>
+        <!-- V6: 原先的单一复制按钮替换为双排按钮 -->
+<div style="display: flex; gap: 10px; margin-top: 20px;">
+    <button class="btn-calc" style="flex: 1; background: var(--surface); color: var(--text); border: 1px solid var(--border); box-shadow: var(--shadow);" onclick="copySlip()">📋 仅复制 PI</button>
+    <button class="btn-calc" style="flex: 2; margin-top: 0; display: flex; align-items: center; justify-content: center; gap: 6px;" id="btn-ai-email" onclick="generateAIEmail()">
+        <span id="ai-email-icon">✨</span>
+        <span id="ai-email-label">AI 一键生成跟进邮件</span>
+    </button>
 </div>
 
+<!-- 邮件生成结果面板 -->
+<div class="card" id="ai-email-result-card" style="display:none; margin-top: 16px; padding: 16px; background: var(--surface); border: 1px solid var(--accent); box-shadow: 0 8px 24px rgba(27,79,216,0.15);">
+    <div style="font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+        <span>🤖 高转化率跟进邮件草稿</span>
+        <span style="font-size: 20px; cursor: pointer; color: var(--text3); line-height: 1;" onclick="document.getElementById('ai-email-result-card').style.display='none'">×</span>
+    </div>
+    <!-- 修复：resize:none 避免移动端撑破布局 -->
+    <textarea id="ai-email-text" style="width: 100%; height: 260px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; font-family: 'DM Sans', sans-serif; line-height: 1.6; outline: none; background: var(--surface2); resize: none; overflow-y: auto; color: var(--text);"></textarea>
+    <button class="m-btn m-btn-allow" style="margin-top: 12px; font-size: 14px; padding: 12px;" onclick="copyAIEmail()">📋 复制邮件正文</button>
+</div>
+</div>
 <!-- PAGE 4: 历史记录 (V2 新增底层系统) -->
 <div id="page-history" class="page">
     <div class="card" style="padding: 16px; background:transparent; border:none; box-shadow:none;">
@@ -3461,6 +3488,116 @@ function toggleChangelog() {
     const isOpen = box.classList.toggle('open');
     btn.textContent = isOpen ? '▲ 收起更新日志' : '▼ 查看更新日志';
 }
+
+// ====================V6: AI 赋能核心模块 ====================
+
+// 通用 AI 引擎调度器
+async function callAIEngine(action, payload, btnIconEl, btnLabelEl, loadingText, originalText) {
+    if (!supabaseClient) {
+        showToast('⚠️ AI 功能需要连接云端服务，请先配置或登录');
+        return null;
+    }
+
+    // 复用原代码体系中的加载动画
+    btnIconEl.innerHTML = '<span class="wits-spinner"></span>';
+    btnLabelEl.textContent = loadingText;
+
+    try {
+        const { data, error } = await supabaseClient.functions.invoke('gemini-proxy', {
+            body: { action, payload }
+        });
+
+        if (error) throw error;
+        if (data.error) throw new Error(data.error);
+
+        return data.result;
+    } catch (err) {
+        console.error("[AI Engine Error]", err);
+        showToast('❌ AI 服务异常: ' + (err.message || '请检查网络'));
+        return null;
+    } finally {
+        btnIconEl.textContent = '✨';
+        btnLabelEl.textContent = originalText;
+    }
+}
+
+// 方案一：一键生成邮件
+async function generateAIEmail() {
+    if (!state.lastPrice) {
+        showToast('⚠️ 拦截：请先执行精确核算');
+        return;
+    }
+
+    const btnIcon = document.getElementById('ai-email-icon');
+    const btnLabel = document.getElementById('ai-email-label');
+    const resultCard = document.getElementById('ai-email-result-card');
+    const resultText = document.getElementById('ai-email-text');
+
+    const countrySel = document.getElementById('countrySelect');
+    const destination = countrySel.options[countrySel.selectedIndex].text;
+    const moqStr = document.getElementById('moqInput').value || '1000 pcs';
+    let moqNum = parseInt(moqStr.replace(/\D/g, ''), 10) || 1000;
+
+    const payload = {
+        productName: document.getElementById('productName').value || 'Target Product',
+        incoterms: state.mode,
+        destination: destination,
+        // 复用原代码中的全局函数 formatMoney
+        unitPrice: `USD ${formatMoney(state.lastPrice)}`, 
+        totalPrice: `USD ${formatMoney(state.lastPrice * moqNum)}`,
+        notes: `PI No: ${state.currentPiNo || 'TBD'}, Lead Time: ${document.getElementById('leadTime').value || 'TBD'}`
+    };
+
+    const result = await callAIEngine('generate_email', payload, btnIcon, btnLabel, '正在深度思考撰写...', 'AI 一键生成跟进邮件');
+    
+    if (result) {
+        resultText.value = result;
+        resultCard.style.display = 'block';
+        resultCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        showToast('✅ 邮件草稿已生成');
+    }
+}
+
+function copyAIEmail() {
+    const text = document.getElementById('ai-email-text').value;
+    navigator.clipboard.writeText(text).then(() => {
+        showToast('✅ 邮件正文已复制到剪贴板');
+    }).catch(() => {
+        showToast('⚠️ 复制失败，请手动长按全选复制');
+    });
+}
+
+// 方案二：智能 HS Code 预测
+async function predictHSCode() {
+    let productDesc = document.getElementById('productName').value;
+    if (!productDesc) {
+        productDesc = prompt("🤖 AI: 请输入您的详细产品描述（例如：带LED触控板的无刷电机）：");
+        if (!productDesc) return; 
+        document.getElementById('productName').value = productDesc; // 跨阶段回填表单
+    }
+
+    const countrySel = document.getElementById('countrySelect');
+    const destination = countrySel.options[countrySel.selectedIndex].text;
+
+    const btnIcon = document.getElementById('ai-hs-icon');
+    const btnLabel = document.getElementById('ai-hs-label');
+    const resultCard = document.getElementById('ai-hs-result-card');
+    const resultText = document.getElementById('ai-hs-result-text');
+
+    const payload = {
+        productDescription: productDesc,
+        destinationCountry: destination
+    };
+
+    const result = await callAIEngine('predict_hs', payload, btnIcon, btnLabel, '正在查询全球海关与风控库...', 'AI 智能分析 HS Code 与清关风险');
+
+    if (result) {
+        resultText.textContent = result;
+        resultCard.style.display = 'block';
+        showToast('✅ 智能报关风控报告已生成');
+    }
+}
+
 </script>
 
 <!-- ==================== VERSION FOOTER ==================== -->
