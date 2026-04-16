@@ -111,17 +111,6 @@ body { background: var(--bg); color: var(--text); font-family: 'DM Sans', -apple
 .mode-btn.active::after { content: "✓"; position: absolute; top: -5px; right: -5px; background: var(--accent); color: white; width: 14px; height: 14px; border-radius: 50%; font-size: 10px; line-height: 14px; text-align: center; }
 .mode-hint { font-size: 11px; color: var(--text3); padding: 0 12px 12px; min-height: 42px; line-height: 1.4; background: var(--surface2); border-left: 3px solid var(--border); margin: 0 12px 12px; padding: 10px 12px; }
 
-<!-- ====================V6 新增: AI HS 智能预测 ==================== -->
-<button class="btn-wits-query" id="btn-ai-hs" style="border-color: rgba(14,164,122,0.25); color: var(--accent2); background: var(--accent2-light); margin-top: 0; margin-bottom: 14px;" onclick="predictHSCode()">
-  <span id="ai-hs-icon">✨</span>
-  <span id="ai-hs-label">AI 智能分析 HS Code 与清关风险</span>
-</button>
-<!-- 修复：去除了 .card 避免双重阴影，采用扁平虚线面板设计 -->
-<div id="ai-hs-result-card" style="display:none; margin: 0 16px 14px; padding: 14px; background: var(--accent2-light); border: 1px dashed var(--accent2); border-radius: var(--radius-sm);">
-  <div style="font-size: 11px; font-weight: 700; color: var(--accent2); margin-bottom: 6px;">🤖 AI 报关专家评估结果：</div>
-  <div id="ai-hs-result-text" style="font-size: 12px; line-height: 1.6; color: var(--text2); white-space: pre-wrap; font-family: 'DM Sans', sans-serif;"></div>
-</div>
-
 /* HS 分类 */
 .hs-toggle-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px; cursor: pointer; border-top: 1px solid var(--border); background: var(--surface2); }
 .hs-collapsible { overflow: hidden; max-height: 0; transition: max-height 0.35s ease; background: var(--surface); }
@@ -834,8 +823,17 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
         <div class="wits-result-chip hidden" id="witsResultChip">
           <span id="witsResultText"></span>
         </div>
-        <!-- ==================== WITS 结束 ==================== -->
 
+<!-- ====================V6 新增: AI HS 智能预测 ==================== -->
+<button class="btn-wits-query" id="btn-ai-hs" style="border-color: rgba(14,164,122,0.25); color: var(--accent2); background: var(--accent2-light); margin-top: 0; margin-bottom: 14px;" onclick="predictHSCode()">
+  <span id="ai-hs-icon">✨</span>
+  <span id="ai-hs-label">AI 智能分析 HS Code 与清关风险</span>
+</button>
+<!-- 修复：去除了 .card 避免双重阴影，采用扁平虚线面板设计 -->
+<div id="ai-hs-result-card" style="display:none; margin: 0 16px 14px; padding: 14px; background: var(--accent2-light); border: 1px dashed var(--accent2); border-radius: var(--radius-sm);">
+  <div style="font-size: 11px; font-weight: 700; color: var(--accent2); margin-bottom: 6px;">🤖 AI 报关专家评估结果：</div>
+  <div id="ai-hs-result-text" style="font-size: 12px; line-height: 1.6; color: var(--text2); white-space: pre-wrap; font-family: 'DM Sans', sans-serif;"></div>
+</div>
         <div class="hs-toggle-bar" onclick="toggleHS()">
           <span style="font-size:12px; font-weight:600; color:var(--text2);">🏷 品类快捷税率预估</span>
           <span id="hs-arrow">▼</span>
@@ -1022,6 +1020,7 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
     <!-- 修复：resize:none 避免移动端撑破布局 -->
     <textarea id="ai-email-text" style="width: 100%; height: 260px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; font-family: 'DM Sans', sans-serif; line-height: 1.6; outline: none; background: var(--surface2); resize: none; overflow-y: auto; color: var(--text);"></textarea>
     <button class="m-btn m-btn-allow" style="margin-top: 12px; font-size: 14px; padding: 12px;" onclick="copyAIEmail()">📋 复制邮件正文</button>
+</div>
 </div>
 </div>
 <!-- PAGE 4: 历史记录 (V2 新增底层系统) -->
