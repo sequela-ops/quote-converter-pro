@@ -1089,6 +1089,26 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
     </button>
 </div>
 
+<!-- 成交模式与客户画像 -->
+<div style="margin-top: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+    <div>
+        <span style="font-size: 10px; font-weight: 700; color: var(--text2);">🚀 成交模式:</span>
+        <select id="salesModeSelect" class="field-select" style="height: 30px; font-size: 11px; padding: 0 8px; margin-top:4px;">
+            <option value="balanced">均衡模式</option>
+            <option value="closing">强势逼单</option>
+            <option value="soft">温和跟进</option>
+        </select>
+    </div>
+    <div>
+        <span style="font-size: 10px; font-weight: 700; color: var(--text2);">👤 客户画像:</span>
+        <select id="clientTypeSelect" class="field-select" style="height: 30px; font-size: 11px; padding: 0 8px; margin-top:4px;">
+            <option value="standard">常规买家</option>
+            <option value="distributor">大货批发商(价格敏感)</option>
+            <option value="brand">终端品牌商(质量敏感)</option>
+        </select>
+    </div>
+</div>
+
 <!-- 邮件生成结果面板 -->
 <div class="card" id="ai-email-result-card" style="display:none; margin-top: 16px; padding: 16px; background: var(--surface); border: 1px solid var(--accent); box-shadow: 0 8px 24px rgba(27,79,216,0.15);">
     <div style="font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
@@ -3951,12 +3971,17 @@ async function generateAIEmail() {
     const moqStr = document.getElementById('moqInput').value || '1000 pcs';
     let moqNum = parseInt(moqStr.replace(/\D/g, ''), 10) || 1000;
 
+    const salesMode = document.getElementById('salesModeSelect').value; // 👈 抓取模式
+    const clientType = document.getElementById('clientTypeSelect').value; // 👈 后续版本预留字段
+
     const payload = {
         productName: document.getElementById('productName').value || 'Target Product',
         incoterms: state.mode,
         destination: destination,
         unitPrice: `USD ${formatMoney(state.lastPrice)}`, 
         totalPrice: `USD ${formatMoney(state.lastPrice * moqNum)}`,
+        salesMode: salesMode,
+        clientType: clientType,
         logisticsData: state.logisticsData, 
         notes: `PI No: ${state.currentPiNo || 'TBD'}, Lead Time: ${document.getElementById('leadTime').value || 'TBD'}`
     };
