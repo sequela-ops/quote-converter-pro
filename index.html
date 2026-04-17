@@ -3490,31 +3490,107 @@ function toggleChangelog() {
 
 // ====================V6: AI 赋能核心模块 ====================
 
-// 通用 AI 引擎调度器
-async function callAIEngine(action, payload, btnIconEl, btnLabelEl, loadingText, originalText) {
+// 通用 AI 引擎调度器 (流式 SSE 重构版)
+async function callAIEngine(action, payload, btnIconEl, btnLabelEl, loadingText, originalText, outputEl, resultCard) {
     if (!supabaseClient) {
         showToast('⚠️ AI 功能需要连接云端服务，请先配置或登录');
-        return null;
+        return;
     }
 
-    // 复用原代码体系中的加载动画
+    // 获取当前 Token：优先使用已登录 session，否则降级使用匿名 key
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    const token = session?.access_token || SUPABASE_ANON_KEY;
+
+    // UI 状态切换
     btnIconEl.innerHTML = '<span class="wits-spinner"></span>';
     btnLabelEl.textContent = loadingText;
 
+    // 清空输出容器并立即展示结果面板（为流式写入做准备）
+    if (outputEl.tagName === 'TEXTAREA') {
+        outputEl.value = '';
+        resultCard.style.display = 'block';
+        resultCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } else {
+        outputEl.textContent = '';
+        resultCard.style.display = 'block';
+    }
+
     try {
-        const { data, error } = await supabaseClient.functions.invoke('gemini-proxy', {
-            body: { action, payload }
+        // 1. 绕过 invoke，原生 Fetch 调用 Edge Function
+        const response = await fetch(`${SUPABASE_URL}/functions/v1/gemini-proxy`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ action, payload })
         });
 
-        if (error) throw error;
-        if (data.error) throw new Error(data.error);
+        if (!response.ok) {
+            const errText = await response.text();
+            throw new Error(`HTTP ${response.status}: ${errText.slice(0, 100)}`);
+        }
 
-        return data.result;
+        // 2. 获取 ReadableStream reader
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder('utf-8');
+        let buffer = '';
+
+        // 3. 逐块读取并解析 SSE 数据
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            
+            // 保留最后一行可能不完整的 buffer 块
+            buffer = lines.pop();
+
+            for (const line of lines) {
+                if (!line.startsWith('data: ')) continue;
+                const raw = line.slice(6).trim();
+                
+                if (!raw || raw === '[DONE]') continue;
+
+                let parsed;
+                try {
+                    parsed = JSON.parse(raw);
+                } catch (e) {
+                    continue; // 忽略不完整的 JSON 块（极少发生）
+                }
+
+                // 处理远端抛出的业务错误
+                if (parsed.error) {
+                    throw new Error(parsed.error);
+                }
+
+                // 4. 追加 Chunk 内容，实现打字机效果
+                if (parsed.chunk) {
+                    if (outputEl.tagName === 'TEXTAREA') {
+                        outputEl.value += parsed.chunk;
+                        // 始终滚动到文字最底部
+                        outputEl.scrollTop = outputEl.scrollHeight;
+                    } else {
+                        outputEl.textContent += parsed.chunk;
+                    }
+                }
+            }
+        }
+        
+        showToast('✅ AI 分析已完成');
+
     } catch (err) {
         console.error("[AI Engine Error]", err);
         showToast('❌ AI 服务异常: ' + (err.message || '请检查网络'));
-        return null;
+        
+        // 发生错误时，如果内容区为空，则直接隐藏卡片
+        const currentContent = outputEl.tagName === 'TEXTAREA' ? outputEl.value : outputEl.textContent;
+        if (!currentContent.trim()) {
+            resultCard.style.display = 'none';
+        }
     } finally {
+        // 复位按钮状态
         btnIconEl.textContent = '✨';
         btnLabelEl.textContent = originalText;
     }
@@ -3541,20 +3617,13 @@ async function generateAIEmail() {
         productName: document.getElementById('productName').value || 'Target Product',
         incoterms: state.mode,
         destination: destination,
-        // 复用原代码中的全局函数 formatMoney
         unitPrice: `USD ${formatMoney(state.lastPrice)}`, 
         totalPrice: `USD ${formatMoney(state.lastPrice * moqNum)}`,
         notes: `PI No: ${state.currentPiNo || 'TBD'}, Lead Time: ${document.getElementById('leadTime').value || 'TBD'}`
     };
 
-    const result = await callAIEngine('generate_email', payload, btnIcon, btnLabel, '正在深度思考撰写...', 'AI 一键生成跟进邮件');
-    
-    if (result) {
-        resultText.value = result;
-        resultCard.style.display = 'block';
-        resultCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        showToast('✅ 邮件草稿已生成');
-    }
+    // 引擎内部托管渲染逻辑
+    await callAIEngine('generate_email', payload, btnIcon, btnLabel, '正在思考撰写...', 'AI 一键生成跟进邮件', resultText, resultCard);
 }
 
 function copyAIEmail() {
@@ -3588,13 +3657,8 @@ async function predictHSCode() {
         destinationCountry: destination
     };
 
-    const result = await callAIEngine('predict_hs', payload, btnIcon, btnLabel, '正在查询全球海关与风控库...', 'AI 智能分析 HS Code 与清关风险');
-
-    if (result) {
-        resultText.textContent = result;
-        resultCard.style.display = 'block';
-        showToast('✅ 智能报关风控报告已生成');
-    }
+    // 引擎内部托管渲染逻辑
+    await callAIEngine('predict_hs', payload, btnIcon, btnLabel, '正在查询全球海关与风控库...', 'AI 智能分析 HS Code 与清关风险', resultText, resultCard);
 }
 
 </script>
