@@ -670,6 +670,25 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
 }
 .changelog-box.open { display: block; }
 
+/* ==================== V7: 物流计费引擎 Modal 样式 ==================== */
+.mini-mode-tabs { display: flex; gap: 0; margin-bottom: 16px; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+.mini-mode-tab { flex: 1; padding: 9px 6px; font-size: 12px; font-weight: 600; color: var(--text3); background: var(--surface2); cursor: pointer; transition: 0.2s; text-align: center; border: none; }
+.mini-mode-tab.active { background: var(--accent); color: white; }
+.mini-mode-tab:not(.active):active { background: var(--accent-light); color: var(--accent); }
+
+.logistics-pro-body { text-align: left; }
+.lp-label { font-size: 11px; font-weight: 700; color: var(--text2); margin-bottom: 4px; display: block; }
+.lp-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+.lp-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+.lp-result-preview {
+    background: var(--accent-light); border: 1px solid rgba(27,79,216,0.15);
+    border-radius: var(--radius-sm); padding: 12px 14px;
+    font-size: 11px; color: var(--accent); line-height: 1.8; margin-top: 4px;
+}
+.lp-result-preview b { font-size: 13px; }
+.lp-result-preview .lp-warn { color: var(--warn); font-size: 10px; margin-top: 4px; display: block; }
+.lp-result-preview .lp-unit-freight { font-size: 18px; font-weight: 800; font-family: 'DM Mono', monospace; }
+
 /* 确认弹窗：复用 modal-overlay 体系 */
 #resetConfirmModal .modal-card { max-width: 300px; }
 #resetConfirmModal .reset-icon { font-size: 40px; margin-bottom: 10px; }
@@ -735,7 +754,7 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
 <div class="header">
   <div class="header-left" style="display:flex; align-items:center;">
     <div class="header-logo">🚢</div>
-    <div class="header-title">外贸报价计算器 <span style="color:var(--accent);font-size:11px;background:var(--accent-light);padding:2px 6px;border-radius:6px;margin-left:4px;">V6</span></div>
+    <div class="header-title">外贸报价计算器 <span style="color:var(--accent);font-size:11px;background:var(--accent-light);padding:2px 6px;border-radius:6px;margin-left:4px;">V7</span></div>
   </div>
   <div style="display:flex; align-items:center; gap:8px;">
     <!-- 用户状态按钮 -->
@@ -1108,31 +1127,94 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
     <div class="card"><table class="market-table" id="marketTable"><thead><tr><th>市场</th><th>关税</th><th>VAT</th><th>落地价预估</th></tr></thead><tbody id="marketBody"></tbody></table></div>
 </div>
 
-<!-- 均摊小计算器弹窗 -->
+<!-- ==================== V7: 升级版均摊 & 物流计费弹窗 ==================== -->
 <div id="miniCalcModal" class="modal-overlay">
-    <div class="modal-card">
+    <div class="modal-card" style="max-width:360px; overflow-y:auto; max-height:92vh;">
         <div class="modal-title" style="display:flex; justify-content:space-between; align-items:center;">
-            <span>🧮 费用均摊计算器</span>
+            <span id="miniCalcModalTitle">🧮 均摊 & 物流计算器</span>
             <span style="font-size:24px; color:var(--text3); cursor:pointer; line-height:1;" onclick="closeMiniCalc()">×</span>
         </div>
-        <div id="miniCalcTitle" style="font-size:12px; color:var(--text2); text-align:left; margin-bottom:16px;">正在为您分摊：</div>
-        
-        <div style="text-align:left; margin-bottom:12px;">
-            <div style="font-size:12px; font-weight:600; color:var(--text); margin-bottom:6px;">这笔费用的总金额：</div>
-            <input type="number" id="mcTotal" class="field-input" placeholder="输入总额" oninput="doMiniCalc()">
+        <div id="miniCalcTitle" style="font-size:12px; color:var(--text2); text-align:left; margin-bottom:12px;">正在为您计算：</div>
+
+        <!-- 模式切换 Tab -->
+        <div class="mini-mode-tabs">
+            <button class="mini-mode-tab active" id="miniTabSimple" type="button" onclick="toggleMiniMode('simple')">简单均摊</button>
+            <button class="mini-mode-tab" id="miniTabPro" type="button" onclick="toggleMiniMode('pro')">📦 专业物流测算</button>
         </div>
-        <div style="text-align:left; margin-bottom:16px;">
-            <div style="font-size:12px; font-weight:600; color:var(--text); margin-bottom:6px;">这批货物的总件数：</div>
-            <input type="number" id="mcQty" class="field-input" placeholder="输入总件数" oninput="doMiniCalc()">
+
+        <!-- ===== 简单模式 ===== -->
+        <div id="simple-calc-body">
+            <div style="text-align:left; margin-bottom:12px;">
+                <div style="font-size:12px; font-weight:600; color:var(--text); margin-bottom:6px;">这笔费用的总金额：</div>
+                <input type="number" id="mcTotal" class="field-input" placeholder="输入总额" oninput="doMiniCalc()">
+            </div>
+            <div style="text-align:left; margin-bottom:16px;">
+                <div style="font-size:12px; font-weight:600; color:var(--text); margin-bottom:6px;">这批货物的总件数：</div>
+                <input type="number" id="mcQty" class="field-input" placeholder="输入总件数" oninput="doMiniCalc()">
+            </div>
+            <div style="background:var(--accent-light); border-radius:var(--radius-sm); padding:16px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-size:13px; font-weight:600; color:var(--accent);">单件分摊结果 =</span>
+                <span id="mcResult" style="font-size:20px; font-weight:700; font-family:'DM Mono', monospace; color:var(--accent);">0.0000</span>
+            </div>
+            <button class="m-btn m-btn-allow" type="button" onclick="applyMiniCalc()">一键填入表格</button>
+            <button class="m-btn m-btn-cancel" type="button" onclick="closeMiniCalc()">取 消</button>
         </div>
-        
-        <div style="background:var(--accent-light); border-radius:var(--radius-sm); padding:16px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center;">
-            <span style="font-size:13px; font-weight:600; color:var(--accent);">单件分摊结果 =</span>
-            <span id="mcResult" style="font-size:20px; font-weight:700; font-family:'DM Mono', monospace; color:var(--accent);">0.0000</span>
+
+        <!-- ===== 专业物流测算模式 ===== -->
+        <div id="pro-calc-body" class="logistics-pro-body" style="display:none;">
+
+            <!-- 箱规 -->
+            <div style="margin-bottom:12px;">
+                <label class="lp-label">单箱外径 L × W × H（cm）</label>
+                <div class="lp-grid-3">
+                    <input type="number" id="mcL" class="field-input" placeholder="长" min="0" oninput="doLogisticsPro()">
+                    <input type="number" id="mcW" class="field-input" placeholder="宽" min="0" oninput="doLogisticsPro()">
+                    <input type="number" id="mcH" class="field-input" placeholder="高" min="0" oninput="doLogisticsPro()">
+                </div>
+            </div>
+
+            <!-- 重量 + 每箱装量 -->
+            <div class="lp-grid-2">
+                <div>
+                    <label class="lp-label">单箱毛重（kg）</label>
+                    <input type="number" id="mcGw" class="field-input" placeholder="0.00" min="0" oninput="doLogisticsPro()">
+                </div>
+                <div>
+                    <label class="lp-label">每箱装量（pcs/ctn）</label>
+                    <input type="number" id="mcPerCtn" class="field-input" placeholder="50" min="1" oninput="doLogisticsPro()">
+                </div>
+            </div>
+
+            <!-- 总件数（可见可编辑，解决 Claude P2）-->
+            <div style="margin-bottom:12px;">
+                <label class="lp-label">本次下单总件数（pcs）<span style="font-weight:400;color:var(--text3);">— 已自动从 MOQ 预填，可修改</span></label>
+                <input type="number" id="mcTotalPcs" class="field-input" placeholder="1000" min="1" oninput="doLogisticsPro()">
+            </div>
+
+            <!-- 渠道 + 单价 -->
+            <div class="lp-grid-2" style="margin-bottom:12px;">
+                <div>
+                    <label class="lp-label">运输渠道</label>
+                    <select id="mcLogisticsMode" class="field-select" style="margin-top:0; height:40px; padding:0 10px;" onchange="doLogisticsPro()">
+                        <option value="sea">🚢 海运拼箱 (RT)</option>
+                        <option value="air">✈️ 空运专线 (/6000)</option>
+                        <option value="express">🛩️ 国际快递 (/5000)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="lp-label">运费单价（USD / 单位）</label>
+                    <input type="number" id="mcUnitPrice" class="field-input" placeholder="如 95" min="0" oninput="doLogisticsPro()">
+                </div>
+            </div>
+
+            <!-- 动态预览区 -->
+            <div id="proResultPreview" class="lp-result-preview">
+                💡 输入完整箱规、装率、总件数与运费单价后自动测算。
+            </div>
+
+            <button class="m-btn m-btn-allow" type="button" style="margin-top:16px;" onclick="applyLogisticsPro()">一键填入单件运费</button>
+            <button class="m-btn m-btn-cancel" type="button" onclick="closeMiniCalc()">取 消</button>
         </div>
-        
-        <button class="m-btn m-btn-allow" type="button" onclick="applyMiniCalc()">一键填入表格</button>
-        <button class="m-btn m-btn-cancel" type="button" onclick="closeMiniCalc()">取 消</button>
     </div>
 </div>
 
@@ -1343,7 +1425,13 @@ let state = {
     lastPrice: null,
     lastSettleRate: null,
     manualRate: false, // ⬇️ 新增：记录用户是否已手动干预汇率
-    currentPiNo: null  // v2.2: 缓存 PI 序号，仅在非静默核算时刷新，防止滑块拖动消耗序号
+    currentPiNo: null,  // v2.2: 缓存 PI 序号，仅在非静默核算时刷新，防止滑块拖动消耗序号
+    // V7: 物流计费引擎状态（独立于 Incoterm mode，避免命名冲突）
+    logisticsData: {
+        l: '', w: '', h: '', gw: '', perCtn: '', totalPcs: '', unitPrice: '',
+        logisticsMode: 'sea',
+        result: null  // 最终单件运费字符串，供 snapshot 落库
+    }
 };
 
 // [补丁1.A] 中央 DOM 注册表：将散落在各处的查询集中管理，提升维护性 (解决 四.2)
@@ -2506,7 +2594,7 @@ function openMiniCalc(targetId, titleName) {
     // 1. 状态注入
     currentCalcTarget = targetId;
     
-    // 2. 元素引用 (增加 Fallback 机制，确保兼容有无补丁1的情况)
+    // 2. 元素引用
     const modal = document.getElementById('miniCalcModal');
     const titleBox = document.getElementById('miniCalcTitle');
     const totalInput = document.getElementById('mcTotal');
@@ -2516,11 +2604,11 @@ function openMiniCalc(targetId, titleName) {
     // 获取源表单中的 MOQ 引用
     const mainMoqInput = UI.inputs ? UI.inputs.moqInput : document.getElementById('moqInput');
 
-    // 3. 忠实还原业务逻辑：设置标题与重置值
+    // 3. 设置标题
     titleBox.innerHTML = `正在为您计算：<b style="color:var(--text);">${titleName}</b> 的单件分摊`;
     totalInput.value = '';
     
-    // 4. 忠实还原核心商务逻辑：自动抓取主表单已填写的 MOQ 进行分摊 (源功能)
+    // 4. 自动抓取主表单已填写的 MOQ 进行分摊
     if (mainMoqInput && mainMoqInput.value) {
         let moqNum = parseInt(mainMoqInput.value.replace(/\D/g, ''), 10);
         qtyInput.value = (moqNum && moqNum > 0) ? moqNum : '';
@@ -2529,25 +2617,40 @@ function openMiniCalc(targetId, titleName) {
     }
     
     resDisplay.innerText = '0.0000';
+
+    // 5. Pro 模式：预填 MOQ 到 mcTotalPcs，并恢复上次物流引擎状态
+    const totalPcsInput = document.getElementById('mcTotalPcs');
+    if (totalPcsInput) {
+        if (state.logisticsData.totalPcs) {
+            totalPcsInput.value = state.logisticsData.totalPcs;
+        } else if (mainMoqInput && mainMoqInput.value) {
+            let moqNum = parseInt(mainMoqInput.value.replace(/\D/g, ''), 10);
+            totalPcsInput.value = (moqNum && moqNum > 0) ? moqNum : '';
+        } else {
+            totalPcsInput.value = '';
+        }
+    }
+    // 恢复上次物流引擎的其余字段
+    const ld = state.logisticsData;
+    ['l','w','h','gw','perCtn','unitPrice'].forEach(key => {
+        const el = document.getElementById('mc' + key.charAt(0).toUpperCase() + key.slice(1));
+        if (el && ld[key]) el.value = ld[key];
+    });
+    const modeEl = document.getElementById('mcLogisticsMode');
+    if (modeEl && ld.logisticsMode) modeEl.value = ld.logisticsMode;
+    // 重新触发一次预览（如有残留数据）
+    doLogisticsPro();
     
-    // 5. 显示弹窗
+    // 6. 显示弹窗，默认停在简单模式
+    toggleMiniMode('simple');
     modal.style.display = 'flex';
 
-    // 6. 核心修复：分平台处理聚焦策略 (解决 五.1)
+    // 7. 平台适配聚焦
     const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-    
     if (!isTouchDevice) {
-        // 桌面端：利用双重 requestAnimationFrame 确保在 modal 渲染完成后精准聚焦
-        requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-                totalInput.focus();
-            });
-        });
+        requestAnimationFrame(() => { requestAnimationFrame(() => { totalInput.focus(); }); });
     } else {
-        // 移动端：严禁 JS 主动 focus 弹出键盘造成遮挡
-        // 优化：滚动到视图中心，引导用户手动点击，保证交互平滑
         totalInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        // 可选：触发轻微触感反馈（如果设备支持）
         if (window.navigator.vibrate) window.navigator.vibrate(5);
     }
 }
@@ -2581,13 +2684,148 @@ function applyMiniCalc() {
         const res = (total / qty).toFixed(4); 
         const targetEl = document.getElementById(currentCalcTarget);
         if(targetEl) {
-            targetEl.value = parseFloat(res); 
-            // 填入后主动触发一次 autoCalculate 联动同步全局数据 (适配补丁1)
+            targetEl.value = res; // V7: 直接赋字符串，避免 parseFloat 精度截断
             if (typeof autoCalculate === 'function') autoCalculate();
             showToast('✅ 分摊成本已回填');
         }
     } else {
         showToast('⚠️ 数值不完整，无法分摊');
+    }
+    closeMiniCalc();
+}
+
+// ==================== V7: 物流计费引擎 ====================
+
+/**
+ * toggleMiniMode — 切换均摊弹窗的简单/专业模式
+ * 修复 Gemini 方案遗漏：此函数必须挂到 window，确保 HTML onclick 可访问
+ */
+function toggleMiniMode(mode) {
+    const simpleBody = document.getElementById('simple-calc-body');
+    const proBody    = document.getElementById('pro-calc-body');
+    const tabSimple  = document.getElementById('miniTabSimple');
+    const tabPro     = document.getElementById('miniTabPro');
+    if (!simpleBody || !proBody) return;
+
+    if (mode === 'pro') {
+        simpleBody.style.display = 'none';
+        proBody.style.display    = 'block';
+        tabSimple.classList.remove('active');
+        tabPro.classList.add('active');
+    } else {
+        simpleBody.style.display = 'block';
+        proBody.style.display    = 'none';
+        tabSimple.classList.add('active');
+        tabPro.classList.remove('active');
+    }
+}
+
+/**
+ * doLogisticsPro — 物流计费引擎核心，使用独立防抖实例
+ * 修复 Gemini 方案缺陷：挂到 window 避免 const 块级作用域导致 oninput 调用失败
+ *
+ * 业务规则：
+ *   海运 LCL : Revenue Ton (RT) = max(CBM数值, 吨数值)
+ *   空运     : 计费重 = max(实重kg, 体积重=总cm³/6000)
+ *   国际快递 : 计费重 = max(实重kg, 体积重=总cm³/5000)
+ *
+ * 量纲统一：所有体积均先算 totalVolCm3，再做单位换算，消除量纲混用风险。
+ */
+window.doLogisticsPro = debounce(function() {
+    // [补丁 2] 插入位置：window.doLogisticsPro 内部变量获取后
+const unitPrice= parseFloat(document.getElementById('mcUnitPrice')?.value) || 0;
+
+const preview = document.getElementById('proResultPreview');
+if (!preview) return;
+
+// 1. 敏捷空值守卫：检查原始 DOM 状态（解决用户清空输入时的中间态闪烁）
+const checkFields = ['mcL', 'mcW', 'mcH', 'mcGw', 'mcPerCtn', 'mcTotalPcs', 'mcUnitPrice'];
+const isAnyEmpty = checkFields.some(id => {
+    const val = document.getElementById(id)?.value;
+    return val === "" || val === null || parseFloat(val) <= 0;
+});
+
+if (isAnyEmpty) {
+    preview.innerHTML = '💡 请输入完整箱规、装率、总件数与运费单价以获取精确分摊。';
+    // 关键修复：立即使当前状态失效，防止脏数据回填
+    state.logisticsData.result = null; 
+    return;
+}
+
+    // ── 1. 基础量 ────────────────────────────────────────────────
+    const totalCartons = Math.ceil(totalPcs / perCtn);
+    const totalVolCm3  = l * w * h * totalCartons;           // cm³，统一量纲基准
+    const totalCbm     = totalVolCm3 / 1000000;              // m³
+    const totalGw      = gw * totalCartons;                  // kg（按整箱计，符合货代实务）
+    const totalTons    = totalGw / 1000;                     // 公吨
+
+    // ── 2. 计费重判定 ─────────────────────────────────────────────
+    let chargeableVal = 0;
+    let unitLabel     = '';
+    let typeLabel     = '';
+
+    if (mode === 'sea') {
+        // 海运 LCL：Revenue Ton = max(CBM, 吨数)，两者均为 RT 单位
+        chargeableVal = Math.max(totalCbm, totalTons);
+        unitLabel     = 'RT';
+        typeLabel     = totalCbm >= totalTons
+            ? `体积(${totalCbm.toFixed(3)} CBM) > 重量(${totalTons.toFixed(3)} T)，轻抛货`
+            : `重量(${totalTons.toFixed(3)} T) > 体积(${totalCbm.toFixed(3)} CBM)，重货`;
+    } else {
+        // 空运 & 快递：统一用 totalVolCm3 算体积重，量纲对齐
+        const divisor = (mode === 'air') ? 6000 : 5000;
+        const volWeight = totalVolCm3 / divisor;             // kg
+        chargeableVal = Math.max(volWeight, totalGw);
+        unitLabel     = 'KG';
+        typeLabel     = volWeight > totalGw
+            ? `体积重(${volWeight.toFixed(2)} kg) > 实重(${totalGw.toFixed(2)} kg)，轻抛`
+            : `实重(${totalGw.toFixed(2)} kg) ≥ 体积重(${(totalVolCm3/divisor).toFixed(2)} kg)，重货`;
+    }
+
+    // ── 3. 运费计算 ───────────────────────────────────────────────
+    const totalFreight = chargeableVal * unitPrice;
+    // 分母用实际下单件数（不是整箱件数），并在 UI 明确告知
+    const unitFreight  = (totalFreight / totalPcs).toFixed(4); // 保留字符串，不 parseFloat
+
+    // ── 4. 末箱不满提示 ──────────────────────────────────────────
+    const isPartial = (totalPcs % perCtn) !== 0;
+    const partialHint = isPartial
+        ? `<span class="lp-warn">⚠️ 末箱未满：${totalPcs} pcs 需装 ${totalCartons} 箱（末箱仅 ${totalPcs % perCtn} pcs），运费已按整箱核算并均摊至全部 ${totalPcs} pcs。</span>`
+        : '';
+
+    // ── 5. 渲染预览区 ─────────────────────────────────────────────
+    preview.innerHTML = `
+        <div style="margin-bottom:4px; font-weight:700; color:var(--text);">核算结果（${totalCartons} 箱）</div>
+        计费重：<b>${chargeableVal.toFixed(3)} ${unitLabel}</b><br>
+        判定：${typeLabel}<br>
+        总运费：<b>$${totalFreight.toFixed(2)}</b> ÷ ${totalPcs} pcs<br>
+        单件分摊：<span class="lp-unit-freight">$${unitFreight}</span> / pc
+        ${partialHint}
+    `;
+
+    // ── 6. 同步到 state（供 collectSnapshot 落库，解决 Claude P1）────
+    state.logisticsData = {
+        l, w, h, gw, perCtn, totalPcs, unitPrice,
+        logisticsMode: mode,
+        result: unitFreight  // 字符串，4 位精度
+    };
+}, 300);
+
+/**
+ * applyLogisticsPro — 将物流引擎算出的单件运费回填到主表单
+ * 直接读取 state.logisticsData.result，避免重复计算
+ */
+function applyLogisticsPro() {
+    const ld = state.logisticsData;
+    if (!ld.result) {
+        showToast('⚠️ 请先完整输入箱规数据以完成测算');
+        return;
+    }
+    const targetEl = document.getElementById(currentCalcTarget);
+    if (targetEl) {
+        targetEl.value = ld.result; // 字符串直接赋值，保留 4 位精度
+        if (typeof autoCalculate === 'function') autoCalculate();
+        showToast('✅ 单件运费已回填');
     }
     closeMiniCalc();
 }
@@ -3038,6 +3276,12 @@ function collectSnapshot(mode, piNo) {
         taxVal:         document.getElementById('rh-tax-val').innerText
     };
 
+    // V7: 整体注入物流引擎推导数据（含箱规、计费渠道、单件运费结果）
+    // 用对象注入而非枚举 ID，因为物流弹窗字段不在主表单 DOM 树内
+    if (state.logisticsData && state.logisticsData.result) {
+        internal.logisticsData = { ...state.logisticsData };
+    }
+
     return { ...shared, internal, result: resultSnapshot };
 }
 
@@ -3368,6 +3612,18 @@ function renderShareFull(container, d, expires) {
             <div class="sv-info-row"><span class="sv-info-key">单件净利润</span><span class="sv-info-val green">${escapeHTML(r.netProfitUSD ? '$'+formatMoney(r.netProfitUSD) : '-')}</span></div>
             <div class="sv-info-row"><span class="sv-info-key">退税额外收益</span><span class="sv-info-val">${escapeHTML(r.rebateAmt || '-')}</span></div>
             <div class="sv-info-row"><span class="sv-info-key">国际段总成本</span><span class="sv-info-val">${escapeHTML(r.freightTotal || '-')}</span></div>
+​// [补丁 1] 物流推导明细卡片
+<div class="sv-info-row"><span class="sv-info-key">国际段总成本</span><span class="sv-info-val">${escapeHTML(r.freightTotal || '-')}</span></div>
+
+${(inp.logisticsData && inp.logisticsData.l) ? `
+    <div class="sv-info-card" style="border-top: 2px solid var(--accent-light); margin-top: 8px;">
+        <div style="padding:10px 16px; font-size:10px; font-weight:700; color:var(--accent); background:var(--accent-light); letter-spacing:0.5px;">📦 物流核算底稿</div>
+        <div class="sv-info-row"><span class="sv-info-key">箱规/毛重</span><span class="sv-info-val">${inp.logisticsData.l}*${inp.logisticsData.w}*${inp.logisticsData.h} cm / ${inp.logisticsData.gw}kg</span></div>
+        <div class="sv-info-row"><span class="sv-info-key">计费逻辑</span><span class="sv-info-val" style="color:var(--accent2);">${inp.logisticsData.logisticsMode === 'sea' ? '海运 RT (Revenue Ton)' : (inp.logisticsData.logisticsMode === 'air' ? '空运体积重 /6000' : '快递体积重 /5000')}</span></div>
+        <div class="sv-info-row" style="background:var(--surface2);"><span class="sv-info-key">装率/总数</span><span class="sv-info-val">${inp.logisticsData.perCtn} pcs/ctn (总 ${inp.totalPcs || '-'}pcs)</span></div>
+    </div>
+` : ''}
+
             <div class="sv-info-row"><span class="sv-info-key">买家DDP落地价（参考）</span><span class="sv-info-val warn">${escapeHTML(r.ddpEquiv || '-')}</span></div>
         </div>
 
@@ -3701,6 +3957,7 @@ async function generateAIEmail() {
         destination: destination,
         unitPrice: `USD ${formatMoney(state.lastPrice)}`, 
         totalPrice: `USD ${formatMoney(state.lastPrice * moqNum)}`,
+        logisticsData: state.logisticsData, 
         notes: `PI No: ${state.currentPiNo || 'TBD'}, Lead Time: ${document.getElementById('leadTime').value || 'TBD'}`
     };
 
@@ -3808,6 +4065,20 @@ function resetAll() {
     if (witsChip) witsChip.classList.add('hidden');
     const witsBtn = document.getElementById('witsQueryBtn');
     if (witsBtn) { witsBtn.classList.remove('success','error','loading'); }
+
+    // V7: 清空物流计费引擎状态与弹窗输入字段
+    state.logisticsData = {
+        l: '', w: '', h: '', gw: '', perCtn: '', totalPcs: '', unitPrice: '',
+        logisticsMode: 'sea', result: null
+    };
+    ['mcL','mcW','mcH','mcGw','mcPerCtn','mcTotalPcs','mcUnitPrice'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    const modeEl = document.getElementById('mcLogisticsMode');
+    if (modeEl) modeEl.value = 'sea';
+    const preview = document.getElementById('proResultPreview');
+    if (preview) preview.innerHTML = '💡 输入完整箱规、装率、总件数与运费单价后自动测算。';
 
     // 10. 取消选中的 HS 品类
     document.querySelectorAll('.hs-item.selected').forEach(el => el.classList.remove('selected'));
