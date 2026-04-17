@@ -669,6 +669,24 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
     word-break: break-all;
 }
 .changelog-box.open { display: block; }
+
+/* ==================== NEW ORDER RESET BUTTON ==================== */
+.btn-new-quote {
+    display: flex; align-items: center; gap: 5px;
+    background: var(--warn-light); border: 1px solid rgba(212,80,10,0.25);
+    color: var(--warn); border-radius: 20px; padding: 6px 11px;
+    font-size: 11px; font-weight: 700; cursor: pointer;
+    transition: 0.2s; white-space: nowrap;
+}
+.btn-new-quote:active { background: var(--warn); color: white; transform: scale(0.95); }
+
+/* 确认弹窗：复用 modal-overlay 体系 */
+#resetConfirmModal .modal-card { max-width: 300px; }
+#resetConfirmModal .reset-icon { font-size: 40px; margin-bottom: 10px; }
+#resetConfirmModal .reset-title { font-size: 17px; font-weight: 800; margin-bottom: 6px; color: var(--text); }
+#resetConfirmModal .reset-body { font-size: 12px; color: var(--text2); line-height: 1.6; margin-bottom: 20px; }
+.m-btn-warn { background: var(--warn); color: white; box-shadow: 0 4px 12px rgba(212,80,10,0.25); }
+.m-btn-warn:active { opacity: 0.85; transform: scale(0.97); }
 </style>
 </head>
 <body>
@@ -679,6 +697,10 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
     <div class="header-title">外贸报价计算器 <span style="color:var(--accent);font-size:11px;background:var(--accent-light);padding:2px 6px;border-radius:6px;margin-left:4px;">V6</span></div>
   </div>
   <div style="display:flex; align-items:center; gap:8px;">
+    <!-- 新建核算重置按钮 -->
+    <button class="btn-new-quote" onclick="confirmReset()" title="清空所有数据，开始新报价单核算">
+      ＋ 新建核算
+    </button>
     <!-- 用户状态按钮 -->
     <div id="authBtn" class="auth-btn" onclick="openAuthSheet()">
       <span>👤</span><span id="authBtnLabel">登录</span>
@@ -1155,6 +1177,17 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
     <!-- 动态内容注入点 -->
     <div id="svContent" style="display:none;"></div>
   </div>
+</div>
+
+<!-- ==================== RESET CONFIRM MODAL ==================== -->
+<div id="resetConfirmModal" class="modal-overlay" onclick="if(event.target===this)this.style.display='none'" style="display:none;">
+    <div class="modal-card">
+        <div class="reset-icon">🆕</div>
+        <div class="reset-title">开始新的报价单？</div>
+        <div class="reset-body">将清空当前所有填入的数据、核算结果及 AI 生成内容，<b>历史记录不受影响</b>。<br><br>此操作不可撤销。</div>
+        <button class="m-btn m-btn-warn" onclick="resetAll()">确认清空，开始新报价单</button>
+        <button class="m-btn m-btn-cancel" onclick="document.getElementById('resetConfirmModal').style.display='none'">取 消</button>
+    </div>
 </div>
 
 <!-- 常驻复制弹窗保底策略 -->
@@ -3633,6 +3666,126 @@ function copyAIEmail() {
     }).catch(() => {
         showToast('⚠️ 复制失败，请手动长按全选复制');
     });
+}
+
+// ==================== 新建核算 Reset & Restart ====================
+
+function confirmReset() {
+    document.getElementById('resetConfirmModal').style.display = 'flex';
+}
+
+function resetAll() {
+    // 1. 关闭确认弹窗
+    document.getElementById('resetConfirmModal').style.display = 'none';
+
+    // 2. 重置所有表单输入字段为默认值
+    const defaults = {
+        costRMB:        '',
+        rebateRate:     '13',
+        domesticFreight:'0',
+        shippingFee:    '0',
+        destFee:        '0',
+        insuranceRate:  '0.3',
+        taxRate:        '0',
+        vatRate:        '0',
+        exchangeRate:   '7.15',
+        rateBuffer:     '0.05',
+        paymentFee:     '3.0',
+        productName:    '',
+        moqInput:       '',
+        portInput:      '',
+        sellerName:     '',
+        buyerName:      '',
+        paymentTerm:    '',
+        leadTime:       '',
+        validDays:      '10'
+    };
+    Object.entries(defaults).forEach(([id, val]) => {
+        const el = document.getElementById(id);
+        if (el) el.value = val;
+    });
+
+    // 3. 重置 inputVatRate 下拉框
+    const vatSel = document.getElementById('inputVatRate');
+    if (vatSel) { vatSel.value = '13'; onInputVatChange(vatSel); }
+
+    // 4. 重置退税勾选框
+    const isRebateEl = document.getElementById('isRebate');
+    if (isRebateEl) isRebateEl.checked = true;
+
+    // 5. 重置贸易术语为 FOB（默认值）
+    document.querySelectorAll('.mode-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.mode === 'FOB');
+    });
+    state.mode = 'FOB';
+    const modeHintEl = document.getElementById('modeHint');
+    if (modeHintEl) modeHintEl.innerHTML = '🚢 <b>指定货代：</b>最常用。需送货入仓并负责中国报关。国内运杂费（入仓费/报关费）由您承担。';
+    // 恢复贸易术语控制的字段显示/隐藏状态（还原到 FOB）
+    ['row-shipping','row-dest','row-insurance'].forEach(id => {
+        document.getElementById(id)?.classList.remove('dimmed');
+    });
+    document.getElementById('row-shipping')?.classList.add('dimmed');
+    document.getElementById('row-dest')?.classList.add('dimmed');
+    document.getElementById('row-insurance')?.classList.add('dimmed');
+    document.getElementById('section-tax')?.classList.add('dimmed');
+
+    // 6. 重置利润率滑块与标签
+    state.profitRate = 20;
+    const slider = document.getElementById('profitSlider');
+    if (slider) slider.value = 20;
+    const profitDisplay = document.getElementById('profitDisplay');
+    if (profitDisplay) profitDisplay.textContent = '20%';
+    document.querySelectorAll('.ptag').forEach(p => {
+        p.classList.toggle('active', p.dataset.val === '20');
+    });
+
+    // 7. 重置国家选择（还原到第一项）
+    const countrySel = document.getElementById('countrySelect');
+    if (countrySel) { countrySel.selectedIndex = 0; }
+
+    // 8. 清空 AI 生成内容（HS Code 分析报告 + 商务邮件）
+    const aiHsCard = document.getElementById('ai-hs-result-card');
+    const aiHsText = document.getElementById('ai-hs-result-text');
+    if (aiHsCard) aiHsCard.style.display = 'none';
+    if (aiHsText) aiHsText.textContent = '';
+
+    const aiEmailCard = document.getElementById('ai-email-result-card');
+    const aiEmailText = document.getElementById('ai-email-text');
+    if (aiEmailCard) aiEmailCard.style.display = 'none';
+    if (aiEmailText) aiEmailText.value = '';
+
+    // 9. 清空 WITS 查询结果气泡
+    const witsChip = document.getElementById('witsResultChip');
+    if (witsChip) witsChip.classList.add('hidden');
+    const witsBtn = document.getElementById('witsQueryBtn');
+    if (witsBtn) { witsBtn.classList.remove('success','error','loading'); }
+
+    // 10. 取消选中的 HS 品类
+    document.querySelectorAll('.hs-item.selected').forEach(el => el.classList.remove('selected'));
+
+    // 11. 重置核心 state 对象
+    state.lastPrice      = null;
+    state.lastSettleRate = null;
+    state.manualRate     = false;
+    state.currentPiNo   = null;
+    state.hsOpen         = false;
+
+    // 12. 重置 Tab 锁定状态 & 结果页面
+    UI.containers.tabs.forEach(t => t.classList.add('locked'));
+    UI.containers.resultEmpty.style.display = '';
+    UI.containers.resultContent.style.display = 'none';
+
+    // 13. 重置 PI 页面
+    const slipEmpty = document.getElementById('slipEmpty');
+    const slipContent = document.getElementById('slipContent');
+    if (slipEmpty) slipEmpty.style.display = '';
+    if (slipContent) slipContent.style.display = 'none';
+
+    // 14. 跳回第一步、切换到核算台
+    nextStep(1);
+    switchTab('calc');
+
+    showToast('✅ 已重置，开始新订单核算');
 }
 
 // 方案二：智能 HS Code 预测
