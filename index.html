@@ -670,16 +670,6 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
 }
 .changelog-box.open { display: block; }
 
-/* ==================== NEW ORDER RESET BUTTON ==================== */
-.btn-new-quote {
-    display: flex; align-items: center; gap: 5px;
-    background: var(--warn-light); border: 1px solid rgba(212,80,10,0.25);
-    color: var(--warn); border-radius: 20px; padding: 6px 11px;
-    font-size: 11px; font-weight: 700; cursor: pointer;
-    transition: 0.2s; white-space: nowrap;
-}
-.btn-new-quote:active { background: var(--warn); color: white; transform: scale(0.95); }
-
 /* 确认弹窗：复用 modal-overlay 体系 */
 #resetConfirmModal .modal-card { max-width: 300px; }
 #resetConfirmModal .reset-icon { font-size: 40px; margin-bottom: 10px; }
@@ -687,6 +677,57 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
 #resetConfirmModal .reset-body { font-size: 12px; color: var(--text2); line-height: 1.6; margin-bottom: 20px; }
 .m-btn-warn { background: var(--warn); color: white; box-shadow: 0 4px 12px rgba(212,80,10,0.25); }
 .m-btn-warn:active { opacity: 0.85; transform: scale(0.97); }
+/* ==================== 右下角悬浮重置按钮 ==================== */
+.fab-reset {
+    position: fixed;
+    bottom: 24px;
+    right: 20px;
+    width: auto;
+    min-width: 130px;
+    height: 48px;
+    padding: 0 18px;
+    border-radius: 30px;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid var(--border);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--accent);
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+    z-index: 1000;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+.fab-reset.disabled {
+    opacity: 0.5;
+    pointer-events: none;
+    filter: grayscale(0.5);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+}
+
+.fab-reset:active {
+    transform: scale(0.96);
+    background: var(--accent-light);
+    border-color: var(--accent);
+    box-shadow: 0 2px 8px rgba(27, 79, 216, 0.2);
+}
+
+@media (max-width: 600px) {
+    .fab-reset {
+        bottom: 20px;
+        right: 16px;
+        min-width: 120px;
+        height: 44px;
+        font-size: 13px;
+        padding: 0 14px;
+    }
+}
 </style>
 </head>
 <body>
@@ -697,10 +738,6 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
     <div class="header-title">外贸报价计算器 <span style="color:var(--accent);font-size:11px;background:var(--accent-light);padding:2px 6px;border-radius:6px;margin-left:4px;">V6</span></div>
   </div>
   <div style="display:flex; align-items:center; gap:8px;">
-    <!-- 新建核算重置按钮 -->
-    <button class="btn-new-quote" onclick="confirmReset()" title="清空所有数据，开始新报价单核算">
-      ＋ 新建核算
-    </button>
     <!-- 用户状态按钮 -->
     <div id="authBtn" class="auth-btn" onclick="openAuthSheet()">
       <span>👤</span><span id="authBtnLabel">登录</span>
@@ -2093,6 +2130,12 @@ function calculate(isSilent = false) {
     // ── 状态更新 ───────────────────────────────────────────────
     state.lastPrice      = price;
     state.lastSettleRate = settleRate;
+// 激活悬浮重置按钮
+const fab = document.getElementById('fabResetBtn');
+if (fab) {
+    fab.disabled = false;
+    fab.classList.remove('disabled');
+}
     UI.containers.tabs.forEach(t => t.classList.remove('locked'));
     UI.containers.resultEmpty.style.display = 'none';
     UI.containers.resultContent.style.display = 'block';
@@ -3511,6 +3554,12 @@ window.addEventListener('DOMContentLoaded', async () => {
         }
     }
     loadVersionInfo();
+// 初始化 FAB 为置灰状态（无数据时）
+const fab = document.getElementById('fabResetBtn');
+if (fab) {
+    fab.disabled = true;
+    fab.classList.add('disabled');
+}
 });
 
 // changelog 展开/收起
@@ -3785,6 +3834,13 @@ function resetAll() {
     nextStep(1);
     switchTab('calc');
 
+    // 重置 FAB 为置灰状态
+    const fab = document.getElementById('fabResetBtn');
+    if (fab) {
+        fab.disabled = true;
+        fab.classList.add('disabled');
+    }
+
     showToast('✅ 已重置，开始新订单核算');
 }
 
@@ -3828,6 +3884,12 @@ async function predictHSCode() {
     </button>
     <div class="changelog-box" id="changelogContent"></div>
 </div>
+
+<!-- 右下角悬浮重置按钮 -->
+<button class="fab-reset disabled" id="fabResetBtn" onclick="confirmReset()" disabled>
+    <span style="font-size:18px; line-height:1;">⟳</span>
+    <span>开始新报价</span>
+</button>
 
 </body>
 </html>
