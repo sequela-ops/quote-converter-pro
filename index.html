@@ -2751,26 +2751,95 @@ function toggleMiniMode(mode) {
  *
  * 量纲统一：所有体积均先算 totalVolCm3，再做单位换算，消除量纲混用风险。
  */
+// ==================== V7: 物流计费引擎 [企业级修复补丁] ====================
+/**
+ * 故障诊断：原函数缺失 DOM 引用定义，导致计算逻辑因变量未定义而中断。
+ * 修复方案：执行严格的数值提取、量纲转换、以及抛重/实重对标算法。
+ */
 window.doLogisticsPro = debounce(function() {
-    // [补丁 2] 插入位置：window.doLogisticsPro 内部变量获取后
-const unitPrice= parseFloat(document.getElementById('mcUnitPrice')?.value) || 0;
+    // 1. 数据采集层 (Surgical Extraction)
+    const getVal = (id) => parseFloat(document.getElementById(id)?.value);
+    
+    const params = {
+        l:        getVal('mcL'),
+        w:        getVal('mcW'),
+        h:        getVal('mcH'),
+        gw:       getVal('mcGw'),
+        perCtn:   getVal('mcPerCtn'),
+        totalPcs: getVal('mcTotalPcs'),
+        uPrice:   getVal('mcUnitPrice'),
+        mode:     document.getElementById('mcLogisticsMode')?.value
+    };
 
-const preview = document.getElementById('proResultPreview');
-if (!preview) return;
+    const preview = document.getElementById('proResultPreview');
+    if (!preview) return;
 
-// 1. 敏捷空值守卫：检查原始 DOM 状态（解决用户清空输入时的中间态闪烁）
-const checkFields = ['mcL', 'mcW', 'mcH', 'mcGw', 'mcPerCtn', 'mcTotalPcs', 'mcUnitPrice'];
-const isAnyEmpty = checkFields.some(id => {
-    const val = document.getElementById(id)?.value;
-    return val === "" || val === null || parseFloat(val) <= 0;
-});
+    // 2. 生产级安全校验 (Production Guard)
+    // 检查所有必填字段是否为有效正数
+    const isValid = Object.values(params).every(v => typeof v === 'string' || (typeof v === 'number' && v > 0));
 
-if (isAnyEmpty) {
-    preview.innerHTML = '💡 请输入完整箱规、装率、总件数与运费单价以获取精确分摊。';
-    // 关键修复：立即使当前状态失效，防止脏数据回填
-    state.logisticsData.result = null; 
-    return;
-}
+    if (!isValid) {
+        preview.innerHTML = '💡 请输入完整箱规、装率、总件数与运费单价以获取精确分摊。';
+        state.logisticsData.result = null; 
+        return;
+    }
+
+    // 3. 核心物流算法层 (Core Engine)
+    const totalCartons = Math.ceil(params.totalPcs / params.perCtn);
+    const totalVolCm3  = params.l * params.w * params.h * totalCartons; 
+    const totalCbm     = totalVolCm3 / 1000000;              // 转换为 CBM
+    const totalGw      = params.gw * totalCartons;           // 总毛重 (kg)
+    const totalTons    = totalGw / 1000;                     // 吨 (T)
+
+    let chargeableWeight = 0;
+    let unitLabel = '';
+    let calcDetail = '';
+
+    // 4. 行业标准计费逻辑 (Incoterm Compliance)
+    if (params.mode === 'sea') {
+        // 海运拼箱计费逻辑：1 CBM : 1000 KG (RT)
+        chargeableWeight = Math.max(totalCbm, totalTons);
+        unitLabel = 'RT';
+        calcDetail = totalCbm >= totalTons ? `体积重占先 (${totalCbm.toFixed(3)} CBM)` : `实重占先 (${totalTons.toFixed(3)} T)`;
+    } else {
+        // 空运/快递计费逻辑：体积重计算
+        const divisor = (params.mode === 'air') ? 6000 : 5000;
+        const volWeight = totalVolCm3 / divisor;
+        chargeableWeight = Math.max(volWeight, totalGw);
+        unitLabel = 'KG';
+        calcDetail = volWeight > totalGw ? `抛货 (体积重 ${volWeight.toFixed(2)}kg)` : `重货 (实重 ${totalGw.toFixed(2)}kg)`;
+    }
+
+    // 5. 财务清算与均摊 (Financial Alignment)
+    const totalFreight = chargeableWeight * params.uPrice;
+    // 使用 4 位精度避免微小单价下的进位误差
+    const unitFreight = (totalFreight / params.totalPcs).toFixed(4);
+
+    // 6. UI 渲染与状态落库 (State Synchronization)
+    const isPartial = (params.totalPcs % params.perCtn) !== 0;
+    const partialAlert = isPartial 
+        ? `<div style="color:var(--warn); font-size:10px; margin-top:4px;">⚠️ 尾箱未满 (${params.totalPcs % params.perCtn}pcs)，已按整箱 ${totalCartons}ctns 均摊。</div>` 
+        : '';
+
+    preview.innerHTML = `
+        <div style="font-weight:700; color:var(--text); border-bottom:1px solid var(--border); padding-bottom:4px; margin-bottom:6px;">测算底稿 (核算量: ${totalCartons} 箱)</div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:2px;">
+            <span>计费基础:</span><b>${chargeableWeight.toFixed(3)} ${unitLabel}</b>
+        </div>
+        <div style="font-size:10px; color:var(--text3); margin-bottom:6px;">(${calcDetail})</div>
+        <div style="background:var(--accent-light); padding:8px; border-radius:4px; text-align:center;">
+            <div style="font-size:11px; color:var(--accent);">建议分摊单价</div>
+            <div style="font-size:18px; font-weight:800; color:var(--accent); font-family:'DM Mono';">$${unitFreight} <span style="font-size:12px;">/ pc</span></div>
+        </div>
+        ${partialAlert}
+    `;
+
+    // 7. 写入全局状态，解锁“一键填入”按钮
+    state.logisticsData = {
+        ...params,
+        result: unitFreight
+    };
+}, 300);
 
     // ── 1. 基础量 ────────────────────────────────────────────────
     const totalCartons = Math.ceil(totalPcs / perCtn);
