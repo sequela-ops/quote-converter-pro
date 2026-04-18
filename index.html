@@ -1215,10 +1215,15 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
             <div class="lp-grid-2" style="margin-bottom:12px;">
                 <div>
                     <label class="lp-label">运输渠道</label>
-                    <select id="mcLogisticsMode" class="field-select" style="margin-top:0; height:40px; padding:0 10px;" onchange="doLogisticsPro()">
-                        <option value="sea">🚢 海运拼箱 (RT)</option>
-                        <option value="air">✈️ 空运专线 (/6000)</option>
-                        <option value="express">🛩️ 国际快递 (/5000)</option>
+                    <select id="mcLogisticsMode" class="field-select" style="margin-top:0; height:40px; padding:0 10px; font-size: 13px;" onchange="doLogisticsPro()">
+                        <option disabled style="color:#999; background:#eee;">── 海运/陆运 ──</option>
+                        <option value="sea">🚢 传统海运拼箱 (RT)</option>
+                        <option value="sea_kg">🌊 海派/海卡专线 (按KG)</option>
+                        <option value="rail">🚂 铁路/卡航 (按KG)</option>
+                        <option disabled style="color:#999; background:#eee;">── 空运/快递 ──</option>
+                        <option value="air">✈️ 标准空运 (/6000)</option>
+                        <option value="air_sp" selected>📦 空派专线 (免泡/按实重)</option>
+                        <option value="express">🛩️ 国际快递四大 (/5000)</option>
                     </select>
                 </div>
                 <div>
@@ -1449,7 +1454,7 @@ let state = {
     // V7: 物流计费引擎状态（独立于 Incoterm mode，避免命名冲突）
     logisticsData: {
         l: '', w: '', h: '', gw: '', perCtn: '', totalPcs: '', unitPrice: '',
-        logisticsMode: 'sea',
+        logisticsMode: 'air_sp',
         result: null  // 最终单件运费字符串，供 snapshot 落库
     }
 };
@@ -2843,19 +2848,31 @@ window.doLogisticsPro = debounce(function() {
     let unitLabel = '';
     let calcDetail = '';
 
-    // 4. 行业标准计费逻辑 (Incoterm Compliance)
+    // 4. 行业标准计费逻辑 (Incoterm & Forwarder Compliance)
     if (params.mode === 'sea') {
         // 海运拼箱计费逻辑：1 CBM : 1000 KG (RT)
         chargeableWeight = Math.max(totalCbm, totalTons);
         unitLabel = 'RT';
-        calcDetail = totalCbm >= totalTons ? `体积重占先 (${totalCbm.toFixed(3)} CBM)` : `实重占先 (${totalTons.toFixed(3)} T)`;
+        calcDetail = totalCbm >= totalTons ? `轻货 (${totalCbm.toFixed(3)} CBM)` : `重货 (${totalTons.toFixed(3)} T)`;
+    } else if (params.mode === 'air_sp') {
+        // 空派专线/双清包税：免泡，按实重计费
+        chargeableWeight = totalGw;
+        unitLabel = 'KG';
+        calcDetail = `免泡专线 (按实重 ${totalGw.toFixed(2)}kg 计费)`;
     } else {
-        // 空运/快递计费逻辑：体积重计算
-        const divisor = (params.mode === 'air') ? 6000 : 5000;
+        // 合并处理：标准空运(air)、国际快递(express)、海派(sea_kg)、铁路(rail)
+        let divisor = 6000;
+        if (params.mode === 'express') divisor = 5000;
+
+        const modeNames = { 'sea_kg': '海派', 'rail': '铁路', 'air': '标准空运', 'express': '快递' };
+        const mName = modeNames[params.mode] || '专线';
+
         const volWeight = totalVolCm3 / divisor;
         chargeableWeight = Math.max(volWeight, totalGw);
         unitLabel = 'KG';
-        calcDetail = volWeight > totalGw ? `抛货 (体积重 ${volWeight.toFixed(2)}kg)` : `重货 (实重 ${totalGw.toFixed(2)}kg)`;
+        calcDetail = volWeight > totalGw
+            ? `${mName}抛货 (体积重 ${volWeight.toFixed(2)}kg, 系数/${divisor})`
+            : `${mName}重货 (实重 ${totalGw.toFixed(2)}kg)`;
     }
 
     // 5. 财务清算与均摊 (Financial Alignment)
@@ -2882,9 +2899,11 @@ window.doLogisticsPro = debounce(function() {
         ${partialAlert}
     `;
 
-    // 7. 写入全局状态，解锁“一键填入”按钮
+    // 7. 写入全局状态，解锁"一键填入"按钮
+    // 【Bug修复】：显式赋值 logisticsMode，对齐字段命名，确保 AI 邮件与分享页能正确读取
     state.logisticsData = {
         ...params,
+        logisticsMode: params.mode,
         result: unitFreight
     };
 }, 300);
@@ -3673,6 +3692,14 @@ function renderShareFull(container, d, expires) {
     const r = d.result || {};
     const inp = d.internal || {};
 
+    // 【解耦】在函数顶部定义映射字典，防止旧分享链接崩溃，兼容所有新旧模式
+    const logMode = inp.logisticsData ? inp.logisticsData.logisticsMode : 'sea';
+    const shareModeMap = {
+        'sea': '海运 RT (Revenue Ton)', 'sea_kg': '海派/海卡专线 (按KG)', 'rail': '铁路/卡航 (按KG)',
+        'air': '空运体积重 /6000', 'air_sp': '空派双清专线 (免泡实重)', 'express': '快递体积重 /5000'
+    };
+    const displayLogMode = shareModeMap[logMode] || '专线物流计费';
+
     container.innerHTML = `
         <div class="sv-full-banner">
             ⚠️ <b>内部机密文件</b> — 此报价快照包含进货成本与利润设定等商业机密，请勿转发至外部。
@@ -3716,7 +3743,7 @@ function renderShareFull(container, d, expires) {
         <div class="sv-info-card" style="border-top: 2px solid var(--accent-light); margin-top: 8px;">
             <div style="padding:10px 16px; font-size:10px; font-weight:700; color:var(--accent); background:var(--accent-light); letter-spacing:0.5px;">📦 物流核算底稿</div>
             <div class="sv-info-row"><span class="sv-info-key">箱规/毛重</span><span class="sv-info-val">${escapeHTML(String(inp.logisticsData.l))}*${escapeHTML(String(inp.logisticsData.w))}*${escapeHTML(String(inp.logisticsData.h))} cm / ${escapeHTML(String(inp.logisticsData.gw))}kg</span></div>
-            <div class="sv-info-row"><span class="sv-info-key">计费逻辑</span><span class="sv-info-val" style="color:var(--accent2);">${inp.logisticsData.logisticsMode === 'sea' ? '海运 RT (Revenue Ton)' : (inp.logisticsData.logisticsMode === 'air' ? '空运体积重 /6000' : '快递体积重 /5000')}</span></div>
+            <div class="sv-info-row"><span class="sv-info-key">计费逻辑</span><span class="sv-info-val" style="color:var(--accent2);">${escapeHTML(displayLogMode)}</span></div>
             <div class="sv-info-row" style="background:var(--surface2);"><span class="sv-info-key">装率/总数</span><span class="sv-info-val">${escapeHTML(String(inp.logisticsData.perCtn))} pcs/ctn (总 ${escapeHTML(String(inp.logisticsData.totalPcs || '-'))}pcs)</span></div>
         </div>
         ` : ''}
@@ -4112,8 +4139,12 @@ async function generateAIEmail() {
     // 传精简子集而非完整 state.logisticsData，保留 AI 可利用的有效上下文。
     if (state.logisticsData && state.logisticsData.result) {
         const ld = state.logisticsData;
-        const modeLabel = ld.logisticsMode === 'sea' ? '海运LCL'
-                        : ld.logisticsMode === 'air' ? '空运' : '国际快递';
+        // 【解耦】映射字典替代三元链，新增模式不会再错误回退到"国际快递"
+        const aiModeMap = {
+            'sea': '海运LCL(RT)', 'sea_kg': '海派/海卡专线(按KG)', 'rail': '中欧班列/卡航专线',
+            'air': '标准空运', 'air_sp': '空派双清专线(实重计费)', 'express': '国际快递'
+        };
+        const modeLabel = aiModeMap[ld.logisticsMode] || '专线物流';
         payload.logisticsContext = {
             mode:         modeLabel,
             unitFreight:  `USD ${ld.result} / pc`,
@@ -4232,14 +4263,14 @@ function resetAll() {
     // V7: 清空物流计费引擎状态与弹窗输入字段
     state.logisticsData = {
         l: '', w: '', h: '', gw: '', perCtn: '', totalPcs: '', unitPrice: '',
-        logisticsMode: 'sea', result: null
+        logisticsMode: 'air_sp', result: null
     };
     ['mcL','mcW','mcH','mcGw','mcPerCtn','mcTotalPcs','mcUnitPrice'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = '';
     });
     const modeEl = document.getElementById('mcLogisticsMode');
-    if (modeEl) modeEl.value = 'sea';
+    if (modeEl) modeEl.value = 'air_sp'; // 【修复】与 HTML selected 保持一致
     const preview = document.getElementById('proResultPreview');
     if (preview) preview.innerHTML = '💡 输入完整箱规、装率、总件数与运费单价后自动测算。';
 
