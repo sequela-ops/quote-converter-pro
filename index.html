@@ -1975,19 +1975,30 @@ async function queryWITSRate() {
         applyWITSResult(rate, hs6, cacheKey, btn, icon, label, chip, chipText, false);
 
     } catch (err) {
-        console.warn('[WITS]', err.message);
-        btn.classList.remove('loading');
-        btn.classList.add('error');
-        icon.textContent = '⚠️';
-        label.textContent = `查询失败（${err.message.length > 30 ? err.message.slice(0, 30) + '…' : err.message}）`;
-
-        // 3 秒后恢复按钮原始状态
-        setTimeout(() => {
-            btn.classList.remove('error');
-            icon.textContent = '🌐';
-            label.textContent = '查询实时 MFN 关税（WITS 世界银行数据库）';
-        }, 3000);
+    console.warn('[WITS]', err.message);
+    btn.classList.remove('loading');
+    btn.classList.add('error');
+    icon.textContent = '⚠️';
+    
+    // 精细化错误提示
+    let userMsg = '查询失败';
+    if (err.name === 'AbortError') {
+        userMsg = '请求超时（15s），请检查网络后重试';
+    } else if (err.message && err.message.toLowerCase().includes('failed to fetch')) {
+        userMsg = '网络连接失败，请确认网络稳定';
+    } else if (err.message) {
+        userMsg = `查询失败：${err.message.slice(0, 30)}`;
+        if (err.message.length > 30) userMsg += '…';
     }
+    label.textContent = userMsg;
+
+    // 3 秒后恢复按钮原始状态
+    setTimeout(() => {
+        btn.classList.remove('error');
+        icon.textContent = '🌐';
+        label.textContent = '查询实时 MFN 关税（WITS 世界银行数据库）';
+    }, 3000);
+}
 }
 
 /**
@@ -3918,7 +3929,6 @@ async function callAIEngine(action, payload, btnIconEl, btnLabelEl, loadingText,
         return;
     }
 
-    // 获取当前 Token：优先使用已登录 session，否则降级使用匿名 key
     const { data: { session } } = await supabaseClient.auth.getSession();
     const token = session?.access_token || SUPABASE_ANON_KEY;
 
@@ -3930,7 +3940,7 @@ async function callAIEngine(action, payload, btnIconEl, btnLabelEl, loadingText,
     btnIconEl.innerHTML = '<span class="wits-spinner"></span>';
     btnLabelEl.textContent = loadingText;
 
-    // 清空输出容器并立即展示结果面板（为流式写入做准备）
+    // 清空输出容器并立即展示结果面板
     if (outputEl.tagName === 'TEXTAREA') {
         outputEl.value = '';
         resultCard.style.display = 'block';
@@ -3940,15 +3950,14 @@ async function callAIEngine(action, payload, btnIconEl, btnLabelEl, loadingText,
         resultCard.style.display = 'block';
     }
 
-    try {
-        // [Fix-AI-2] AbortController 超时保护（60s）
-        // 移动端弱网/双卡切换时 TCP 连接被系统中断会导致 reader.read() 抛出
-        // TypeError: Failed to fetch，表现为"加载半天后报错且按钮失效"。
-        // 60s 覆盖绝大多数正常 Gemini 响应时长，超时后给出明确中文提示。
-        const abortCtrl = new AbortController();
-        const timeoutId = setTimeout(() => abortCtrl.abort(), 60000);
+    // [Fix-AI-2] AbortController 提升到 try 外部，确保 finally 可访问并清除定时器
+    // 超时从 60s 调整为 90s：qwen3.6-plus 的 thinking 阶段本身最长需 40-50s，
+    // 60s 在模型繁忙时几乎必然超时，90s 给完整的思考+生成留足余量。
+    let abortCtrl = new AbortController();
+    let timeoutId = setTimeout(() => abortCtrl.abort(), 90000);
 
-        // 1. 绕过 invoke，原生 Fetch 调用 Edge Function
+    // 核心流式请求，封装为独立函数供重试调用
+    const doFetch = async () => {
         const response = await fetch(`${SUPABASE_URL}/functions/v1/gemini-proxy`, {
             method: 'POST',
             headers: {
@@ -3964,45 +3973,31 @@ async function callAIEngine(action, payload, btnIconEl, btnLabelEl, loadingText,
             throw new Error(`HTTP ${response.status}: ${errText.slice(0, 100)}`);
         }
 
-        // 2. 获取 ReadableStream reader
         const reader = response.body.getReader();
         const decoder = new TextDecoder('utf-8');
         let buffer = '';
 
-        // 3. 逐块读取并解析 SSE 数据
         while (true) {
             const { done, value } = await reader.read();
             if (done) break;
 
             buffer += decoder.decode(value, { stream: true });
             const lines = buffer.split('\n');
-            
-            // 保留最后一行可能不完整的 buffer 块
             buffer = lines.pop();
 
             for (const line of lines) {
                 if (!line.startsWith('data: ')) continue;
                 const raw = line.slice(6).trim();
-                
                 if (!raw || raw === '[DONE]') continue;
 
                 let parsed;
-                try {
-                    parsed = JSON.parse(raw);
-                } catch (e) {
-                    continue; // 忽略不完整的 JSON 块（极少发生）
-                }
+                try { parsed = JSON.parse(raw); } catch (e) { continue; }
 
-                // 处理远端抛出的业务错误
-                if (parsed.error) {
-                    throw new Error(parsed.error);
-                }
+                if (parsed.error) throw new Error(parsed.error);
 
-                // 4. 追加 Chunk 内容，实现打字机效果
                 if (parsed.chunk) {
                     if (outputEl.tagName === 'TEXTAREA') {
                         outputEl.value += parsed.chunk;
-                        // 始终滚动到文字最底部
                         outputEl.scrollTop = outputEl.scrollHeight;
                     } else {
                         outputEl.textContent += parsed.chunk;
@@ -4010,33 +4005,72 @@ async function callAIEngine(action, payload, btnIconEl, btnLabelEl, loadingText,
                 }
             }
         }
-        
+    };
+
+    try {
+        await doFetch();
         showToast('✅ AI 分析已完成');
-        clearTimeout(timeoutId);
 
     } catch (err) {
-        console.error("[AI Engine Error]", err);
+        // [Fix-AI-3] 静默自动重试一次
+        // qwen3.6-plus 首包延迟高，偶发超时后立即重试成功率较高，
+        // 避免用户手动点击 retry 浪费时间和额度。
+        // 重试前重置 AbortController（旧的已 abort，不能复用）和输出区。
+        const isRetryable = err.name === 'AbortError'
+            || (err.message && err.message.toLowerCase().includes('failed to fetch'));
 
-        // [Fix-AI-2] 区分超时与网络中断，给出可操作的中文提示
-        if (err.name === 'AbortError') {
-            showToast('⏱️ AI 请求超时（>60s），请检查网络后重试');
-        } else if (err.message && err.message.toLowerCase().includes('failed to fetch')) {
-            showToast('📶 网络中断，请确认网络稳定后点击按钮重试');
-        } else {
-            showToast('❌ AI 服务异常: ' + (err.message || '请检查网络'));
+        if (isRetryable) {
+            console.warn('[AI Engine] 首次请求失败，静默重试一次...', err.message);
+            btnLabelEl.textContent = '网络抖动，重试中…';
+
+            // 清空上次可能的部分输出
+            if (outputEl.tagName === 'TEXTAREA') outputEl.value = '';
+            else outputEl.textContent = '';
+
+            // 重置超时计时器（90s 重新计算）
+            clearTimeout(timeoutId);
+            abortCtrl = new AbortController();
+            timeoutId = setTimeout(() => abortCtrl.abort(), 90000);
+
+            try {
+                await doFetch();
+                showToast('✅ AI 分析已完成');
+            } catch (retryErr) {
+                // 重试也失败，此时才报错给用户（精细错误提示）
+            console.error('[AI Engine] 重试失败', retryErr);
+            let userMsg = '❌ AI 服务异常';
+            if (retryErr.name === 'AbortError') {
+                userMsg = '⏱️ AI 响应超时（90s），请稍后重试';
+            } else if (retryErr.message && retryErr.message.toLowerCase().includes('failed to fetch')) {
+                userMsg = '📶 网络中断，请确认网络稳定后重试';
+            } else if (retryErr.message) {
+                userMsg = `❌ AI 服务异常: ${retryErr.message.slice(0, 50)}`;
+            }
+            showToast(userMsg);
+            
+            const currentContent = outputEl.tagName === 'TEXTAREA' ? outputEl.value : outputEl.textContent;
+            if (!currentContent.trim()) resultCard.style.display = 'none';
         }
-        
-        // 发生错误时，如果内容区为空，则直接隐藏卡片
+    } else {
+        // 非网络类错误（业务报错等）直接提示，不重试
+        console.error('[AI Engine Error]', err);
+        let userMsg = '❌ AI 服务异常';
+        if (err.message) {
+            userMsg = `❌ AI 服务异常: ${err.message.slice(0, 50)}`;
+        }
+        showToast(userMsg);
         const currentContent = outputEl.tagName === 'TEXTAREA' ? outputEl.value : outputEl.textContent;
-        if (!currentContent.trim()) {
-            resultCard.style.display = 'none';
-        }
-    } finally {
-        // [Fix-AI-1] 解锁按钮 + 复位图标文字
-        if (triggerBtn) triggerBtn.disabled = false;
-        btnIconEl.textContent = '✨';
-        btnLabelEl.textContent = originalText;
+        if (!currentContent.trim()) resultCard.style.display = 'none';
     }
+
+} finally {
+    // [Fix-AI-2] clearTimeout 移至 finally，无论成功/失败/重试，定时器必定被清除
+    clearTimeout(timeoutId);
+    // [Fix-AI-1] 解锁按钮 + 复位图标文字
+    if (triggerBtn) triggerBtn.disabled = false;
+    btnIconEl.textContent = '✨';
+    btnLabelEl.textContent = originalText;
+}
 }
 
 // 方案一：一键生成邮件
