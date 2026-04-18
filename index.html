@@ -4045,9 +4045,25 @@ async function generateAIEmail() {
         totalPrice: `USD ${formatMoney(state.lastPrice * moqNum)}`,
         salesMode: salesMode,
         clientType: clientType,
-        logisticsData: state.logisticsData, 
         notes: `PI No: ${state.currentPiNo || 'TBD'}, Lead Time: ${document.getElementById('leadTime').value || 'TBD'}`
     };
+
+    // 仅在物流计算器已完成测算时注入物流摘要，避免把含空字符串的原始
+    // state 对象发送给 Edge Function，防止 payload 冗余与接口解析异常。
+    // 传精简子集而非完整 state.logisticsData，保留 AI 可利用的有效上下文。
+    if (state.logisticsData && state.logisticsData.result) {
+        const ld = state.logisticsData;
+        const modeLabel = ld.logisticsMode === 'sea' ? '海运LCL'
+                        : ld.logisticsMode === 'air' ? '空运' : '国际快递';
+        payload.logisticsContext = {
+            mode:         modeLabel,
+            unitFreight:  `USD ${ld.result} / pc`,
+            dimensions:   `${ld.l}×${ld.w}×${ld.h} cm`,
+            grossWeight:  `${ld.gw} kg/ctn`,
+            pcsPerCarton: ld.perCtn,
+            totalPcs:     ld.totalPcs
+        };
+    }
 
     // 引擎内部托管渲染逻辑
     await callAIEngine('generate_email', payload, btnIcon, btnLabel, '正在思考撰写...', 'AI 一键生成跟进邮件', resultText, resultCard);
