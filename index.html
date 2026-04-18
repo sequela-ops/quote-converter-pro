@@ -2351,17 +2351,62 @@ function renderPI() {
 }
 
 // ==================== V2 历史记录中枢 (本地化) ====================
+// [P1-Fix-1] DOM-safe 历史条目构建器
+// 彻底弃用 innerHTML 拼接 onclick，改用 dataset + addEventListener。
+// item.id 来自 Date.now()（整数），但仍可能被恶意篡改为含 JS 的字符串，
+// 因此通过 dataset 传递并在事件回调中以 Number() 强制转型，
+// 消除 onclick="restoreHistory(${item.id})" 的注入路径。
+function buildHistoryItemEl(item) {
+    const wrap = document.createElement('div');
+    wrap.className = 'history-item';
+    // 用 dataset 传递 id，避免任何 HTML 注入
+    wrap.dataset.historyId = String(item.id);
+    wrap.addEventListener('click', function() {
+        restoreHistory(Number(this.dataset.historyId));
+    });
+
+    const header = document.createElement('div');
+    header.className = 'history-header';
+    const dateSpan = document.createElement('span');
+    dateSpan.textContent = '🕒 ' + (item.date || '');
+    const metaSpan = document.createElement('span');
+    // mode / profitRate 均为受控字段，但仍走 textContent 而非 innerHTML
+    metaSpan.textContent = (item.mode || '') + ' / ' + (item.profitRate || '') + '% 净利';
+    header.appendChild(dateSpan);
+    header.appendChild(metaSpan);
+
+    const body = document.createElement('div');
+    body.className = 'history-body';
+    const title = document.createElement('div');
+    title.className = 'history-title';
+    title.textContent = item.product || '未命名产品分析';
+    const price = document.createElement('div');
+    price.className = 'history-price';
+    price.textContent = '$' + formatMoney(item.price);
+    body.appendChild(title);
+    body.appendChild(price);
+
+    const sub = document.createElement('div');
+    sub.style.cssText = 'font-size:11px;color:var(--text3);margin-top:6px;';
+    sub.textContent = '进货成本: ¥' + formatMoney(item.cost) + ' / 锁汇参考: ' + (item.rate || '');
+
+    wrap.appendChild(header);
+    wrap.appendChild(body);
+    wrap.appendChild(sub);
+    return wrap;
+}
+
 function loadHistory() {
     const historyStr = localStorage.getItem('quoteHistory');
-    let quoteHistoryList =[];
-    if (historyStr) { 
-        try { 
-            quoteHistoryList = JSON.parse(historyStr); 
-        } catch(e){
+    let quoteHistoryList = [];
+    if (historyStr) {
+        try {
+            quoteHistoryList = JSON.parse(historyStr);
+        } catch(e) {
             console.error("历史记录解析失败");
-        } 
+        }
     }
-    
+
     const container = document.getElementById('historyContainer');
     if (!container) return;
 
@@ -2369,20 +2414,12 @@ function loadHistory() {
         container.innerHTML = '<div class="history-empty">暂无历史记录<br><span style="font-size:11px;opacity:0.6;display:block;margin-top:6px;">您进行的计算将自动存入此设备中</span></div>';
         return;
     }
-    
-    container.innerHTML = quoteHistoryList.map(item => `
-        <div class="history-item" onclick="restoreHistory(${item.id})">
-            <div class="history-header">
-                <span>🕒 ${item.date}</span>
-                <span>${item.mode} / ${item.profitRate}% 净利</span>
-            </div>
-            <div class="history-body">
-                <div class="history-title">${escapeHTML(item.product || '未命名产品分析')}</div>
-                <div class="history-price">$${formatMoney(item.price)}</div>
-            </div>
-            <div style="font-size: 11px; color: var(--text3); margin-top: 6px;">进货成本: ¥${formatMoney(item.cost)} / 锁汇参考: ${item.rate}</div>
-        </div>
-    `).join('');
+
+    // 用 DocumentFragment 批量 appendChild，避免多次触发 reflow
+    const frag = document.createDocumentFragment();
+    quoteHistoryList.forEach(item => frag.appendChild(buildHistoryItemEl(item)));
+    container.textContent = ''; // 清空旧内容（比 innerHTML='' 更安全）
+    container.appendChild(frag);
 }
 
 function saveHistory(price, settleRate, costRMB) {
@@ -2841,65 +2878,6 @@ window.doLogisticsPro = debounce(function() {
     };
 }, 300);
 
-    // ── 1. 基础量 ────────────────────────────────────────────────
-    const totalCartons = Math.ceil(totalPcs / perCtn);
-    const totalVolCm3  = l * w * h * totalCartons;           // cm³，统一量纲基准
-    const totalCbm     = totalVolCm3 / 1000000;              // m³
-    const totalGw      = gw * totalCartons;                  // kg（按整箱计，符合货代实务）
-    const totalTons    = totalGw / 1000;                     // 公吨
-
-    // ── 2. 计费重判定 ─────────────────────────────────────────────
-    let chargeableVal = 0;
-    let unitLabel     = '';
-    let typeLabel     = '';
-
-    if (mode === 'sea') {
-        // 海运 LCL：Revenue Ton = max(CBM, 吨数)，两者均为 RT 单位
-        chargeableVal = Math.max(totalCbm, totalTons);
-        unitLabel     = 'RT';
-        typeLabel     = totalCbm >= totalTons
-            ? `体积(${totalCbm.toFixed(3)} CBM) > 重量(${totalTons.toFixed(3)} T)，轻抛货`
-            : `重量(${totalTons.toFixed(3)} T) > 体积(${totalCbm.toFixed(3)} CBM)，重货`;
-    } else {
-        // 空运 & 快递：统一用 totalVolCm3 算体积重，量纲对齐
-        const divisor = (mode === 'air') ? 6000 : 5000;
-        const volWeight = totalVolCm3 / divisor;             // kg
-        chargeableVal = Math.max(volWeight, totalGw);
-        unitLabel     = 'KG';
-        typeLabel     = volWeight > totalGw
-            ? `体积重(${volWeight.toFixed(2)} kg) > 实重(${totalGw.toFixed(2)} kg)，轻抛`
-            : `实重(${totalGw.toFixed(2)} kg) ≥ 体积重(${(totalVolCm3/divisor).toFixed(2)} kg)，重货`;
-    }
-
-    // ── 3. 运费计算 ───────────────────────────────────────────────
-    const totalFreight = chargeableVal * unitPrice;
-    // 分母用实际下单件数（不是整箱件数），并在 UI 明确告知
-    const unitFreight  = (totalFreight / totalPcs).toFixed(4); // 保留字符串，不 parseFloat
-
-    // ── 4. 末箱不满提示 ──────────────────────────────────────────
-    const isPartial = (totalPcs % perCtn) !== 0;
-    const partialHint = isPartial
-        ? `<span class="lp-warn">⚠️ 末箱未满：${totalPcs} pcs 需装 ${totalCartons} 箱（末箱仅 ${totalPcs % perCtn} pcs），运费已按整箱核算并均摊至全部 ${totalPcs} pcs。</span>`
-        : '';
-
-    // ── 5. 渲染预览区 ─────────────────────────────────────────────
-    preview.innerHTML = `
-        <div style="margin-bottom:4px; font-weight:700; color:var(--text);">核算结果（${totalCartons} 箱）</div>
-        计费重：<b>${chargeableVal.toFixed(3)} ${unitLabel}</b><br>
-        判定：${typeLabel}<br>
-        总运费：<b>$${totalFreight.toFixed(2)}</b> ÷ ${totalPcs} pcs<br>
-        单件分摊：<span class="lp-unit-freight">$${unitFreight}</span> / pc
-        ${partialHint}
-    `;
-
-    // ── 6. 同步到 state（供 collectSnapshot 落库，解决 Claude P1）────
-    state.logisticsData = {
-        l, w, h, gw, perCtn, totalPcs, unitPrice,
-        logisticsMode: mode,
-        result: unitFreight  // 字符串，4 位精度
-    };
-}, 300);
-
 /**
  * applyLogisticsPro — 将物流引擎算出的单件运费回填到主表单
  * 直接读取 state.logisticsData.result，避免重复计算
@@ -3245,22 +3223,38 @@ saveHistory = async function(price, settleRate, costRMB) {
     }
 };
 
-// ==================== 覆盖 loadHistory，登录时读云端 ====================
-const _originalLoadHistory = loadHistory;
+// ==================== [P1-Fix-3] loadHistory 统一策略分发 ====================
+// 原"函数覆盖"反模式（const _originalLoadHistory = loadHistory; loadHistory = async...）
+// 会在 Supabase 初始化失败或时序异常时产生静默失败：调用方拿到同步 undefined 而非
+// 已渲染的界面。
+//
+// 修复方案：将 loadHistory 重写为单一 async 函数，内部显式判断认证状态，
+// 分别走云端或本机渲染路径。原同步版本逻辑已被 buildHistoryItemEl + renderHistoryList
+// 完整吸收，无需再保留 _originalLoadHistory 引用。
 loadHistory = async function() {
+    // 策略 A：已登录 + Supabase 就绪 → 尝试读取云端
     if (currentUser && supabaseClient) {
-        const cloudData = await loadFromCloud();
-        if (cloudData !== null) {
-            // 用云端数据渲染（不覆盖 localStorage）
-            renderHistoryList(cloudData);
-            return;
+        try {
+            const cloudData = await loadFromCloud();
+            if (cloudData !== null) {
+                renderHistoryList(cloudData);
+                return;
+            }
+        } catch(e) {
+            console.warn('[loadHistory] 云端加载异常，降级本机', e);
         }
     }
-    // 游客或云端加载失败时降级本机
-    _originalLoadHistory();
+    // 策略 B：游客模式 / 云端失败 → 读取 localStorage
+    const historyStr = localStorage.getItem('quoteHistory');
+    let list = [];
+    if (historyStr) {
+        try { list = JSON.parse(historyStr); } catch(e) { console.error('历史记录解析失败'); }
+    }
+    renderHistoryList(list);
 };
 
 // 抽离历史渲染逻辑（供云端数据使用）
+// [P1-Fix-1] 复用 buildHistoryItemEl，与 loadHistory 行为完全对齐，消除双份注入路径
 function renderHistoryList(list) {
     const container = document.getElementById('historyContainer');
     if (!container) return;
@@ -3268,19 +3262,10 @@ function renderHistoryList(list) {
         container.innerHTML = '<div class="history-empty">暂无历史记录<br><span style="font-size:11px;opacity:0.6;display:block;margin-top:6px;">您进行的计算将自动同步至云端</span></div>';
         return;
     }
-    container.innerHTML = list.map(item => `
-        <div class="history-item" onclick="restoreHistory(${item.id})">
-            <div class="history-header">
-                <span>🕒 ${item.date}</span>
-                <span>${item.mode} / ${item.profitRate}% 净利</span>
-            </div>
-            <div class="history-body">
-                <div class="history-title">${escapeHTML(item.product || '未命名产品分析')}</div>
-                <div class="history-price">$${formatMoney(item.price)}</div>
-            </div>
-            <div style="font-size: 11px; color: var(--text3); margin-top: 6px;">进货成本: ¥${formatMoney(item.cost)} / 锁汇参考: ${item.rate}</div>
-        </div>
-    `).join('');
+    const frag = document.createDocumentFragment();
+    list.forEach(item => frag.appendChild(buildHistoryItemEl(item)));
+    container.textContent = '';
+    container.appendChild(frag);
 }
 
 
@@ -3446,6 +3431,18 @@ function selectShareMode(mode) {
 async function generateShareLink() {
     if (!isSupabaseConfigured() || !supabaseClient) {
         showToast('⚠️ 分享功能需要配置 Supabase，请联系管理员');
+        return;
+    }
+
+    // [UX熔断] full 模式包含底价/利润率等商业机密，要求登录身份。
+    // 后端 RLS 已从数据库层强制执行此规则；此处为前端提前拦截，
+    // 省去无意义的网络往返，并给游客一个友好的引导路径。
+    if (shareState.mode === 'full' && !currentUser) {
+        showToast('🔐 内部协作链接仅限登录用户生成，正在为您打开登录窗口…');
+        setTimeout(() => {
+            closeShareSheet();
+            openAuthSheet();
+        }, 1500);
         return;
     }
 
@@ -3701,20 +3698,17 @@ function renderShareFull(container, d, expires) {
             <div class="sv-info-row"><span class="sv-info-key">单件净利润</span><span class="sv-info-val green">${escapeHTML(r.netProfitUSD ? '$'+formatMoney(r.netProfitUSD) : '-')}</span></div>
             <div class="sv-info-row"><span class="sv-info-key">退税额外收益</span><span class="sv-info-val">${escapeHTML(r.rebateAmt || '-')}</span></div>
             <div class="sv-info-row"><span class="sv-info-key">国际段总成本</span><span class="sv-info-val">${escapeHTML(r.freightTotal || '-')}</span></div>
-​// [补丁 1] 物流推导明细卡片
-<div class="sv-info-row"><span class="sv-info-key">国际段总成本</span><span class="sv-info-val">${escapeHTML(r.freightTotal || '-')}</span></div>
-
-${(inp.logisticsData && inp.logisticsData.l) ? `
-    <div class="sv-info-card" style="border-top: 2px solid var(--accent-light); margin-top: 8px;">
-        <div style="padding:10px 16px; font-size:10px; font-weight:700; color:var(--accent); background:var(--accent-light); letter-spacing:0.5px;">📦 物流核算底稿</div>
-        <div class="sv-info-row"><span class="sv-info-key">箱规/毛重</span><span class="sv-info-val">${inp.logisticsData.l}*${inp.logisticsData.w}*${inp.logisticsData.h} cm / ${inp.logisticsData.gw}kg</span></div>
-        <div class="sv-info-row"><span class="sv-info-key">计费逻辑</span><span class="sv-info-val" style="color:var(--accent2);">${inp.logisticsData.logisticsMode === 'sea' ? '海运 RT (Revenue Ton)' : (inp.logisticsData.logisticsMode === 'air' ? '空运体积重 /6000' : '快递体积重 /5000')}</span></div>
-        <div class="sv-info-row" style="background:var(--surface2);"><span class="sv-info-key">装率/总数</span><span class="sv-info-val">${inp.logisticsData.perCtn} pcs/ctn (总 ${inp.totalPcs || '-'}pcs)</span></div>
-    </div>
-` : ''}
-
             <div class="sv-info-row"><span class="sv-info-key">买家DDP落地价（参考）</span><span class="sv-info-val warn">${escapeHTML(r.ddpEquiv || '-')}</span></div>
         </div>
+
+        ${(inp.logisticsData && inp.logisticsData.l) ? `
+        <div class="sv-info-card" style="border-top: 2px solid var(--accent-light); margin-top: 8px;">
+            <div style="padding:10px 16px; font-size:10px; font-weight:700; color:var(--accent); background:var(--accent-light); letter-spacing:0.5px;">📦 物流核算底稿</div>
+            <div class="sv-info-row"><span class="sv-info-key">箱规/毛重</span><span class="sv-info-val">${escapeHTML(String(inp.logisticsData.l))}*${escapeHTML(String(inp.logisticsData.w))}*${escapeHTML(String(inp.logisticsData.h))} cm / ${escapeHTML(String(inp.logisticsData.gw))}kg</span></div>
+            <div class="sv-info-row"><span class="sv-info-key">计费逻辑</span><span class="sv-info-val" style="color:var(--accent2);">${inp.logisticsData.logisticsMode === 'sea' ? '海运 RT (Revenue Ton)' : (inp.logisticsData.logisticsMode === 'air' ? '空运体积重 /6000' : '快递体积重 /5000')}</span></div>
+            <div class="sv-info-row" style="background:var(--surface2);"><span class="sv-info-key">装率/总数</span><span class="sv-info-val">${escapeHTML(String(inp.logisticsData.perCtn))} pcs/ctn (总 ${escapeHTML(String(inp.logisticsData.totalPcs || '-'))}pcs)</span></div>
+        </div>
+        ` : ''}
 
         ${renderShareCTA(d)}
         ${renderShareBranding()}
