@@ -1458,8 +1458,9 @@ let state = {
     logisticsData: {
         l: '', w: '', h: '', gw: '', perCtn: '', totalPcs: '', uPrice: '',
         logisticsMode: 'air_sp',
-        result: null  // 最终单件运费字符串，供 snapshot 落库
-    }
+        result: null
+}, // 👈 确保这里只有一个干净的逗号和回车
+aiAbortController: null 
 };
 
 // [补丁1.A] 中央 DOM 注册表：将散落在各处的查询集中管理，提升维护性 (解决 四.2)
@@ -1538,6 +1539,14 @@ function formatMoney(num) {
         minimumFractionDigits: 2, 
         maximumFractionDigits: 2 
     });
+}
+
+function abortRunningAI() {
+    if (state.aiAbortController) {
+        state.aiAbortController.abort(); // 立即掐断 Fetch 连接
+        state.aiAbortController = null;
+        console.log('[AI Context] 前序异步任务已强制中止');
+    }
 }
 
 // ==================== V2 引导流引擎 (重构无缝与平滑版) ====================
@@ -2485,6 +2494,7 @@ function saveHistory(price, settleRate, costRMB) {
 }
 
 function restoreHistory(id) {
+    abortRunningAI(); // V7.3.0新增：恢复记录时中止 AI
     // 1. 获取记录（优先从渲染缓存，次选本地存储）
     let record = (window.__historyCache || []).find(r => r.id === id);
     if (!record) {
@@ -4025,6 +4035,14 @@ async function callAIEngine(action, payload, btnIconEl, btnLabelEl, loadingText,
     const { data: { session } } = await supabaseClient.auth.getSession();
     const token = session?.access_token || SUPABASE_ANON_KEY;
 
+    // [ATC-Event] 派发任务启动事件，供 AsyncTaskCenter 等模块监听，解耦通知逻辑
+    window.dispatchEvent(new CustomEvent('ai:start', { detail: { action, resultCard } }));
+
+// V7.3.0：杀掉上一个可能还在跑的任务，并关联当前新任务
+abortRunningAI(); 
+state.aiAbortController = new AbortController();
+const abortCtrl = state.aiAbortController; // 锁定当前任务的控制器引用
+
     // [Fix-AI-1] 按钮禁用锁：防止请求期间重复触发，finally 统一解锁
     const triggerBtn = btnIconEl.closest('button');
     if (triggerBtn) triggerBtn.disabled = true;
@@ -4046,11 +4064,13 @@ async function callAIEngine(action, payload, btnIconEl, btnLabelEl, loadingText,
     // [Fix-AI-2] AbortController 提升到 try 外部，确保 finally 可访问并清除定时器
     // 超时从 60s 调整为 90s：qwen3.6-plus 的 thinking 阶段本身最长需 40-50s，
     // 60s 在模型繁忙时几乎必然超时，90s 给完整的思考+生成留足余量。
-    let abortCtrl = new AbortController();
     let timeoutId = setTimeout(() => abortCtrl.abort(), 90000);
 
     // 核心流式请求，封装为独立函数供重试调用
     const doFetch = async () => {
+// 👈 动态获取当前 state 中最新的信号，如果没有则回退到初始信号
+    const currentSignal = (state.aiAbortController ? state.aiAbortController.signal : abortCtrl.signal);
+
         const response = await fetch(`${SUPABASE_URL}/functions/v1/gemini-proxy`, {
             method: 'POST',
             headers: {
@@ -4058,7 +4078,7 @@ async function callAIEngine(action, payload, btnIconEl, btnLabelEl, loadingText,
                 'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({ action, payload }),
-            signal: abortCtrl.signal
+            signal: currentSignal
         });
 
         if (!response.ok) {
@@ -4117,64 +4137,102 @@ async function callAIEngine(action, payload, btnIconEl, btnLabelEl, loadingText,
         showToast('✅ AI 分析已完成');
 
     } catch (err) {
-        // [Fix-AI-3] 静默自动重试一次
-        // qwen3.6-plus 首包延迟高，偶发超时后立即重试成功率较高，
+    // V7.3.0：如果是被 abortRunningAI() 杀掉的任务，直接静默退出
+    if (err.name === 'AbortError') {
+        return; 
+    }
+        // V7：静默自动重试一次
+        // qwen3.6-plus 首包延迟高，偶发网络抖动后立即重试成功率较高，
         // 避免用户手动点击 retry 浪费时间和额度。
         // 重试前重置 AbortController（旧的已 abort，不能复用）和输出区。
-        const isRetryable = err.name === 'AbortError'
-            || (err.message && err.message.toLowerCase().includes('failed to fetch'));
+        // 注意：AbortError 已在上方第一道 if 中 return，此处永远不会是 AbortError，
+        // 因此 isRetryable 只需判断网络层错误（failed to fetch）即可。
+        const isRetryable = !!(err.message && err.message.toLowerCase().includes('failed to fetch'));
 
-        if (isRetryable) {
+if (isRetryable) {
             console.warn('[AI Engine] 首次请求失败，静默重试一次...', err.message);
-            btnLabelEl.textContent = '网络抖动，重试中…';
+            btnLabelEl.textContent = '响应优化中，生成正在继续…';
+            
+            // 👈 同步更新全局 Banner（外科手术级补丁）：
+            // 确保如果用户在看顶部蓝色 Banner，也能看到同步的状态。
+            if (window._atcLastBannerText) {
+                window._atcLastBannerText = '响应优化中...';
+                if (window.AsyncTaskCenter) {
+                     // 触发一次内部 Banner 更新
+                     // 注意：由于 _updateBanner 是私有的  
+                     // 我们通过派发一个瞬时的 ai:start 即可实现同步
+                     window.dispatchEvent(new CustomEvent('ai:start', { detail: { action } }));
+                }
+            }
 
-            // 清空上次可能的部分输出
             if (outputEl.tagName === 'TEXTAREA') outputEl.value = '';
             else outputEl.textContent = '';
 
-            // 重置超时计时器（90s 重新计算）
             clearTimeout(timeoutId);
-            abortCtrl = new AbortController();
-            timeoutId = setTimeout(() => abortCtrl.abort(), 90000);
+            
+            // V7.3.0：重试时也必须更新全局引用
+            state.aiAbortController = new AbortController(); 
+            const retryAbortCtrl = state.aiAbortController; 
+            timeoutId = setTimeout(() => retryAbortCtrl.abort(), 90000);
 
             try {
-                await doFetch();
+                // 注意：这里需要调用新的 retryAbortCtrl 信号，或者重新封装 doFetch
+                // 为保持最小改动，建议在此处简单重定向 signal
+                // 但最稳健的做法是：doFetch 内部直接引用外部的 state.aiAbortController.signal
+
+                // 【执行容错重试】
+                await doFetch(); 
                 showToast('✅ AI 分析已完成');
+                
             } catch (retryErr) {
                 // 重试也失败，此时才报错给用户（精细错误提示）
-            console.error('[AI Engine] 重试失败', retryErr);
+                console.error('[AI Engine] 重试失败', retryErr);
+                let userMsg = '❌ AI 服务异常';
+                if (retryErr.name === 'AbortError') {
+                    userMsg = '⏱️ AI 响应超时（90s），请稍后重试';
+                } else if (retryErr.message && retryErr.message.toLowerCase().includes('failed to fetch')) {
+                    userMsg = '📶 网络中断，请确认网络稳定后重试';
+                } else if (retryErr.message) {
+                    userMsg = `❌ AI 服务异常: ${retryErr.message.slice(0, 50)}`;
+                }
+                showToast(userMsg);
+                
+                const currentContent = outputEl.tagName === 'TEXTAREA' ? outputEl.value : outputEl.textContent;
+                if (!currentContent.trim()) resultCard.style.display = 'none';
+            }
+        } else {
+            // 非网络类错误（业务报错等）直接提示，不重试
+            console.error('[AI Engine Error]', err);
             let userMsg = '❌ AI 服务异常';
-            if (retryErr.name === 'AbortError') {
-                userMsg = '⏱️ AI 响应超时（90s），请稍后重试';
-            } else if (retryErr.message && retryErr.message.toLowerCase().includes('failed to fetch')) {
-                userMsg = '📶 网络中断，请确认网络稳定后重试';
-            } else if (retryErr.message) {
-                userMsg = `❌ AI 服务异常: ${retryErr.message.slice(0, 50)}`;
+            if (err.message) {
+                userMsg = `❌ AI 服务异常: ${err.message.slice(0, 50)}`;
             }
             showToast(userMsg);
-            
             const currentContent = outputEl.tagName === 'TEXTAREA' ? outputEl.value : outputEl.textContent;
             if (!currentContent.trim()) resultCard.style.display = 'none';
         }
-    } else {
-        // 非网络类错误（业务报错等）直接提示，不重试
-        console.error('[AI Engine Error]', err);
-        let userMsg = '❌ AI 服务异常';
-        if (err.message) {
-            userMsg = `❌ AI 服务异常: ${err.message.slice(0, 50)}`;
-        }
-        showToast(userMsg);
-        const currentContent = outputEl.tagName === 'TEXTAREA' ? outputEl.value : outputEl.textContent;
-        if (!currentContent.trim()) resultCard.style.display = 'none';
-    }
 
 } finally {
     // [Fix-AI-2] clearTimeout 移至 finally，无论成功/失败/重试，定时器必定被清除
     clearTimeout(timeoutId);
+
+// V7.3.0 Fix：无条件清空全局控制器引用。
+    // 原实现用 === abortCtrl 做守卫，但重试时 state.aiAbortController 已被替换为
+    // retryAbortCtrl，导致守卫永远不通过，任务结束后残留旧引用。
+    // finally 执行时整个 try/catch（含重试内层）已全部完成，不存在后继任务，
+    // 无条件置 null 安全且正确。
+    state.aiAbortController = null;
+
     // [Fix-AI-1] 解锁按钮 + 复位图标文字
     if (triggerBtn) triggerBtn.disabled = false;
     btnIconEl.textContent = '✨';
     btnLabelEl.textContent = originalText;
+
+    // [ATC-Event] 派发任务结束事件，携带 outputEl 内容状态，供监听方决策通知策略
+    const _atcContent = outputEl
+        ? (outputEl.tagName === 'TEXTAREA' ? outputEl.value.trim() : outputEl.textContent.trim())
+        : '';
+    window.dispatchEvent(new CustomEvent('ai:end', { detail: { action, resultCard, hasContent: !!_atcContent } }));
 }
 }
 
@@ -4253,8 +4311,14 @@ function confirmReset() {
 }
 
 function resetAll() {
+    abortRunningAI(); // V7.3.0：重置时中止 AI
     // 1. 关闭确认弹窗
     document.getElementById('resetConfirmModal').style.display = 'none';
+
+// === 新增：复位异步任务中心的通知弹窗状态 ===
+    if (window.AsyncTaskCenter && typeof window.AsyncTaskCenter._dismissDone === 'function') {
+        window.AsyncTaskCenter._dismissDone();
+    }
 
     // 2. 重置所有表单输入字段为默认值
     const defaults = {
@@ -4446,6 +4510,293 @@ async function predictHSCode() {
     <span style="font-size:18px; line-height:1;">⟳</span>
     <span>开始新报价</span>
 </button>
+
+<!-- ==================== ASYNC TASK CENTER v1.0 ====================
+     外科手术级独立模块：AI 异步任务状态管理 & 用户通知系统
+     作用域完全隔离，通过 monkey-patch callAIEngine 接入，零副作用
+     ================================================================ -->
+
+<!-- 1. 任务浮层 Toast：AI 任务启动时的非阻塞告知 -->
+<div id="atc-floating-banner" style="
+    position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: linear-gradient(135deg, #1B4FD8 0%, #1e40af 100%);
+    color: white; border-radius: 50px; padding: 0;
+    font-size: 13px; font-weight: 600;
+    box-shadow: 0 8px 24px rgba(27,79,216,0.35), 0 2px 8px rgba(0,0,0,0.15);
+    z-index: 9998; pointer-events: all; opacity: 0;
+    transition: opacity 0.35s cubic-bezier(0.2,0.8,0.2,1), transform 0.35s cubic-bezier(0.2,0.8,0.2,1);
+    white-space: nowrap; overflow: hidden; max-width: calc(100vw - 40px);
+    display: flex; align-items: center; cursor: pointer;
+" onclick="AsyncTaskCenter._bannerTabJump()">
+    <div style="display:flex; align-items:center; gap:8px; padding: 11px 16px;">
+        <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:rgba(255,255,255,0.5); border-top:2px solid white; animation: atc-spin 0.7s linear infinite; flex-shrink:0;"></span>
+        <span id="atc-banner-text">AI 正在后台思考，您可自由切换页面</span>
+        <!-- 任务队列计数徽章：并发 >1 时出现 -->
+        <span id="atc-task-badge" style="
+            display:none; align-items:center; justify-content:center;
+            background:rgba(255,255,255,0.25); color:white;
+            font-size:10px; font-weight:800; line-height:1;
+            width:18px; height:18px; border-radius:50%; flex-shrink:0;
+        "></span>
+    </div>
+    <div style="width:1px; height:24px; background:rgba(255,255,255,0.2); flex-shrink:0;"></div>
+    <div style="padding: 11px 14px; font-size:12px; opacity:0.85; flex-shrink:0;">
+        <span id="atc-banner-tab-hint">去别处逛逛 →</span>
+    </div>
+</div>
+
+<!-- 2. 任务完成通知弹窗 -->
+<div id="atc-done-modal" style="
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.55); backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    display: none; align-items: flex-end; justify-content: center; z-index: 19999;
+">
+    <div id="atc-done-sheet" style="
+        background: var(--surface); width: 100%; max-width: 600px;
+        border-radius: 24px 24px 0 0; padding: 28px 24px 44px;
+        animation: atc-sheet-up 0.38s cubic-bezier(0.2, 0.8, 0.2, 1);
+    ">
+        <!-- 拖拽把手 -->
+        <div style="display:flex; justify-content:center; margin-bottom:20px;">
+            <div style="width:40px; height:4px; background:var(--border2); border-radius:2px;"></div>
+        </div>
+        <!-- 成功图标与标题 -->
+        <div style="text-align:center; margin-bottom:20px;">
+            <div id="atc-done-icon" style="
+                width:64px; height:64px; background: var(--accent2-light);
+                border-radius:50%; display:flex; align-items:center; justify-content:center;
+                margin:0 auto 14px; font-size:30px;
+                animation: atc-pop 0.4s cubic-bezier(0.34,1.56,0.64,1) 0.1s both;
+            ">✅</div>
+            <div style="font-size:18px; font-weight:800; color:var(--text); margin-bottom:6px;" id="atc-done-title">AI 分析已完成</div>
+            <div style="font-size:13px; color:var(--text2); line-height:1.5;" id="atc-done-body">结果已就绪，点击下方按钮立即查看。</div>
+        </div>
+        <!-- 操作按钮 -->
+        <button id="atc-done-jump-btn" onclick="AsyncTaskCenter._doneJump()" style="
+            width:100%; background:var(--accent); color:white; border:none;
+            border-radius:var(--radius); padding:15px; font-size:15px; font-weight:700;
+            cursor:pointer; box-shadow:0 4px 12px rgba(27,79,216,0.25); margin-bottom:10px;
+            display:flex; align-items:center; justify-content:center; gap:8px;
+            transition: 0.2s;
+        ">
+            <span id="atc-done-jump-icon">🔍</span>
+            <span id="atc-done-jump-label">查看结果</span>
+        </button>
+        <button onclick="AsyncTaskCenter._dismissDone()" style="
+            width:100%; background:transparent; border:none; color:var(--text3);
+            font-size:13px; font-weight:500; cursor:pointer; padding:10px;
+        ">我知道了，稍后查看</button>
+    </div>
+</div>
+
+<!-- 3. 动画 keyframes（独立于原有样式，无冲突风险） -->
+<style>
+@keyframes atc-spin { to { transform: rotate(360deg); } }
+@keyframes atc-sheet-up { from { transform: translateY(80px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes atc-pop { 
+    0% { transform: scale(0.5); opacity: 0; }
+    70% { transform: scale(1.1); }
+    100% { transform: scale(1); opacity: 1; }
+}
+@keyframes atc-highlight-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(27,79,216,0); }
+    40% { box-shadow: 0 0 0 8px rgba(27,79,216,0.18); }
+}
+.atc-result-highlight {
+    animation: atc-highlight-pulse 1s ease 0.1s 3;
+    border-color: var(--accent) !important;
+    transition: border-color 0.3s;
+}
+</style>
+
+<!-- 4. AsyncTaskCenter 核心 JS 模块 -->
+<script>
+/**
+ * AsyncTaskCenter v1.1
+ * 职责：监听 AI 任务生命周期事件，管理任务队列状态与用户通知。
+ * 设计原则（v1.1 升级）：
+ *   - 改用 CustomEvent 事件总线接入，彻底去除 monkey-patch，不覆盖任何全局函数
+ *   - callAIEngine 在 start/end 两处派发 ai:start / ai:end，本模块仅被动监听
+ *   - 允许多个模块（埋点、分析等）同时监听 ai:* 事件，无冲突风险
+ *   - 新增任务队列计数：Banner 显示"N 个任务进行中"，支持并发任务感知
+ *   - 内部状态完全私有，不污染全局命名空间（仅暴露 AsyncTaskCenter）
+ *   - DOM 操作仅限本模块专属元素（atc- 前缀），不触碰原有 DOM
+ */
+const AsyncTaskCenter = (() => {
+    // ── 私有状态 ──────────────────────────────────────────────
+    // 任务队列：key = action+timestamp，value = cfg 快照
+    // 使用计数器而非 Set，兼容同一 action 并发两次的极端场景
+    let _activeCount = 0;
+    let _lastEndCfg  = null; // 最近一次结束的任务配置，供弹窗使用
+    let _lastEndResultCard = null; // 最近结束任务的 resultCard DOM 引用
+
+    // 任务类型配置表
+    const TASK_CONFIG = {
+        predict_hs: {
+            title: 'HS Code 智能分析已完成',
+            body: '关税风险报告已就绪，点击查看完整分析。',
+            jumpLabel: '查看 HS 分析报告',
+            jumpIcon: '🔍',
+            targetTab: 'result',
+            resultCardId: 'ai-hs-result-card',
+            bannerText: 'AI 正在查询全球海关数据库…'
+        },
+        generate_email: {
+            title: '跟进邮件生成完成',
+            body: '商务邮件草稿已就绪，点击前往查看和复制。',
+            jumpLabel: '查看邮件草稿',
+            jumpIcon: '✉️',
+            targetTab: 'result',
+            resultCardId: 'ai-email-result-card',
+            bannerText: 'AI 正在撰写专业商务邮件…'
+        }
+    };
+
+    // ── Banner 渲染 ───────────────────────────────────────────
+    function _updateBanner() {
+        const el      = document.getElementById('atc-floating-banner');
+        const textEl  = document.getElementById('atc-banner-text');
+        const badgeEl = document.getElementById('atc-task-badge');
+        if (!el) return;
+
+        if (_activeCount <= 0) {
+            // 所有任务已结束，收起 Banner
+            el.style.opacity = '0';
+            el.style.transform = 'translateX(-50%) translateY(20px)';
+            return;
+        }
+
+        // 更新文案：单任务显示专属描述，多任务显示队列数
+        if (textEl) {
+            // 取最后一次启动的任务文案（最新优先）
+            textEl.textContent = _activeCount === 1
+                ? (window._atcLastBannerText || 'AI 正在后台思考，您可自由切换页面')
+                : `${_activeCount} 个任务进行中…`;
+        }
+
+        // 任务计数徽章
+        if (badgeEl) {
+            if (_activeCount > 1) {
+                badgeEl.textContent = _activeCount;
+                badgeEl.style.display = 'flex';
+            } else {
+                badgeEl.style.display = 'none';
+            }
+        }
+
+        // 进出场动画（强制重绘保证每次触发）
+        el.style.opacity = '0';
+        el.style.transform = 'translateX(-50%) translateY(20px)';
+        void el.offsetWidth;
+        el.style.opacity = '1';
+        el.style.transform = 'translateX(-50%) translateY(0)';
+    }
+
+    // ── 完成弹窗控制 ──────────────────────────────────────────
+    function _showDoneModal(cfg) {
+        const overlay     = document.getElementById('atc-done-modal');
+        const titleEl     = document.getElementById('atc-done-title');
+        const bodyEl      = document.getElementById('atc-done-body');
+        const iconEl      = document.getElementById('atc-done-icon');
+        const jumpLabelEl = document.getElementById('atc-done-jump-label');
+        const jumpIconEl  = document.getElementById('atc-done-jump-icon');
+        if (!overlay) return;
+        if (titleEl)     titleEl.textContent = cfg.title;
+        if (bodyEl)      bodyEl.textContent  = cfg.body;
+        if (iconEl)      iconEl.textContent  = '✅';
+        if (jumpLabelEl) jumpLabelEl.textContent = cfg.jumpLabel;
+        if (jumpIconEl)  jumpIconEl.textContent  = cfg.jumpIcon;
+        overlay.style.display = 'flex';
+    }
+
+    function _dismissDone() {
+        const overlay = document.getElementById('atc-done-modal');
+        if (overlay) overlay.style.display = 'none';
+    }
+
+    // ── 完成后跳转逻辑 ────────────────────────────────────────
+    function _doneJump() {
+        _dismissDone();
+        if (!_lastEndCfg) return;
+        if (typeof switchTab === 'function') switchTab(_lastEndCfg.targetTab);
+        setTimeout(() => {
+            const card = document.getElementById(_lastEndCfg.resultCardId);
+            if (card) {
+                card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                card.classList.add('atc-result-highlight');
+                setTimeout(() => card.classList.remove('atc-result-highlight'), 3500);
+            }
+        }, 350);
+    }
+
+    // Banner 右侧点击：去历史库逛逛（不影响任务继续运行）
+    function _bannerTabJump() {
+        if (typeof switchTab === 'function') switchTab('history');
+    }
+
+    // ── 可见性检测 ────────────────────────────────────────────
+    function _isResultVisible(resultCardId) {
+        const card = document.getElementById(resultCardId);
+        if (!card || card.style.display === 'none') return false;
+        const rect = card.getBoundingClientRect();
+        return rect.top < window.innerHeight && rect.bottom > 0 && rect.width > 0;
+    }
+
+    // ── 事件总线监听（核心接入方式，替代 monkey-patch）────────
+    window.addEventListener('ai:start', (e) => {
+        const { action } = e.detail || {};
+        const cfg = TASK_CONFIG[action] || {};
+        _activeCount++;
+        // 暂存最新任务的 banner 文案，供 _updateBanner 读取
+        window._atcLastBannerText = cfg.bannerText || 'AI 正在后台思考，您可自由切换页面';
+        _updateBanner();
+    });
+
+    window.addEventListener('ai:end', (e) => {
+        const { action, resultCard, hasContent } = e.detail || {};
+        const cfg = TASK_CONFIG[action] || {
+            title: 'AI 分析已完成', body: '结果已就绪。',
+            jumpLabel: '查看结果', jumpIcon: '🔍',
+            targetTab: 'result', resultCardId: resultCard?.id || ''
+        };
+
+        // 安全下界：计数器不低于 0
+        _activeCount = Math.max(0, _activeCount - 1);
+        _lastEndCfg = cfg;
+        _lastEndResultCard = resultCard || null;
+
+        // 先收起（或更新）Banner
+        _updateBanner();
+
+        // 智能打扰控制（仅在有内容时触发）
+        if (hasContent) {
+            const isVisible = _isResultVisible(cfg.resultCardId);
+            if (isVisible) {
+                // 用户在场：轻量高亮
+                const card = document.getElementById(cfg.resultCardId);
+                if (card) {
+                    card.classList.add('atc-result-highlight');
+                    setTimeout(() => card.classList.remove('atc-result-highlight'), 3500);
+                }
+            } else {
+                // 用户已离开：弹出完成通知
+                setTimeout(() => _showDoneModal(cfg), 200);
+            }
+        }
+    });
+
+    // 点击弹窗遮罩层关闭
+    document.addEventListener('click', (e) => {
+        const modal = document.getElementById('atc-done-modal');
+        if (modal && e.target === modal) _dismissDone();
+    });
+
+    // ── 暴露给 HTML onclick 使用的公开接口 ───────────────────
+    return { _bannerTabJump, _doneJump, _dismissDone };
+})();
+</script>
+<!-- ==================== END ASYNC TASK CENTER ==================== -->
 
 </body>
 </html>
