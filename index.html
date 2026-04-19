@@ -181,6 +181,9 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
 .history-empty { text-align: center; color: var(--text3); padding: 60px 20px; font-size: 13px; }
 .btn-clear-history { background: transparent; border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; color: var(--warn); font-size: 13px; font-weight: 600; cursor: pointer; width: 100%; margin-top: 12px; transition: 0.2s; }
 .btn-clear-history:active { background: var(--warn-light); }
+/* 历史条目恢复提示标签 */
+.history-restore-hint { font-size: 10px; color: var(--accent); font-weight: 600; margin-top: 8px; opacity: 0.7; letter-spacing: 0.3px; }
+.history-item:active .history-restore-hint { opacity: 1; }
 
 /* 市场对比与底栏 */
 .market-table { width: 100%; border-collapse: collapse; }
@@ -1453,7 +1456,7 @@ let state = {
     currentPiNo: null,  // v2.2: 缓存 PI 序号，仅在非静默核算时刷新，防止滑块拖动消耗序号
     // V7: 物流计费引擎状态（独立于 Incoterm mode，避免命名冲突）
     logisticsData: {
-        l: '', w: '', h: '', gw: '', perCtn: '', totalPcs: '', unitPrice: '',
+        l: '', w: '', h: '', gw: '', perCtn: '', totalPcs: '', uPrice: '',
         logisticsMode: 'air_sp',
         result: null  // 最终单件运费字符串，供 snapshot 落库
     }
@@ -2409,6 +2412,11 @@ function buildHistoryItemEl(item) {
     wrap.appendChild(header);
     wrap.appendChild(body);
     wrap.appendChild(sub);
+    // 恢复操作提示——让用户知道点击可恢复
+    const hint = document.createElement('div');
+    hint.className = 'history-restore-hint';
+    hint.textContent = '↩ 点击恢复至核算台';
+    wrap.appendChild(hint);
     return wrap;
 }
 
@@ -2461,7 +2469,12 @@ function saveHistory(price, settleRate, costRMB) {
         profitRate: state.profitRate,
         cost: costRMB.toFixed(2),
         rate: settleRate.toFixed(3),
-        inputs: inputsData
+        inputs: inputsData,
+        // [V7新增] 持久化物流引擎数据，供恢复时还原箱规计算器状态
+        // 仅在用户实际使用过物流引擎（result 不为 null）时才写入，避免冗余
+        logisticsData: (state.logisticsData && state.logisticsData.result)
+            ? JSON.parse(JSON.stringify(state.logisticsData))
+            : null
     };
 
     let list =[];
@@ -2472,37 +2485,88 @@ function saveHistory(price, settleRate, costRMB) {
 }
 
 function restoreHistory(id) {
-    let quoteHistoryList =[];
-    try { quoteHistoryList = JSON.parse(localStorage.getItem('quoteHistory') || '[]'); } catch(e){}
-    const record = quoteHistoryList.find(r => r.id === id);
-    if (!record || !record.inputs) return;
-    
+    // 1. 获取记录（优先从渲染缓存，次选本地存储）
+    let record = (window.__historyCache || []).find(r => r.id === id);
+    if (!record) {
+        try {
+            const local = JSON.parse(localStorage.getItem('quoteHistory') || '[]');
+            record = local.find(r => r.id === id);
+        } catch(e) {}
+    }
+    if (!record || !record.inputs) {
+        showToast('⚠️ 记录读取失败，可能数据已损坏');
+        return;
+    }
+
+    // 2. 覆盖保护：如果当前已有正在进行的核算，进行友好提示
+    if (state.lastPrice && !confirm(`确认恢复「${record.product}」？
+当前填写的参数将被覆盖。`)) return;
+
+    // 3. 执行物理填表
     Object.keys(record.inputs).forEach(key => {
         const el = document.getElementById(key);
-        if(el) {
-            if(el.type === 'checkbox') el.checked = record.inputs[key];
+        if (el) {
+            if (el.type === 'checkbox') el.checked = record.inputs[key];
             else el.value = record.inputs[key];
         }
     });
-    
-    const modeBtn = document.querySelector(`.mode-btn[data-mode="${record.mode}"]`);
-    if(modeBtn) setMode(modeBtn);
-    
-    const profitTag = document.querySelector(`.ptag[data-val="${record.profitRate}"]`);
-    if(profitTag) setProfitTag(profitTag);
-    else {
-        state.profitRate = parseFloat(record.profitRate);
-        document.getElementById('profitSlider').value = record.profitRate;
-        document.getElementById('profitDisplay').innerText = record.profitRate + '%';
-        document.querySelectorAll('.ptag').forEach(p => p.classList.remove('active'));
+
+    // 4. 还原 V7 物流引擎状态（深拷贝 state + 回写弹窗输入框）
+    if (record.logisticsData) {
+        state.logisticsData = JSON.parse(JSON.stringify(record.logisticsData));
+        const ld = state.logisticsData;
+        const ldMap = {
+            'mcL':'l', 'mcW':'w', 'mcH':'h', 'mcGw':'gw',
+            'mcPerCtn':'perCtn', 'mcTotalPcs':'totalPcs', 'mcUnitPrice':'uPrice'
+        };
+        Object.entries(ldMap).forEach(([domId, dataKey]) => {
+            const input = document.getElementById(domId);
+            if (input && ld[dataKey] !== undefined) input.value = ld[dataKey];
+        });
+        const modeEl = document.getElementById('mcLogisticsMode');
+        if (modeEl && ld.logisticsMode) modeEl.value = ld.logisticsMode;
     }
-    
+
+    // 5. 还原贸易术语 UI
+    const modeBtn = document.querySelector(`.mode-btn[data-mode="${record.mode}"]`);
+    if (modeBtn) setMode(modeBtn);
+
+    // 6. 还原利润率（逻辑 + UI 滑块 + 标签）
+    state.profitRate = parseFloat(record.profitRate);
+    const slider = document.getElementById('profitSlider');
+    if (slider) {
+        slider.value = record.profitRate;
+        document.getElementById('profitDisplay').innerText = record.profitRate + '%';
+    }
+    document.querySelectorAll('.ptag').forEach(p => {
+        p.classList.toggle('active', parseFloat(p.dataset.val) === state.profitRate);
+    });
+
+    // 7. 强制触发业务联动逻辑（进项票类型 / 国家警告 / WITS 初始态）
     onInputVatChange(document.getElementById('inputVatRate'));
-    onCountryChange(); // onCountryChange already resets WITS UI state in V5
-    
-    showToast('✅ 历史业务档案已成功恢复入表');
+    onCountryChange();
+
+    // 8. 清除过往 AI 结果卡片，防止数据误导
+    const aiIds = ['ai-hs-result-card', 'ai-email-result-card'];
+    aiIds.forEach(id => {
+        const card = document.getElementById(id);
+        if (card) card.style.display = 'none';
+    });
+
+    // 9. 执行静默核算：同步财务数据并解锁 Tab 拦截
+    if (typeof calculate === 'function') calculate(true);
+
+    // 10. 视图平滑跳转 + 焦点引导
     switchTab('calc');
-    nextStep(1); 
+    nextStep(1);
+    setTimeout(() => {
+        const costEl = document.getElementById('costRMB');
+        if (costEl) {
+            costEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            costEl.focus();
+        }
+        showToast(`✅ 已还原历史报价：${record.product}`);
+    }, 400);
 }
 
 function clearHistory() {
@@ -2705,7 +2769,7 @@ function openMiniCalc(targetId, titleName) {
     }
     // 恢复上次物流引擎的其余字段
     const ld = state.logisticsData;
-    ['l','w','h','gw','perCtn','unitPrice'].forEach(key => {
+    ['l','w','h','gw','perCtn','uPrice'].forEach(key => {
         const el = document.getElementById('mc' + key.charAt(0).toUpperCase() + key.slice(1));
         if (el && ld[key]) el.value = ld[key];
     });
@@ -3296,6 +3360,8 @@ function renderHistoryList(list) {
     list.forEach(item => frag.appendChild(buildHistoryItemEl(item)));
     container.textContent = '';
     container.appendChild(frag);
+    // 缓存当前渲染列表，供 restoreHistory 在云端模式下查找 record（localStorage 可能无此条目）
+    window.__historyCache = list;
 }
 
 
@@ -4262,7 +4328,7 @@ function resetAll() {
 
     // V7: 清空物流计费引擎状态与弹窗输入字段
     state.logisticsData = {
-        l: '', w: '', h: '', gw: '', perCtn: '', totalPcs: '', unitPrice: '',
+        l: '', w: '', h: '', gw: '', perCtn: '', totalPcs: '', uPrice: '',
         logisticsMode: 'air_sp', result: null
     };
     ['mcL','mcW','mcH','mcGw','mcPerCtn','mcTotalPcs','mcUnitPrice'].forEach(id => {
