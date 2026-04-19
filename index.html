@@ -4066,36 +4066,48 @@ async function callAIEngine(action, payload, btnIconEl, btnLabelEl, loadingText,
             throw new Error(`HTTP ${response.status}: ${errText.slice(0, 100)}`);
         }
 
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder('utf-8');
-        let buffer = '';
+        // 【手术级补丁 1】：在 try 外面声明 reader，确保 finally 能够访问到它
+        let reader = null; 
 
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
+        try {
+            // 【手术级补丁 2】：把流的处理逻辑包裹进 try 块中
+            reader = response.body.getReader();
+            const decoder = new TextDecoder('utf-8');
+            let buffer = '';
 
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split('\n');
-            buffer = lines.pop();
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
 
-            for (const line of lines) {
-                if (!line.startsWith('data: ')) continue;
-                const raw = line.slice(6).trim();
-                if (!raw || raw === '[DONE]') continue;
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop();
 
-                let parsed;
-                try { parsed = JSON.parse(raw); } catch (e) { continue; }
+                for (const line of lines) {
+                    if (!line.startsWith('data: ')) continue;
+                    const raw = line.slice(6).trim();
+                    if (!raw || raw === '[DONE]') continue;
 
-                if (parsed.error) throw new Error(parsed.error);
+                    let parsed;
+                    try { parsed = JSON.parse(raw); } catch (e) { continue; }
 
-                if (parsed.chunk) {
-                    if (outputEl.tagName === 'TEXTAREA') {
-                        outputEl.value += parsed.chunk;
-                        outputEl.scrollTop = outputEl.scrollHeight;
-                    } else {
-                        outputEl.textContent += parsed.chunk;
+                    if (parsed.error) throw new Error(parsed.error);
+
+                    if (parsed.chunk) {
+                        if (outputEl.tagName === 'TEXTAREA') {
+                            outputEl.value += parsed.chunk;
+                            outputEl.scrollTop = outputEl.scrollHeight;
+                        } else {
+                            outputEl.textContent += parsed.chunk;
+                        }
                     }
                 }
+            }
+        } finally {
+            // 【手术级补丁 3】：无论成功、报错还是超时重试，绝对保证回收底层流资源
+            if (reader) {
+                try { await reader.cancel(); } catch (e) {} // 明确告诉浏览器：切断底层网络接收
+                reader.releaseLock(); // 明确告诉 JS 引擎：释放对象锁，赶紧回收内存
             }
         }
     };
