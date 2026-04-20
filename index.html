@@ -1060,7 +1060,20 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
         </div>
 
         <!-- v2.2: 分享按钮移至英雄卡外部，独立全宽，消除视觉冲突 -->
-        <button class="share-fab" onclick="openShareSheet()" title="生成分享链接">🔗 生成分享链接</button>
+        <!-- V7.4.0: 双排操作区 -->
+        <div style="display: flex; gap: 10px; margin-top: 12px;">
+            <button class="share-fab" id="btn-manual-save" style="margin-top:0; flex:1.2; background: var(--accent); color: white;" onclick="manualSaveHistory()">
+                <span id="save-icon">💾</span> <span id="save-label">存入历史库</span>
+            </button>
+            <button class="share-fab" style="margin-top:0; flex:1;" onclick="openShareSheet()">
+                🔗 生成分享链接
+            </button>
+        </div>
+        
+        <!-- V7.4.0: 数据归档声明 -->
+        <div class="disclaimer" style="margin-top: 16px; background: var(--surface2); padding: 12px 14px; border-radius: var(--radius-sm); border-left: 3px solid var(--accent); text-align: left; color: var(--text2);">
+            💡 <b>数据归档说明：</b>为避免反复调参试算产生过多冗余记录，系统已切换至<b>手动归档模式</b>。当您获得满意或需要的核算结果时，请务必点击上方<b>「存入历史库」</b>按钮，将其保存至历史库以便后续调取使用。
+        </div>
         
         <div class="breakdown-grid">
             <div class="bk-item"><div style="font-size:11px; color:var(--text3);">单件绝对净利</div><div class="bk-val" id="bk-profit" style="color:var(--accent2);">$0.00</div></div>
@@ -1460,7 +1473,8 @@ let state = {
         logisticsMode: 'air_sp',
         result: null
 }, // 👈 确保这里只有一个干净的逗号和回车
-aiAbortController: null 
+aiAbortController: null,
+isSaved: false // V7.4.0新增：当前展示的结果是否已保存
 };
 
 // [补丁1.A] 中央 DOM 注册表：将散落在各处的查询集中管理，提升维护性 (解决 四.2)
@@ -1490,6 +1504,25 @@ const UI = {
     }
 };
 
+// ==================== V7.4.0 状态哨兵 ====================
+// 统一管控保存按钮的 UI 重置，防止逻辑散落在各处
+function resetSaveState(force = false) {
+    // 如果本来就没保存，且不强制执行，则直接跳过，节省浏览器性能
+    if (!state.isSaved && !force) return; 
+    
+    state.isSaved = false;
+    const saveBtn = document.getElementById('btn-manual-save');
+    const saveIcon = document.getElementById('save-icon');
+    const saveLabel = document.getElementById('save-label');
+    
+    if (saveBtn) {
+        saveBtn.style.background = 'var(--accent)';
+        saveBtn.style.borderColor = 'var(--accent-light)';
+    }
+    if (saveIcon) saveIcon.textContent = '💾';
+    if (saveLabel) saveLabel.textContent = '存入历史库';
+}
+
 // [补丁1.B] 防抖工具函数：防止用户输入时频繁触发重算造成卡顿 (解决 五.2)
 function debounce(fn, ms = 300) {
     let timeoutId;
@@ -1500,7 +1533,11 @@ function debounce(fn, ms = 300) {
 }
 
 // [补丁1.C] 自动核算逻辑：只要底价有效，即在后台静默同步数据 (解决 五.2)
+
 const autoCalculate = debounce(() => {
+    // 哨兵介入：只要触发计算（即用户改了输入框的值），立刻重置保存状态
+    resetSaveState();
+
     // 只有当进货价大于 0 时才联动，避免初始空值报错
     if (UI.inputs.costRMB && UI.inputs.costRMB.value > 0) {
         // 调用 calculate 并传入 true，表示“静默核算”，不强制跳转页面
@@ -1712,6 +1749,10 @@ function setProfitTag(el) {
     state.profitRate = parseFloat(val);
     document.getElementById('profitSlider').value = val;
     document.getElementById('profitDisplay').innerText = val + '%';
+
+// V7.4.0新增
+    resetSaveState();
+    if (typeof autoCalculate === 'function') autoCalculate();
 }
 
 // ==================== 数据库与互动 ====================
@@ -2154,6 +2195,10 @@ function setMode(el) {
     document.getElementById('row-dest')     ?.classList.toggle('dimmed', !showDest);
     document.getElementById('row-insurance')?.classList.toggle('dimmed', !showIns);
     document.getElementById('section-tax')  ?.classList.toggle('dimmed', !showTax);
+
+// V7.4.0新增
+resetSaveState();
+    if (typeof autoCalculate === 'function') autoCalculate();
 }
 
 // ==================== V2 核心财务中枢 ====================
@@ -2311,7 +2356,6 @@ if (fab) {
     // 主动核算（非静默）：刷新 PI 序号、保存历史并跳转结果页
     if (!isSilent) {
         state.currentPiNo = generatePINo(); // v2.2: 仅此处消耗序号，静默核算不触发
-        saveHistory(price, settleRate, costRMB);
         switchTab('result');
         showToast('🚀 核算完成，已生成专业看板');
     }
@@ -2493,6 +2537,40 @@ function saveHistory(price, settleRate, costRMB) {
     loadHistory();
 }
 
+// ==================== V7.4.0 手动归档引擎 ====================
+function manualSaveHistory() {
+    if (!state.lastPrice) {
+        showToast('⚠️ 请先完成核算再存入历史库');
+        return;
+    }
+    
+    if (state.isSaved) {
+        showToast('✅ 当前结果已存入，请勿重复保存');
+        return;
+    }
+
+    // 抓取当前主界面的核心成本用于存档
+    const costRMB = parseFloat(UI.inputs.costRMB.value) || 0;
+    
+    // 调用底层的写入逻辑（同时支持本地与云端）
+    saveHistory(state.lastPrice, state.lastSettleRate, costRMB);
+    
+    // 更新按钮状态为“已存入”
+    state.isSaved = true;
+    const saveBtn = document.getElementById('btn-manual-save');
+    const saveIcon = document.getElementById('save-icon');
+    const saveLabel = document.getElementById('save-label');
+    
+    if (saveBtn) {
+        saveBtn.style.background = 'var(--accent2)'; // 变成绿色
+        saveBtn.style.borderColor = 'var(--accent2)';
+        saveIcon.textContent = '✅';
+        saveLabel.textContent = '已存入历史库';
+    }
+    
+    showToast(`💾 [${document.getElementById('productName').value || '未命名产品'}] 成功保存！`);
+}
+
 function restoreHistory(id) {
     abortRunningAI(); // V7.3.0新增：恢复记录时中止 AI
     // 1. 获取记录（优先从渲染缓存，次选本地存储）
@@ -2636,6 +2714,10 @@ function onCountryChange() {
         witsLabel.textContent = '查询实时 MFN 关税（WITS 世界银行数据库）';
     }
     if (witsChip) witsChip.classList.add('hidden');
+
+// V7.4.0新增
+    resetSaveState();
+    if (typeof autoCalculate === 'function') autoCalculate();
 }
 
 function toggleHS() { state.hsOpen = !state.hsOpen; document.getElementById('hs-collapsible').classList.toggle('open', state.hsOpen); document.getElementById('hs-arrow').innerText = state.hsOpen?'▲':'▼'; }
@@ -2659,6 +2741,9 @@ function selectHS(idx) {
         document.getElementById('witsQueryIcon').textContent = '🌐';
         document.getElementById('witsQueryLabel').textContent = '查询实时 MFN 关税（WITS 世界银行数据库）';
     }
+// V7.4.0新增
+    resetSaveState();
+    if (typeof autoCalculate === 'function') autoCalculate();
 }
 
 function onInputVatChange(sel) {
@@ -4425,6 +4510,7 @@ function resetAll() {
     state.manualRate     = false;
     state.currentPiNo   = null;
     state.hsOpen         = false;
+state.isSaved        = false;
 
     // 12. 重置 Tab 锁定状态 & 结果页面
     UI.containers.tabs.forEach(t => t.classList.add('locked'));
@@ -4460,6 +4546,9 @@ function resetAll() {
         if (icon) icon.textContent = '✨';
         if (label) label.textContent = 'AI 一键生成跟进邮件';
     }
+
+// 16. 重置“存入历史库”按钮的 UI 状态（恢复蓝色初始态）
+    resetSaveState(true); // 传入 true 强制复位
 
     showToast('✅ 已重置，开始新订单核算');
 }
