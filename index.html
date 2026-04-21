@@ -750,6 +750,35 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
         padding: 0 14px;
     }
 }
+/* ==================== V8: 历史库批量操作与 Excel 导出系统 ==================== */
+.history-action-bar {
+    display: flex; justify-content: space-between; align-items: center;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 10px 14px; margin-bottom: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04); position: sticky; top: 66px; z-index: 90;
+}
+.history-action-left { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--text); cursor: pointer; }
+.history-checkbox {
+    appearance: none; -webkit-appearance: none; width: 20px; height: 20px;
+    border: 2px solid var(--border2); border-radius: 6px; background: var(--surface);
+    cursor: pointer; position: relative; transition: all 0.2s; flex-shrink: 0;
+}
+.history-checkbox:checked { background: var(--accent); border-color: var(--accent); }
+.history-checkbox:checked::after {
+    content: ''; position: absolute; top: 2px; left: 6px; width: 4px; height: 9px;
+    border: solid white; border-width: 0 2px 2px 0; transform: rotate(45deg);
+}
+.history-item.export-mode { display: flex; align-items: center; gap: 14px; padding: 14px 16px; }
+.history-cb-wrap { padding: 10px 10px 10px 0; display: flex; align-items: center; justify-content: center; margin-left: -6px; }
+.history-content-wrap { flex: 1; min-width: 0; }
+.btn-export-excel {
+    background: #0EA47A; color: white; border: none; border-radius: var(--radius-sm);
+    padding: 8px 14px; font-size: 12px; font-weight: 700; cursor: pointer;
+    display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 8px rgba(14,164,122,0.25);
+    transition: transform 0.15s, background 0.2s;
+}
+.btn-export-excel:active { transform: scale(0.96); background: #0b8a65; }
+.btn-export-excel.disabled { opacity: 0.5; pointer-events: none; filter: grayscale(1); box-shadow: none; }
 </style>
 </head>
 <body>
@@ -757,7 +786,7 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
 <div class="header">
   <div class="header-left" style="display:flex; align-items:center;">
     <div class="header-logo">🚢</div>
-    <div class="header-title">外贸报价计算器 <span style="color:var(--accent);font-size:11px;background:var(--accent-light);padding:2px 6px;border-radius:6px;margin-left:4px;">V7</span></div>
+    <div class="header-title">外贸报价计算器 <span style="color:var(--accent);font-size:11px;background:var(--accent-light);padding:2px 6px;border-radius:6px;margin-left:4px;">V8</span></div>
   </div>
   <div style="display:flex; align-items:center; gap:8px;">
     <!-- 用户状态按钮 -->
@@ -1137,10 +1166,12 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
 </div>
 </div>
 </div>
-<!-- PAGE 4: 历史记录 (V2 新增底层系统) -->
+<!-- PAGE 4: 历史记录 (V2 新增底层系统 & V8 Excel 批量导出) -->
 <div id="page-history" class="page">
     <div class="card" style="padding: 16px; background:transparent; border:none; box-shadow:none;">
-        <div style="font-size: 14px; font-weight: 700; margin-bottom: 16px; color: var(--text);">核算历史 <span id="historySourceLabel" style="font-size:11px; font-weight:400; color:var(--text3);">（本机）</span></div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 16px;">
+            <div style="font-size: 14px; font-weight: 700; color: var(--text);">核算历史 <span id="historySourceLabel" style="font-size:11px; font-weight:400; color:var(--text3);">（本机）</span></div>
+        </div>
         
         <!-- 游客版云同步引导横幅 -->
         <div id="syncBanner" class="sync-banner" onclick="openAuthSheet()" style="display:none;">
@@ -1149,6 +1180,18 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
             <b>登录后历史记录自动同步云端</b><br>跨设备访问，永不丢失
           </div>
           <div class="sync-banner-cta">立即登录 →</div>
+        </div>
+
+        <!-- V8: 批量导出操作栏 -->
+        <div class="history-action-bar" id="historyActionBar" style="display:none;">
+            <!-- 修复全选交互：将外层点击代理给 checkbox 原生行为 -->
+<div class="history-action-left" onclick="document.getElementById('historySelectAllCb').click()">
+    <input type="checkbox" class="history-checkbox" id="historySelectAllCb" onclick="event.stopPropagation(); toggleSelectAllHistory()">
+    <span id="historySelectAllText">全选</span>
+</div>
+            <button class="btn-export-excel disabled" id="btnExportExcel" onclick="exportSelectedToExcel()">
+                <span id="excelBtnIcon">📊</span> <span id="excelBtnText">导出 Excel</span>
+            </button>
         </div>
         
         <div id="historyContainer">
@@ -2442,13 +2485,33 @@ function renderPI() {
 // item.id 来自 Date.now()（整数），但仍可能被恶意篡改为含 JS 的字符串，
 // 因此通过 dataset 传递并在事件回调中以 Number() 强制转型，
 // 消除 onclick="restoreHistory(${item.id})" 的注入路径。
+// ====================[P1-Fix-1 & V8] DOM-safe 历史条目构建器 ====================
 function buildHistoryItemEl(item) {
     const wrap = document.createElement('div');
-    wrap.className = 'history-item';
-    // 用 dataset 传递 id，避免任何 HTML 注入
+    wrap.className = 'history-item export-mode'; 
     wrap.dataset.historyId = String(item.id);
-    wrap.addEventListener('click', function() {
-        restoreHistory(Number(this.dataset.historyId));
+
+    // V8: 复选框包裹层 (拦截冒泡，防误触还原)
+    const cbWrap = document.createElement('div');
+cbWrap.className = 'history-cb-wrap';
+cbWrap.addEventListener('click', (e) => {
+    e.stopPropagation();
+    // 扩大热区：点击周围空白同样触发复选框勾选
+    if (e.target !== cb) cb.click();
+});
+    
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.className = 'history-checkbox history-item-cb';
+    cb.dataset.id = item.id;
+    cb.addEventListener('change', updateExportButtonState);
+    cbWrap.appendChild(cb);
+
+    // V8: 原内容包裹层 (绑定还原事件)
+    const contentWrap = document.createElement('div');
+    contentWrap.className = 'history-content-wrap';
+    contentWrap.addEventListener('click', function() {
+        restoreHistory(Number(wrap.dataset.historyId));
     });
 
     const header = document.createElement('div');
@@ -2456,7 +2519,6 @@ function buildHistoryItemEl(item) {
     const dateSpan = document.createElement('span');
     dateSpan.textContent = '🕒 ' + (item.date || '');
     const metaSpan = document.createElement('span');
-    // mode / profitRate 均为受控字段，但仍走 textContent 而非 innerHTML
     metaSpan.textContent = (item.mode || '') + ' / ' + (item.profitRate || '') + '% 净利';
     header.appendChild(dateSpan);
     header.appendChild(metaSpan);
@@ -2476,14 +2538,17 @@ function buildHistoryItemEl(item) {
     sub.style.cssText = 'font-size:11px;color:var(--text3);margin-top:6px;';
     sub.textContent = '进货成本: ¥' + formatMoney(item.cost) + ' / 锁汇参考: ' + (item.rate || '');
 
-    wrap.appendChild(header);
-    wrap.appendChild(body);
-    wrap.appendChild(sub);
-    // 恢复操作提示——让用户知道点击可恢复
     const hint = document.createElement('div');
     hint.className = 'history-restore-hint';
-    hint.textContent = '↩ 点击恢复至核算台';
-    wrap.appendChild(hint);
+    hint.textContent = '↩ 点击右侧内容区恢复至核算台';
+
+    contentWrap.appendChild(header);
+    contentWrap.appendChild(body);
+    contentWrap.appendChild(sub);
+    contentWrap.appendChild(hint);
+
+    wrap.appendChild(cbWrap);
+    wrap.appendChild(contentWrap);
     return wrap;
 }
 
@@ -2514,11 +2579,12 @@ function loadHistory() {
 }
 
 function saveHistory(price, settleRate, costRMB) {
-    const PERSIST_FIELDS = [
+    const PERSIST_FIELDS =[
         'costRMB', 'isRebate', 'rebateRate', 'inputVatRate', 'domesticFreight', 
         'shippingFee', 'destFee', 'insuranceRate', 'taxRate', 'vatRate', 
         'exchangeRate', 'rateBuffer', 'paymentFee', 'productName', 'moqInput', 
-        'portInput', 'sellerName', 'buyerName', 'paymentTerm', 'leadTime', 'validDays'
+        'portInput', 'sellerName', 'buyerName', 'paymentTerm', 'leadTime', 'validDays',
+        'countrySelect' // V8 核心修复：持久化目标国家，供 Excel 分析调用
     ];
     
     const inputsData = {};
@@ -2537,8 +2603,6 @@ function saveHistory(price, settleRate, costRMB) {
         cost: costRMB.toFixed(2),
         rate: settleRate.toFixed(3),
         inputs: inputsData,
-        // [V7新增] 持久化物流引擎数据，供恢复时还原箱规计算器状态
-        // 仅在用户实际使用过物流引擎（result 不为 null）时才写入，避免冗余
         logisticsData: (state.logisticsData && state.logisticsData.result)
             ? JSON.parse(JSON.stringify(state.logisticsData))
             : null
@@ -3484,22 +3548,30 @@ loadHistory = async function() {
 };
 
 // 抽离历史渲染逻辑（供云端数据使用）
-// [P1-Fix-1] 复用 buildHistoryItemEl，与 loadHistory 行为完全对齐，消除双份注入路径
+// 彻底替换原 renderHistoryList，植入顶部操作栏控制逻辑
 function renderHistoryList(list) {
     const container = document.getElementById('historyContainer');
     if (!container) return;
+    
+    const actionBar = document.getElementById('historyActionBar');
+    
     if (!list || list.length === 0) {
         container.innerHTML = '<div class="history-empty">暂无历史记录<br><span style="font-size:11px;opacity:0.6;display:block;margin-top:6px;">您进行的计算将自动同步至云端</span></div>';
+        if (actionBar) actionBar.style.display = 'none';
         return;
     }
+    
+    if (actionBar) {
+        actionBar.style.display = 'flex';
+        updateExportButtonState(); // 渲染时自检状态
+    }
+
     const frag = document.createDocumentFragment();
     list.forEach(item => frag.appendChild(buildHistoryItemEl(item)));
     container.textContent = '';
     container.appendChild(frag);
-    // 缓存当前渲染列表，供 restoreHistory 在云端模式下查找 record（localStorage 可能无此条目）
     window.__historyCache = list;
 }
-
 
 // ==================== SHARE SYSTEM v2 ====================
 /**
@@ -4053,6 +4125,289 @@ function openToolClean() {
     document.body.style.overflow = '';
     history.replaceState(null, '', window.location.pathname);
     switchTab('calc');
+}
+
+// ==================== V8: 批量导出与无头重算引擎 ====================
+
+function toggleSelectAllHistory() {
+    // 剔除了冗余的取反逻辑，直接以原生 checkbox 的真实状态为准向下同步
+    const isChecked = document.getElementById('historySelectAllCb').checked;
+    document.querySelectorAll('.history-item-cb').forEach(cb => cb.checked = isChecked);
+    updateExportButtonState();
+}
+
+function updateExportButtonState() {
+    const checkboxes = document.querySelectorAll('.history-item-cb');
+    const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+    const btn = document.getElementById('btnExportExcel');
+    const mainCb = document.getElementById('historySelectAllCb');
+    const textSpan = document.getElementById('historySelectAllText');
+
+    if (checkedCount > 0) {
+        btn.classList.remove('disabled');
+        document.getElementById('excelBtnText').textContent = `导出 ${checkedCount} 项`;
+    } else {
+        btn.classList.add('disabled');
+        document.getElementById('excelBtnText').textContent = '导出 Excel';
+    }
+
+    if (checkboxes.length > 0) {
+        mainCb.checked = (checkedCount === checkboxes.length);
+        textSpan.textContent = (checkedCount === checkboxes.length) ? '取消全选' : '全选';
+    }
+}
+
+async function loadExcelJS() {
+    if (window.ExcelJS) return window.ExcelJS;
+    const urls =[
+        'https://cdn.jsdelivr.net/npm/exceljs@4.3.0/dist/exceljs.min.js',
+        'https://unpkg.com/exceljs@4.3.0/dist/exceljs.min.js',
+        'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js'
+    ];
+    for (let url of urls) {
+        try {
+            await new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = url;
+                script.onload = resolve;
+                script.onerror = reject;
+                document.head.appendChild(script);
+                setTimeout(() => reject(new Error('CDN Timeout')), 3500);
+            });
+            if (window.ExcelJS) return window.ExcelJS;
+        } catch (e) {
+            console.warn(`[ExcelJS] 节点访问受阻: ${url}，执行容灾倒换...`);
+        }
+    }
+    throw new Error('网络受限，无法加载导出引擎');
+}
+
+function headlessRecalculate(record) {
+    const inputs = record.inputs || {};
+    const costRMB = parseFloat(inputs.costRMB) || 0;
+    const inputVatRate = (parseFloat(inputs.inputVatRate) || 13) / 100;
+    const isRebate = inputs.isRebate && inputVatRate > 0;
+    const rebateRate = parseFloat(inputs.rebateRate) || 0;
+    const exRate = parseFloat(inputs.exchangeRate) || 7.15;
+    const buffer = Math.max(0, parseFloat(inputs.rateBuffer) || 0);
+    const payFee = (parseFloat(inputs.paymentFee) || 0) / 100;
+    const insRate = (parseFloat(inputs.insuranceRate) || 0) / 100;
+    const taxRate = (parseFloat(inputs.taxRate) || 0) / 100;
+    const vatRate = (parseFloat(inputs.vatRate) || 0) / 100;
+    const targetProfitRate = (parseFloat(record.profitRate) || 20) / 100;
+    const mode = record.mode || 'FOB';
+
+    const settleRate = financialRound(exRate - buffer, 4);
+    const excludeTaxPrice = costRMB / (1 + inputVatRate);
+    const taxDiffAdj = excludeTaxPrice * Math.max(0, inputVatRate - (rebateRate / 100));
+    const rebateAmt = isRebate ? financialRound(excludeTaxPrice * (rebateRate / 100) - taxDiffAdj, 2) : 0;
+
+    const domFreight = mode === 'EXW' ? 0 : (parseFloat(inputs.domesticFreight) || 0);
+    const activeShipUSD =['CIF', 'DAP', 'DDP'].includes(mode) ? (parseFloat(inputs.shippingFee) || 0) : 0;
+    const activeDestUSD = ['DAP', 'DDP'].includes(mode) ? (parseFloat(inputs.destFee) || 0) : 0;
+    const activeInsRate =['CIF', 'DAP', 'DDP'].includes(mode) ? insRate : 0;
+
+    const fobUSD = financialRound((costRMB + domFreight - rebateAmt) / settleRate, 4);
+
+    const denBase = 1 - targetProfitRate - payFee;
+    const denFull = denBase - 1.1 * activeInsRate;
+
+    let price = 0, duty = 0, freight = 0;
+    if (mode === 'EXW' || mode === 'FOB') { price = fobUSD / Math.max(0.01, denBase); } 
+    else if (mode === 'CIF') { price = (fobUSD + activeShipUSD) / Math.max(0.01, denFull); freight = activeShipUSD + price * 1.1 * activeInsRate; } 
+    else if (mode === 'DAP') { price = (fobUSD + activeShipUSD + activeDestUSD) / Math.max(0.01, denFull); freight = activeShipUSD + activeDestUSD + price * 1.1 * activeInsRate; } 
+    else if (mode === 'DDP') {
+        const cifCost = fobUSD + activeShipUSD + activeDestUSD;
+        duty = cifCost * (taxRate + (1 + taxRate) * vatRate);
+        price = (cifCost + duty) / Math.max(0.01, denFull);
+        freight = activeShipUSD + activeDestUSD + price * 1.1 * activeInsRate;
+    }
+
+    price = financialRound(price, 4);
+    const insAmt = financialRound(price * 1.1 * activeInsRate, 2);
+    const netProfitUSD = financialRound(price - (fobUSD + activeShipUSD + activeDestUSD + duty + price * payFee + insAmt), 2);
+    
+    const rawShip = parseFloat(inputs.shippingFee) || 0;
+    const rawDest = parseFloat(inputs.destFee) || 0;
+    const cifAssumed = fobUSD + rawShip + rawDest;
+    const dutyAssumed = cifAssumed * (taxRate + (1 + taxRate) * vatRate);
+    const ddpEquiv = financialRound((cifAssumed + dutyAssumed) / Math.max(0.05, denFull), 4);
+
+    let moqNum = 1;
+    const moqStr = inputs.moqInput || '';
+    const parsedMoq = parseInt(moqStr.replace(/\D/g, ''), 10);
+    if (parsedMoq > 0) moqNum = parsedMoq;
+
+    // V8: 国家编码回显处理
+    const countryKey = inputs.countrySelect;
+    let countryName = countryKey || '未定';
+    if (countryKey && typeof COUNTRIES !== 'undefined' && COUNTRIES[countryKey]) {
+        countryName = COUNTRIES[countryKey].name;
+    }
+
+    let logisticsStr = '未提供';
+    if (record.logisticsData && record.logisticsData.l) {
+        const ld = record.logisticsData;
+        const modeMap = { 'sea': '海运RT', 'sea_kg': '海派KG', 'rail': '铁路KG', 'air': '标准空运', 'air_sp': '空派专线', 'express': '快递' };
+        logisticsStr = `${ld.l}*${ld.w}*${ld.h}cm | ${ld.gw}kg/箱 | ${modeMap[ld.logisticsMode]||ld.logisticsMode}`;
+    }
+
+    return {
+        settleRate, rebateAmt, freight: financialRound(freight, 2), duty: financialRound(duty, 2), 
+        netProfitUSD, ddpEquiv, price, totalAmount: financialRound(price * moqNum, 2), 
+        moqStr, moqNum, logisticsStr, countryName
+    };
+}
+
+// [重构] ExcelJS 导出引擎：修复金额格式化错位、增加双币种前缀、修复下载文件名时区
+async function exportSelectedToExcel() {
+    const checkboxes = Array.from(document.querySelectorAll('.history-item-cb')).filter(cb => cb.checked);
+    if (checkboxes.length === 0) return;
+
+    const btn = document.getElementById('btnExportExcel');
+    const originalText = document.getElementById('excelBtnText').textContent;
+    btn.classList.add('disabled');
+    document.getElementById('excelBtnText').textContent = '处理中...';
+    document.getElementById('excelBtnIcon').textContent = '⏳';
+
+    try {
+        await loadExcelJS();
+
+        const historyCache = window.__historyCache || JSON.parse(localStorage.getItem('quoteHistory') || '[]');
+        const selectedRecords = checkboxes.map(cb => historyCache.find(r => String(r.id) === cb.dataset.id)).filter(Boolean);
+
+        const workbook = new ExcelJS.Workbook();
+        workbook.creator = '专业外贸报价计算器 Pro';
+        const sheet = workbook.addWorksheet('报价历史库', { views:[{ state: 'frozen', xSplit: 3, ySplit: 3 }] });
+
+        sheet.mergeCells('A1:X1');
+        const warningCell = sheet.getCell('A1');
+        warningCell.value = '🔒 内部机密报价底稿，请勿外传！ (Confidential - Internal Use Only)';
+        warningCell.font = { color: { argb: 'FFFFFFFF' }, bold: true, size: 14 };
+        warningCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE74C3C' } };
+        warningCell.alignment = { horizontal: 'center', vertical: 'middle' };
+
+        const headersLayout =[
+            { title: '基础与制单信息', color: 'FFD9E1F2', cols:[
+                { k: 'product', w: 25, n: '产品名称' }, { k: 'mode', w: 12, n: '贸易条款' },
+                { k: 'price', w: 15, n: '建议报价(USD)' }, { k: 'total', w: 18, n: '订单预估总额(USD)' },
+                { k: 'moq', w: 15, n: '起订量(文本)' }, { k: 'pi', w: 22, n: 'PI 序号 / 买方' },
+                { k: 'lead', w: 15, n: '交货期' }
+            ]},
+            { title: '国内采购与费用', color: 'FFFFF2CC', cols:[
+                { k: 'costRmb', w: 16, n: '含税底价(¥)' }, { k: 'rebateAmt', w: 16, n: '退税净收入(¥)' },
+                { k: 'domFreight', w: 16, n: '国内运杂费(¥)' }
+            ]},
+            { title: '国际物流与税率', color: 'FFE2EFDA', cols:[
+                { k: 'country', w: 12, n: '目标国家' }, { k: 'tax', w: 15, n: '关税% / VAT%' },
+                { k: 'ship', w: 15, n: '国际主运费($)' }, { k: 'dest', w: 15, n: '目的港费($)' },
+                { k: 'dutyAmt', w: 15, n: '目标国总税金($)' }, { k: 'logistics', w: 30, n: '物流计费测算底稿' }
+            ]},
+            { title: '财务风控参数', color: 'FFF2F2F2', cols:[
+                { k: 'exRate', w: 12, n: '中间汇率' }, { k: 'buffer', w: 12, n: '汇率缓冲' },
+                { k: 'settleRate', w: 15, n: '安全结汇点位' }, { k: 'payFee', w: 12, n: '收款费率%' },
+                { k: 'profitRate', w: 15, n: '预期净利润率%' }
+            ]},
+            { title: '核心核算结果', color: 'FFC6E0B4', cols:[
+                { k: 'netProfit', w: 18, n: '单件绝对净利($)' }, { k: 'freightAmt', w: 18, n: '国际段总成本($)' },
+                { k: 'ddpEquiv', w: 22, n: '买家DDP预估落地价($)' }
+            ]}
+        ];
+
+        let colIndex = 1;
+        const colDefinitions =[];
+        const tier1Row = sheet.getRow(2);
+        const tier2Row = sheet.getRow(3);
+        tier1Row.height = 25; tier2Row.height = 30;
+
+        headersLayout.forEach(group => {
+            const startCol = colIndex;
+            group.cols.forEach(c => {
+                const cell2 = tier2Row.getCell(colIndex);
+                cell2.value = c.n;
+                cell2.font = { bold: true, color: { argb: 'FF333333' } };
+                cell2.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: group.color } };
+                cell2.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+                cell2.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+                colDefinitions.push({ key: c.k, width: c.w });
+                colIndex++;
+            });
+            const endCol = colIndex - 1;
+            sheet.mergeCells(2, startCol, 2, endCol);
+            const cell1 = tier1Row.getCell(startCol);
+            cell1.value = group.title;
+            cell1.font = { bold: true, size: 12, color: { argb: 'FF1A1A1A' } };
+            cell1.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: group.color } };
+            cell1.alignment = { horizontal: 'center', vertical: 'middle' };
+            cell1.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+        });
+        sheet.columns = colDefinitions;
+
+        selectedRecords.forEach(record => {
+            const inp = record.inputs || {};
+            const math = headlessRecalculate(record);
+            
+            const rowData = {
+                product: record.product, mode: record.mode, price: math.price, total: math.totalAmount,
+                moq: math.moqStr, pi: (inp.piNo || 'TBD') + (inp.buyerName ? `\n(${inp.buyerName})` : ''), 
+                lead: inp.leadTime || '未定',
+                costRmb: parseFloat(inp.costRMB)||0, rebateAmt: math.rebateAmt, domFreight: parseFloat(inp.domesticFreight)||0,
+                country: math.countryName, tax: `${inp.taxRate||0}% / ${inp.vatRate||0}%`,
+                ship: parseFloat(inp.shippingFee)||0, dest: parseFloat(inp.destFee)||0, dutyAmt: math.duty,
+                logistics: math.logisticsStr,
+                exRate: parseFloat(inp.exchangeRate)||0, buffer: parseFloat(inp.rateBuffer)||0, settleRate: math.settleRate,
+                payFee: parseFloat(inp.paymentFee)||0, profitRate: parseFloat(record.profitRate)||0,
+                netProfit: math.netProfitUSD, freightAmt: math.freight, ddpEquiv: math.ddpEquiv
+            };
+            const addedRow = sheet.addRow(rowData);
+            
+            // 样式与货币格式修复：美元列(usdCols) vs 人民币列(cnyCols)
+            addedRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+                cell.border = { top: {style:'thin', color:{argb:'FFEEEEEE'}}, bottom: {style:'thin', color:{argb:'FFEEEEEE'}} };
+                cell.alignment = { vertical: 'middle', wrapText: true };
+                
+                const usdCols =[3, 4, 13, 14, 15, 22, 23, 24];
+                const cnyCols =[8, 9, 10];
+
+                if (typeof cell.value === 'number') {
+                    if (usdCols.includes(colNumber)) {
+                        cell.numFmt = '"$"#,##0.00'; 
+                    } else if (cnyCols.includes(colNumber)) {
+                        cell.numFmt = '"¥"#,##0.00';
+                    }
+                }
+            });
+            addedRow.getCell(3).font = { bold: true, color: { argb: 'FF1B4FD8' } }; 
+        });
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        
+        // 核心修复：文件名时间戳采用本地时区 (YYYYMMDD_HHMM)
+        const now = new Date();
+        const ts = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
+        a.download = `外贸报价归档表_Pro_${ts}.xlsx`;
+        
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        showToast(`✅ 成功导出 ${selectedRecords.length} 项报价数据`);
+        document.getElementById('historySelectAllCb').checked = false;
+        toggleSelectAllHistory();
+
+    } catch (err) {
+        console.error('[Export]', err);
+        showToast(err.message || '导出失败，请重试');
+    } finally {
+        document.getElementById('excelBtnText').textContent = originalText;
+        document.getElementById('excelBtnIcon').textContent = '📊';
+        updateExportButtonState();
+    }
 }
 
 // v2.2: DOMContentLoaded 比 window.onload 更早触发（无需等待图片/字体资源加载完成）
