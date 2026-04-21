@@ -3119,6 +3119,8 @@ function initLogicBind() {
             inputEl.addEventListener('change', autoCalculate);
         }
     });
+// ⬇️ 追加这一行，确保勾选框也能实时触发报价结果更新
+    document.getElementById('isRebate').addEventListener('change', autoCalculate);
 }
 // ==================== SUPABASE AUTH 系统 ====================
 /**
