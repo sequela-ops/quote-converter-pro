@@ -1623,13 +1623,66 @@ function escapeHTML(str) {
     }[match]));
 }
 
-// ⬇️ 新增：通用的金额千分位格式化函数
-function formatMoney(num) {
-    if (!num || isNaN(num)) return "0.00";
-    return Number(num).toLocaleString('en-US', { 
-        minimumFractionDigits: 2, 
-        maximumFractionDigits: 2 
+// [优化] 中心化金额格式化引擎
+// decimals: 小数位数，默认为 2；symbol: 前缀符号，如 '$' 或 '¥'
+// --- 替换整个 formatMoney 及其周边的辅助工具 ---
+function formatMoney(num, decimals = 2, symbol = '') {
+    if (num === null || num === undefined || isNaN(num)) return symbol + "0.00";
+    // 使用已有的 financialRound 确保舍入精度
+    const roundedNum = financialRound(Number(num), decimals);
+    const formatter = new Intl.NumberFormat('en-US', {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals
     });
+    return symbol + formatter.format(roundedNum);
+}
+
+// 统一格式化快捷引用
+const fmt = {
+    usd: (val, dec = 2) => formatMoney(val, dec, '$'),
+    cny: (val, dec = 2) => formatMoney(val, dec, '¥'),
+    num: (val, dec = 2) => formatMoney(val, dec, '')
+};
+
+// 自动单位识别：从 MOQ 提取单位并做单数化处理
+function getUnit() {
+    const moqStr = document.getElementById('moqInput').value || '';
+    const match = moqStr.match(/[a-zA-Z]+/);
+    let unit = match ? match[0].toLowerCase() : 'pc';
+    if (unit.endsWith('s') && unit.length > 2) {
+        if (unit.endsWith('es')) unit = unit.slice(0, -2);
+        else unit = unit.slice(0, -1);
+    }
+    return unit;
+}
+
+//[V8.0.2-FIX-7] 新增独立解析函数，支持多策略降级
+function _parseMOQ(moqStr) {
+    if (!moqStr || typeof moqStr !== 'string') return 1000;
+    
+    // 策略 1：直接数字提取（兼容 "1,000", "1000 pcs"）
+    const directMatch = moqStr.replace(/[^0-9]/g, '');
+    if (directMatch) {
+        const num = parseInt(directMatch, 10);
+        if (!isNaN(num) && num > 0) return num;
+    }
+    
+    // 策略 2：k/K 后缀（如 "1.5k", "2K"）
+    const kMatch = moqStr.match(/^([0-9]*\.?[0-9]+)\s*[kK]/);
+    if (kMatch) {
+        const num = parseFloat(kMatch[1]) * 1000;
+        if (!isNaN(num) && num > 0) return Math.round(num);
+    }
+    
+    // 策略 3：万/千 中文单位
+    const cnMatch = moqStr.match(/([0-9]+)\s*[万千]/);
+    if (cnMatch) {
+        const unit = moqStr.includes('万') ? 10000 : 1000;
+        const num = parseInt(cnMatch[1], 10) * unit;
+        if (!isNaN(num) && num > 0) return num;
+    }
+    
+    return 1000; // 最终降级
 }
 
 // ==================== 全局强杀逻辑 (保持不变，用于安全清空) ====================
@@ -1994,7 +2047,34 @@ const WITS_HS6_MAP = [
 ];
 
 // 内存缓存：避免同一国家/品类重复请求（仅当前会话有效，无 localStorage 依赖）
-const witsCache = {};
+//[V8.0.2-FIX-5] WITS 缓存持久化（localStorage + TTL）
+const WITS_CACHE_KEY = 'wits_tariff_cache_v1';
+const WITS_CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 天
+
+// 加载持久缓存
+let witsCache = {};
+try {
+    const stored = localStorage.getItem(WITS_CACHE_KEY);
+    if (stored) {
+        const parsed = JSON.parse(stored);
+        const now = Date.now();
+        Object.entries(parsed).forEach(([key, val]) => {
+            if (val._ts && (now - val._ts) < WITS_CACHE_TTL) {
+                witsCache[key] = val.rate;
+            }
+        });
+    }
+} catch(e) { /* 静默降级 */ }
+
+function _saveWitsCache() {
+    try {
+        const toStore = {};
+        Object.entries(witsCache).forEach(([key, rate]) => {
+            toStore[key] = { rate, _ts: Date.now() };
+        });
+        localStorage.setItem(WITS_CACHE_KEY, JSON.stringify(toStore));
+    } catch(e) { /* 静默降级 */ }
+}
 
 /**
  * queryWITSRate()
@@ -2201,6 +2281,10 @@ function applyWITSResult(rate, hs6, cacheKey, btn, icon, label, chip, chipText, 
     // 触发计算联动（等同于用户手动修改该字段）
     if (typeof autoCalculate === 'function') autoCalculate();
 
+    // [V8.0.2-FIX-5] 写入缓存后添加持久化
+    witsCache[cacheKey] = rate;
+    _saveWitsCache();
+
     // 按钮状态：成功
     btn.classList.remove('loading', 'error');
     btn.classList.add('success');
@@ -2270,7 +2354,7 @@ function financialRound(num, decimals = 2) {
 }
 
 // ==================== V4 核心财务中枢（v2基座 + v3白名单优化）====================
-function calculate(isSilent = false) {
+async function calculate(isSilent = false) {
     const costRMB = parseFloat(UI.inputs.costRMB.value) || 0;
 
     // 前置拦截：底价为空时强行引导
@@ -2300,7 +2384,7 @@ function calculate(isSilent = false) {
     // [修复二] 财务精度：汇率保留4位，消除 7.15-0.05=7.099999... 类误差
     const settleRate = financialRound(exRate - buffer, 4);
 
-    // [修复二] 退税额中间变量同步精确舍入
+    //[修复二] 退税额中间变量同步精确舍入
     const excludeTaxPrice = costRMB / (1 + inputVatRate);
     const taxDiffAdj      = excludeTaxPrice * Math.max(0, inputVatRate - (rebateRate / 100));
     const rebateAmt       = isRebate
@@ -2394,25 +2478,26 @@ if (fab) {
         (cifAssumed + dutyAssumed) / Math.max(0.05, denFull), 4
     );
 
-    // ── UI 渲染 ────────────────────────────────────────────────
-    document.getElementById('rh-mode').innerText         = state.mode;
-    document.getElementById('rh-price').innerHTML        = `$${formatMoney(price)}<span>/ pc</span>`;
-    document.getElementById('rh-price-cny').innerText    = `≈ ¥${formatMoney(financialRound(price * settleRate, 2))} / pc`;
+// ── UI 渲染 ── 
+    const unit = getUnit();
+ document.getElementById('rh-mode').innerText         = state.mode;
+    document.getElementById('rh-price').innerHTML        = `${fmt.usd(price, 4)}<span>/ ${unit}</span>`;
+    document.getElementById('rh-price-cny').innerText    = `≈ ${fmt.cny(price * settleRate)} / ${unit}`;
     document.getElementById('rh-profit-rate').innerText  = actualProfitPercent.toFixed(2) + '%';
     document.getElementById('rh-rate-note').innerText    = settleRate.toFixed(4);
-    document.getElementById('rh-tax-val').innerText      = (state.mode === 'DDP') ? `$${formatMoney(duty)}` : '未包含';
+    document.getElementById('rh-tax-val').innerText      = (state.mode === 'DDP') ? fmt.usd(duty) : '未包含';
 
-    document.getElementById('bk-profit').innerText  = `$${formatMoney(netProfitUSD)}`;
-    document.getElementById('bk-rebate').innerText  = rebateAmt > 0 ? `¥${formatMoney(rebateAmt)}` : '无';
-    document.getElementById('bk-freight').innerText = freight > 0 ? `$${formatMoney(freight)}` : '无';
-    document.getElementById('bk-ddp').innerText     = `$${formatMoney(ddpEquiv)}`;
+    document.getElementById('bk-profit').innerText  = fmt.usd(netProfitUSD);
+    document.getElementById('bk-rebate').innerText  = rebateAmt > 0 ? fmt.cny(rebateAmt) : '无';
+    document.getElementById('bk-freight').innerText = freight > 0 ? fmt.usd(freight) : '无';
+    document.getElementById('bk-ddp').innerText     = fmt.usd(ddpEquiv, 4);
 
-    // [修复四] PI 渲染在 calculate 内部统一调用，确保 state.lastPrice 已赋值
     renderPI();
 
-    // 主动核算（非静默）：刷新 PI 序号、保存历史并跳转结果页
     if (!isSilent) {
-        state.currentPiNo = generatePINo(); // v2.2: 仅此处消耗序号，静默核算不触发
+        state.currentPiNo = generatePINo();
+        // 关键修复：saveHistory 传入原始数字，不再在此处 toFixed(2) 丢失精度
+        saveHistory(price, settleRate, costRMB);
         switchTab('result');
         showToast('🚀 核算完成，已生成专业看板');
     }
@@ -2425,8 +2510,7 @@ function buildPIText() {
     const name = document.getElementById('productName').value || 'TBD Product';
     const port = document.getElementById('portInput').value || 'Shenzhen, China';
     const moqStr = document.getElementById('moqInput').value || '1000 pcs';
-    let moqNum = parseInt(moqStr.replace(/\D/g, ''), 10);
-    if(isNaN(moqNum) || moqNum <= 0) moqNum = 1000;
+    const moqNum = _parseMOQ(moqStr);
 
     const seller = document.getElementById('sellerName').value || '______________________';
     const buyer  = document.getElementById('buyerName').value || '______________________';
@@ -2437,12 +2521,13 @@ function buildPIText() {
     const now = new Date();
     const validDate = new Date(now.getTime() + validDays * 24 * 60 * 60 * 1000);
 
-    const priceStr = formatMoney(state.lastPrice);
-    // v2.2: 复用 calculate() 已生成的序号，不重复消耗 pi_sequence
+    // 格式化逻辑
+    const unit = getUnit();
+    const priceStr = fmt.num(state.lastPrice, 4);
+    const totalAmount = fmt.num(state.lastPrice * moqNum, 2);
     const piNo = state.currentPiNo || generatePINo();
-    const totalAmount = formatMoney(financialRound(state.lastPrice * moqNum, 2));
 
-    return[
+    return [
         'PROFORMA INVOICE',
         '------------------------------------------------',
         'PI No.       : ' + piNo,
@@ -2454,7 +2539,7 @@ function buildPIText() {
         '',
         'Product      : ' + name,
         'Quantity     : ' + (moqStr.match(/[a-zA-Z]/) ? moqStr : moqStr + ' pcs'),
-        'Unit Price   : USD ' + priceStr + ' / pc',
+        'Unit Price   : USD ' + priceStr + ' / ' + unit,
         'Total Amount : USD ' + totalAmount,
         '',
         'Trade Term   : ' + state.mode + (port && port !== 'TBD' ? ' ' + port : ''),
@@ -2491,14 +2576,12 @@ function buildHistoryItemEl(item) {
     wrap.className = 'history-item export-mode'; 
     wrap.dataset.historyId = String(item.id);
 
-    // V8: 复选框包裹层 (拦截冒泡，防误触还原)
     const cbWrap = document.createElement('div');
-cbWrap.className = 'history-cb-wrap';
-cbWrap.addEventListener('click', (e) => {
-    e.stopPropagation();
-    // 扩大热区：点击周围空白同样触发复选框勾选
-    if (e.target !== cb) cb.click();
-});
+    cbWrap.className = 'history-cb-wrap';
+    cbWrap.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (e.target !== cb) cb.click();
+    });
     
     const cb = document.createElement('input');
     cb.type = 'checkbox';
@@ -2507,7 +2590,6 @@ cbWrap.addEventListener('click', (e) => {
     cb.addEventListener('change', updateExportButtonState);
     cbWrap.appendChild(cb);
 
-    // V8: 原内容包裹层 (绑定还原事件)
     const contentWrap = document.createElement('div');
     contentWrap.className = 'history-content-wrap';
     contentWrap.addEventListener('click', function() {
@@ -2528,15 +2610,19 @@ cbWrap.addEventListener('click', (e) => {
     const title = document.createElement('div');
     title.className = 'history-title';
     title.textContent = item.product || '未命名产品分析';
+    
     const price = document.createElement('div');
     price.className = 'history-price';
-    price.textContent = '$' + formatMoney(item.price);
+    // 增加单位显示，优先读取记录中的 unit，兼容旧数据则默认 pc
+    price.textContent = `${fmt.usd(item.price)} / ${item.unit || 'pc'}`;
+    
     body.appendChild(title);
     body.appendChild(price);
 
     const sub = document.createElement('div');
     sub.style.cssText = 'font-size:11px;color:var(--text3);margin-top:6px;';
-    sub.textContent = '进货成本: ¥' + formatMoney(item.cost) + ' / 锁汇参考: ' + (item.rate || '');
+    // 统一格式化进货成本
+    sub.textContent = '进货成本: ' + fmt.cny(item.cost) + ' / 锁汇参考: ' + (item.rate || '');
 
     const hint = document.createElement('div');
     hint.className = 'history-restore-hint';
@@ -2593,11 +2679,13 @@ function saveHistory(price, settleRate, costRMB) {
         if (el) inputsData[id] = el.type === 'checkbox' ? el.checked : el.value;
     });
 
+    // 在 saveHistory 函数内部，record 对象的定义中增加 unit 字段
     const record = {
         id: Date.now(),
         date: new Date().toLocaleString('zh-CN', { month:'numeric', day:'numeric', hour:'numeric', minute:'numeric' }),
         product: document.getElementById('productName').value || '未命名产品',
         price: price.toFixed(2),
+        unit: getUnit(), // <--- 新增：固化当前的单位识别结果
         mode: state.mode,
         profitRate: state.profitRate,
         cost: costRMB.toFixed(2),
@@ -2759,26 +2847,48 @@ function clearHistory() {
  */
 
 // 修复：进入对比页时同步参数
+//[V8.0.2-FIX-2] renderCompare XSS 防御（innerHTML → DocumentFragment）
 function renderCompare(fob, pr, py, ins, logisticsShip, logisticsDest) {
     const tbody = document.getElementById('marketBody');
-    tbody.innerHTML = MARKET_COMPARE_LIST.map(m => {
+    const frag = document.createDocumentFragment();
+    const unit = getUnit();
+
+    MARKET_COMPARE_LIST.forEach(m => {
         const taxR = m.tax / 100;
         const vatR = m.vat / 100;
-        
-        // 1. 同步新算法：计算真实 CIF 成本作为税基
         const cifCost = fob + logisticsShip + logisticsDest;
-        // 2. 按 CIF 计算目的国海关税金
         const duty = cifCost * (taxR + (1 + taxR) * vatR);
-        // 3. 剥离税金后的分母
         const den = 1 - pr - py - 1.1 * ins;
         
-        // 使用 formatMoney 实现千分位
-        const content = den <= 0.01 
-            ? `<span style="color:var(--warn); font-weight:bold;">⚠️ 利润率过高</span>` 
-            : `$${formatMoney((cifCost + duty) / den)}`;
+        const tr = document.createElement('tr');
+        const tdCountry = document.createElement('td');
+        tdCountry.textContent = `${m.flag} ${m.name}`;
+        tr.appendChild(tdCountry);
+        
+        const tdTax = document.createElement('td');
+        tdTax.textContent = `${m.tax}%`;
+        tr.appendChild(tdTax);
+        
+        const tdVat = document.createElement('td');
+        tdVat.textContent = `${m.vat}%`;
+        tr.appendChild(tdVat);
+        
+        const tdPrice = document.createElement('td');
+        tdPrice.className = 'price-cell';
+        
+        if (den <= 0.01) {
+            tdPrice.innerHTML = '<span style="color:var(--warn); font-weight:bold;">⚠️ 利润过高</span>';
+        } else {
+            const resPrice = (cifCost + duty) / den;
+            // 统一使用 fmt.usd 并带上动态单位
+            tdPrice.textContent = `${fmt.usd(resPrice)} / ${unit}`;
+        }
+        tr.appendChild(tdPrice);
+        frag.appendChild(tr);
+    });
 
-        return `<tr><td>${m.flag} ${m.name}</td><td>${m.tax}%</td><td>${m.vat}%</td><td class="price-cell">${content}</td></tr>`;
-    }).join('');
+    tbody.textContent = ''; 
+    tbody.appendChild(frag);
 }
 
 function onCountryChange() {
@@ -2883,11 +2993,24 @@ function onSlider(e) {
 }
 
 // 伴生配套微调功能：利润率步进后触发核算（处理越界阻断，保证健壮性）
+//[V8.0.2-FIX-6] stepProfit 边界检查健壮化
 function stepProfit(step) {
     const slider = document.getElementById('profitSlider');
-    let val = parseFloat(slider.value) + step;
-    if (val < parseFloat(slider.min)) val = parseFloat(slider.min);
-    if (val > parseFloat(slider.max)) val = parseFloat(slider.max);
+    if (!slider) return; // ✅ 空指针防护
+    
+    // 安全提取数值，提供硬编码默认值
+    const currentVal = parseFloat(slider.value) || 20;
+    const minVal = parseFloat(slider.min) || 1;      // ✅ 防 NaN
+    const maxVal = parseFloat(slider.max) || 60;     // ✅ 防 NaN
+    const stepVal = parseFloat(slider.step) || 0.1;  // ✅ 防 NaN
+    
+    let val = currentVal + (step * stepVal);
+    val = Math.max(minVal, Math.min(maxVal, val));   // ✅ 双重边界
+    
+    // 精度对齐，避免浮点误差
+    const precision = String(stepVal).split('.')[1]?.length || 1;
+    val = parseFloat(val.toFixed(precision));
+    
     slider.value = val;
     onSlider(slider);
     autoCalculate(); // 触发实时核算
@@ -2927,10 +3050,10 @@ function openMiniCalc(targetId, titleName) {
     titleBox.innerHTML = `正在为您计算：<b style="color:var(--text);">${titleName}</b> 的单件分摊`;
     totalInput.value = '';
     
-    // 4. 自动抓取主表单已填写的 MOQ 进行分摊
+// 4. 自动抓取主表单已填写的 MOQ 进行分摊
     if (mainMoqInput && mainMoqInput.value) {
-        let moqNum = parseInt(mainMoqInput.value.replace(/\D/g, ''), 10);
-        qtyInput.value = (moqNum && moqNum > 0) ? moqNum : '';
+        const moqNum = _parseMOQ(mainMoqInput.value); // [V8.0.2-FIX-7]
+        qtyInput.value = moqNum;
     } else {
         qtyInput.value = '';
     }
@@ -2943,22 +3066,12 @@ function openMiniCalc(targetId, titleName) {
         if (state.logisticsData.totalPcs) {
             totalPcsInput.value = state.logisticsData.totalPcs;
         } else if (mainMoqInput && mainMoqInput.value) {
-            let moqNum = parseInt(mainMoqInput.value.replace(/\D/g, ''), 10);
-            totalPcsInput.value = (moqNum && moqNum > 0) ? moqNum : '';
+            const moqNum = _parseMOQ(mainMoqInput.value); // [V8.0.2-FIX-7]
+            totalPcsInput.value = moqNum;
         } else {
             totalPcsInput.value = '';
         }
     }
-    // 恢复上次物流引擎的其余字段
-    const ld = state.logisticsData;
-    ['l','w','h','gw','perCtn','uPrice'].forEach(key => {
-        const el = document.getElementById('mc' + key.charAt(0).toUpperCase() + key.slice(1));
-        if (el && ld[key]) el.value = ld[key];
-    });
-    const modeEl = document.getElementById('mcLogisticsMode');
-    if (modeEl && ld.logisticsMode) modeEl.value = ld.logisticsMode;
-    // 重新触发一次预览（如有残留数据）
-    doLogisticsPro();
     
     // 6. 显示弹窗，默认停在简单模式
     toggleMiniMode('simple');
@@ -3121,16 +3234,16 @@ window.doLogisticsPro = debounce(function() {
             : `${mName}重货 (实重 ${totalGw.toFixed(2)}kg)`;
     }
 
-    // 5. 财务清算与均摊 (Financial Alignment)
-    const totalFreight = chargeableWeight * params.uPrice;
-    // 使用 4 位精度避免微小单价下的进位误差
-    const unitFreight = (totalFreight / params.totalPcs).toFixed(4);
+    // 5. 尾箱警报（仅当总件数不能被整箱整除时提示）
+    let partialAlert = '';
+    if ((params.totalPcs % params.perCtn) !== 0) {
+        const remainder = params.totalPcs % params.perCtn;
+        partialAlert = `<div style="color:var(--warn); font-size:10px; margin-top:4px;">⚠️ 尾箱未满 (${remainder}pcs)，已按整箱 ${totalCartons}ctns 均摊。</div>`;
+    }
 
-    // 6. UI 渲染与状态落库 (State Synchronization)
-    const isPartial = (params.totalPcs % params.perCtn) !== 0;
-    const partialAlert = isPartial 
-        ? `<div style="color:var(--warn); font-size:10px; margin-top:4px;">⚠️ 尾箱未满 (${params.totalPcs % params.perCtn}pcs)，已按整箱 ${totalCartons}ctns 均摊。</div>` 
-        : '';
+    // 6. 财务清算与均摊 (Financial Alignment)
+    const totalFreight = chargeableWeight * params.uPrice;
+    const unitFreight = (totalFreight / params.totalPcs).toFixed(4);
 
     preview.innerHTML = `
         <div style="font-weight:700; color:var(--text); border-bottom:1px solid var(--border); padding-bottom:4px; margin-bottom:6px;">测算底稿 (核算量: ${totalCartons} 箱)</div>
@@ -3140,13 +3253,12 @@ window.doLogisticsPro = debounce(function() {
         <div style="font-size:10px; color:var(--text3); margin-bottom:6px;">(${calcDetail})</div>
         <div style="background:var(--accent-light); padding:8px; border-radius:4px; text-align:center;">
             <div style="font-size:11px; color:var(--accent);">建议分摊单价</div>
-            <div style="font-size:18px; font-weight:800; color:var(--accent); font-family:'DM Mono';">$${unitFreight} <span style="font-size:12px;">/ pc</span></div>
+            <div style="font-size:18px; font-weight:800; color:var(--accent); font-family:'DM Mono';">${fmt.usd(unitFreight, 4)} <span style="font-size:12px;">/ pc</span></div>
         </div>
         ${partialAlert}
     `;
 
     // 7. 写入全局状态，解锁"一键填入"按钮
-    // 【Bug修复】：显式赋值 logisticsMode，对齐字段命名，确保 AI 邮件与分享页能正确读取
     state.logisticsData = {
         ...params,
         logisticsMode: params.mode,
@@ -3253,11 +3365,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 let supabaseClient = null;
 let currentUser = null;
-
-// 判断是否已完成 Supabase 配置
-function isSupabaseConfigured() {
-    return SUPABASE_URL !== 'YOUR_SUPABASE_URL' && SUPABASE_ANON_KEY !== 'YOUR_SUPABASE_ANON_KEY';
-}
+let _authLastNotifiedId = null;
 
 async function initSupabase() {
     if (!isSupabaseConfigured()) {
@@ -3277,15 +3385,26 @@ async function initSupabase() {
 
         supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         
-        // 监听 Auth 状态变化（含 Magic Link 回调）
+// 监听 Auth 状态变化（含 Magic Link 回调）
         supabaseClient.auth.onAuthStateChange(async (event, session) => {
             currentUser = session?.user ?? null;
-            if (event === 'SIGNED_IN') {
+            if (event === 'SIGNED_IN' && currentUser) {
                 renderLoggedInUI(currentUser);
-                await mergeLocalToCloud(); // 登录时自动迁移本机数据
+                await mergeLocalToCloud();
                 loadHistory();
-                showToast('🎉 登录成功，历史记录已同步至云端');
+
+                // 核心修复：仅当用户 ID 发生实质性变化时才提示，彻底解决切屏重复弹窗
+                if (_authLastNotifiedId !== currentUser.id) {
+                    showToast('🎉 登录成功，历史记录已同步至云端');
+                    _authLastNotifiedId = currentUser.id;
+                }
+
+                // 派发 auth:login 事件（用于生成分享链接等逻辑的联动）
+                window.dispatchEvent(new CustomEvent('auth:login', { 
+                    detail: { user: session.user } 
+                }));
             } else if (event === 'SIGNED_OUT') {
+                _authLastNotifiedId = null; // 登出时重置锁
                 renderGuestUI();
                 loadHistory();
             }
@@ -3741,12 +3860,21 @@ async function generateShareLink() {
     // [UX熔断] full 模式包含底价/利润率等商业机密，要求登录身份。
     // 后端 RLS 已从数据库层强制执行此规则；此处为前端提前拦截，
     // 省去无意义的网络往返，并给游客一个友好的引导路径。
+    // [V8.0.2-FIX-8] 无缝登录引导与状态恢复
     if (shareState.mode === 'full' && !currentUser) {
-        showToast('🔐 内部协作链接仅限登录用户生成，正在为您打开登录窗口…');
-        setTimeout(() => {
-            closeShareSheet();
-            openAuthSheet();
-        }, 1500);
+        showToast('🔐 内部协作链接仅限登录用户生成，请先登录');
+        closeShareSheet(); // 立即关闭，无 setTimeout
+        
+        requestAnimationFrame(() => openAuthSheet());
+        
+        // 监听登录成功，自动重新打开分享页
+        const _onLoginForShare = (e) => {
+            if (e.detail?.user) {
+                window.removeEventListener('auth:login', _onLoginForShare);
+                setTimeout(() => openShareSheet(), 500);
+            }
+        };
+        window.addEventListener('auth:login', _onLoginForShare);
         return;
     }
 
@@ -3906,18 +4034,23 @@ async function loadShareView(id) {
     }
 }
 
-// -- 渲染：客户报价版（quote）--
+// -- 渲染：客户报价版（quote） --
 function renderShareQuote(container, d, expires) {
     document.getElementById('sv-type-badge').textContent = '📄 报价单';
     document.getElementById('sv-type-badge').style.background = 'var(--accent2-light)';
     document.getElementById('sv-type-badge').style.color = 'var(--accent2)';
 
     const expiryStr = formatDateStr(expires);
-    const priceStr = formatMoney(d.priceUSD);
+    // 单价采用 4 位精度
+    const priceStr = fmt.num(d.priceUSD, 4);
 
     let moqNum = 1;
-    if (d.moq) { const n = parseInt(d.moq.replace(/\D/g,''),10); if (n>0) moqNum = n; }
-    const totalUSD = formatMoney((d.priceUSD || 0) * moqNum);
+    if (d.moq) { 
+        // 使用系统内置的 _parseMOQ 逻辑，确保单位识别准确
+        moqNum = _parseMOQ(d.moq);
+    }
+    // 总额采用 2 位精度千分位
+    const totalUSD = fmt.num((d.priceUSD || 0) * moqNum, 2);
 
     container.innerHTML = `
         <div class="sv-quote-hero">
@@ -3956,7 +4089,7 @@ function renderShareQuote(container, d, expires) {
     bindShareCTAEvents(d);
 }
 
-// -- 渲染：内部协作版（full）--
+// -- 渲染：内部协作版（full） --
 function renderShareFull(container, d, expires) {
     document.getElementById('sv-type-badge').textContent = '👥 内部协作';
     document.getElementById('sv-type-badge').style.background = 'var(--warn-light)';
@@ -3966,7 +4099,6 @@ function renderShareFull(container, d, expires) {
     const r = d.result || {};
     const inp = d.internal || {};
 
-    // 【解耦】在函数顶部定义映射字典，防止旧分享链接崩溃，兼容所有新旧模式
     const logMode = inp.logisticsData ? inp.logisticsData.logisticsMode : 'sea';
     const shareModeMap = {
         'sea': '海运 RT (Revenue Ton)', 'sea_kg': '海派/海卡专线 (按KG)', 'rail': '铁路/卡航 (按KG)',
@@ -3981,10 +4113,10 @@ function renderShareFull(container, d, expires) {
 
         <div class="sv-full-hero">
             <div class="sv-full-hero-mode">${escapeHTML(d.tradeMode || 'FOB')} · 建议单价</div>
-            <div class="sv-full-hero-price">$${formatMoney(d.priceUSD)}</div>
-            <div class="sv-full-hero-cny">≈ ¥${formatMoney((d.priceUSD||0) * (d.settleRate||7.1))} / pc</div>
+            <div class="sv-full-hero-price">${fmt.usd(d.priceUSD, 4)}</div>
+            <div class="sv-full-hero-cny">≈ ${fmt.cny((d.priceUSD || 0) * (d.settleRate || 7.1))} / pc</div>
             <div class="sv-full-hero-stats">
-                <div><div class="sv-full-hero-stat-label">净利润率</div><div class="sv-full-hero-stat-val">${escapeHTML(r.actualProfit||inp.profitRate+'%')}</div></div>
+                <div><div class="sv-full-hero-stat-label">净利润率</div><div class="sv-full-hero-stat-val">${escapeHTML(r.actualProfit || (inp.profitRate + '%'))}</div></div>
                 <div><div class="sv-full-hero-stat-label">锁汇点位</div><div class="sv-full-hero-stat-val" style="font-family:'DM Mono',monospace;">${d.settleRate ? d.settleRate.toFixed(4) : '-'}</div></div>
                 <div><div class="sv-full-hero-stat-label">目标国税金</div><div class="sv-full-hero-stat-val">${escapeHTML(r.taxVal || '未含')}</div></div>
             </div>
@@ -3992,22 +4124,22 @@ function renderShareFull(container, d, expires) {
 
         <div class="sv-info-card">
             <div class="sv-info-row"><span class="sv-info-key">产品名称</span><span class="sv-info-val">${escapeHTML(d.product)}</span></div>
-            <div class="sv-info-row"><span class="sv-info-key">贸易条款</span><span class="sv-info-val">${escapeHTML(d.tradeMode||'FOB')}</span></div>
+            <div class="sv-info-row"><span class="sv-info-key">贸易条款</span><span class="sv-info-val">${escapeHTML(d.tradeMode || 'FOB')}</span></div>
             ${d.moq ? `<div class="sv-info-row"><span class="sv-info-key">MOQ</span><span class="sv-info-val">${escapeHTML(d.moq)}</span></div>` : ''}
             <div class="sv-info-row"><span class="sv-info-key">链接有效期</span><span class="sv-info-val warn">${expiryStr}</span></div>
         </div>
 
         <div class="sv-info-card">
-            <div class="sv-info-row"><span class="sv-info-key">进货含税底价</span><span class="sv-info-val warn">¥${formatMoney(inp.costRMB)}</span></div>
-            <div class="sv-info-row"><span class="sv-info-key">退税率</span><span class="sv-info-val">${inp.isRebate ? escapeHTML(String(inp.rebateRate))+'%' : '不退税'}</span></div>
+            <div class="sv-info-row"><span class="sv-info-key">进货含税底价</span><span class="sv-info-val warn">${fmt.cny(inp.costRMB)}</span></div>
+            <div class="sv-info-row"><span class="sv-info-key">退税率</span><span class="sv-info-val">${inp.isRebate ? escapeHTML(String(inp.rebateRate)) + '%' : '不退税'}</span></div>
             <div class="sv-info-row"><span class="sv-info-key">目标利润率</span><span class="sv-info-val green">${escapeHTML(String(inp.profitRate))}%</span></div>
-            <div class="sv-info-row"><span class="sv-info-key">中间汇率</span><span class="sv-info-val">${escapeHTML(String(inp.exchangeRate))}</span></div>
-            <div class="sv-info-row"><span class="sv-info-key">汇率缓冲</span><span class="sv-info-val">-${escapeHTML(String(inp.rateBuffer))}</span></div>
+            <div class="sv-info-row"><span class="sv-info-key">中间汇率</span><span class="sv-info-val">${fmt.num(inp.exchangeRate, 4)}</span></div>
+            <div class="sv-info-row"><span class="sv-info-key">汇率缓冲</span><span class="sv-info-val">-${fmt.num(inp.rateBuffer, 2)}</span></div>
             <div class="sv-info-row"><span class="sv-info-key">收款手续费</span><span class="sv-info-val">${escapeHTML(String(inp.paymentFee))}%</span></div>
         </div>
 
         <div class="sv-info-card">
-            <div class="sv-info-row"><span class="sv-info-key">单件净利润</span><span class="sv-info-val green">${escapeHTML(r.netProfitUSD ? '$'+formatMoney(r.netProfitUSD) : '-')}</span></div>
+            <div class="sv-info-row"><span class="sv-info-key">单件净利润</span><span class="sv-info-val green">${r.netProfitUSD ? fmt.usd(r.netProfitUSD) : '-'}</span></div>
             <div class="sv-info-row"><span class="sv-info-key">退税额外收益</span><span class="sv-info-val">${escapeHTML(r.rebateAmt || '-')}</span></div>
             <div class="sv-info-row"><span class="sv-info-key">国际段总成本</span><span class="sv-info-val">${escapeHTML(r.freightTotal || '-')}</span></div>
             <div class="sv-info-row"><span class="sv-info-key">买家DDP落地价（参考）</span><span class="sv-info-val warn">${escapeHTML(r.ddpEquiv || '-')}</span></div>
@@ -4080,17 +4212,20 @@ function renderShareBranding() {
     `;
 }
 
-// -- CTA 跳转逻辑 --
-function openToolWithPrefillData(d) {
-    // 关闭分享页，显示主工具，并将非敏感字段预填到表单
+// -- CTA 跳转逻辑 -- [V8.0.2-FIX-2-SURGERY]
+async function openToolWithPrefillData(d) {
+    // 1. 立即显示过渡状态或重置视图
     document.getElementById('shareViewPage').classList.remove('visible');
     document.body.style.overflow = '';
     history.replaceState(null, '', window.location.pathname);
 
+    // 2. 关键补丁：确保主应用环境已挂载
+    await ensureMainAppInitialized();
+
     if (!d) { switchTab('calc'); return; }
 
     try {
-        // 预填安全字段（直接操作对象属性，无需 URL 编解码）
+        // 3. 预填安全字段（此时 DOM 确定已存在）
         if (d.product)   document.getElementById('productName').value  = d.product;
         if (d.moq)       document.getElementById('moqInput').value     = d.moq;
         if (d.port)      document.getElementById('portInput').value    = d.port;
@@ -4102,28 +4237,48 @@ function openToolWithPrefillData(d) {
             const modeBtn = document.querySelector(`.mode-btn[data-mode="${d.tradeMode}"]`);
             if (modeBtn) setMode(modeBtn);
         }
-        // 目标国家 — 依赖 countrySelect 已有 options（见 Fix 9）
+        
+        // 目标国家：确保 select 已有数据
         if (d.country) {
             const sel = document.getElementById('countrySelect');
-            if (sel && sel.options.length > 1) {
+            if (sel) {
+                // 如果是新国家，则需要手动添加 option（防御性编程）
+                if (!Array.from(sel.options).some(o => o.value === d.country)) {
+                    const opt = document.createElement('option');
+                    opt.value = d.country;
+                    opt.text = (COUNTRIES[d.country] ? COUNTRIES[d.country].name : d.country);
+                    sel.add(opt);
+                }
                 sel.value = d.country;
                 onCountryChange();
             }
         }
+        
         showToast('✅ 已预填产品模板，请继续完善参数');
         switchTab('calc');
         nextStep(1);
-        setTimeout(() => UI.inputs.costRMB && UI.inputs.costRMB.focus(), 400);
+        
+        // 引导聚焦
+        setTimeout(() => {
+            const costEl = document.getElementById('costRMB');
+            if (costEl) {
+                costEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                costEl.focus();
+            }
+        }, 400);
     } catch(e) {
-        console.warn('[Share] 预填失败', e);
+        console.warn('[Share] 预填链路异常:', e);
         switchTab('calc');
     }
 }
 
-function openToolClean() {
+async function openToolClean() {
     document.getElementById('shareViewPage').classList.remove('visible');
     document.body.style.overflow = '';
     history.replaceState(null, '', window.location.pathname);
+    
+    // 确保主应用挂载后再切页
+    await ensureMainAppInitialized();
     switchTab('calc');
 }
 
@@ -4157,29 +4312,32 @@ function updateExportButtonState() {
     }
 }
 
+// ==================== [V8.0.1 终极合并版] 插件加载逻辑 ====================
 async function loadExcelJS() {
     if (window.ExcelJS) return window.ExcelJS;
-    const urls =[
-        'https://cdn.jsdelivr.net/npm/exceljs@4.3.0/dist/exceljs.min.js',
-        'https://unpkg.com/exceljs@4.3.0/dist/exceljs.min.js',
-        'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js'
+    const urls = [
+        { name: '主节点', url: 'https://cdn.jsdelivr.net/npm/exceljs@4.3.0/dist/exceljs.min.js' },
+        { name: '备选节点', url: 'https://unpkg.com/exceljs@4.3.0/dist/exceljs.min.js' },
+        { name: '容灾节点', url: 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js' }
     ];
-    for (let url of urls) {
+    const btnText = document.getElementById('excelBtnText');
+    for (let i = 0; i < urls.length; i++) {
+        const node = urls[i];
+        if (btnText) btnText.textContent = `连接${node.name}...`;
         try {
             await new Promise((resolve, reject) => {
                 const script = document.createElement('script');
-                script.src = url;
-                script.onload = resolve;
-                script.onerror = reject;
+                script.src = node.url;
+                // 10秒超时：兼顾大文件体积与用户等待极限
+                const timer = setTimeout(() => { script.remove(); reject(new Error('Timeout')); }, 10000);
+                script.onload = () => { clearTimeout(timer); resolve(); };
+                script.onerror = () => { clearTimeout(timer); script.remove(); reject(new Error('NetworkError')); };
                 document.head.appendChild(script);
-                setTimeout(() => reject(new Error('CDN Timeout')), 3500);
             });
             if (window.ExcelJS) return window.ExcelJS;
-        } catch (e) {
-            console.warn(`[ExcelJS] 节点访问受阻: ${url}，执行容灾倒换...`);
-        }
+        } catch (e) { console.warn(`[ExcelJS] ${node.name}加载失败，尝试下一个...`); }
     }
-    throw new Error('网络受限，无法加载导出引擎');
+    throw new Error('网络受限，导出引擎加载失败');
 }
 
 function headlessRecalculate(record) {
@@ -4196,6 +4354,9 @@ function headlessRecalculate(record) {
     const vatRate = (parseFloat(inputs.vatRate) || 0) / 100;
     const targetProfitRate = (parseFloat(record.profitRate) || 20) / 100;
     const mode = record.mode || 'FOB';
+    
+    // 获取保存记录时的原始单位，向下兼容默认为 pc
+    const unit = record.unit || 'pc';
 
     const settleRate = financialRound(exRate - buffer, 4);
     const excludeTaxPrice = costRMB / (1 + inputVatRate);
@@ -4213,10 +4374,15 @@ function headlessRecalculate(record) {
     const denFull = denBase - 1.1 * activeInsRate;
 
     let price = 0, duty = 0, freight = 0;
-    if (mode === 'EXW' || mode === 'FOB') { price = fobUSD / Math.max(0.01, denBase); } 
-    else if (mode === 'CIF') { price = (fobUSD + activeShipUSD) / Math.max(0.01, denFull); freight = activeShipUSD + price * 1.1 * activeInsRate; } 
-    else if (mode === 'DAP') { price = (fobUSD + activeShipUSD + activeDestUSD) / Math.max(0.01, denFull); freight = activeShipUSD + activeDestUSD + price * 1.1 * activeInsRate; } 
-    else if (mode === 'DDP') {
+    if (mode === 'EXW' || mode === 'FOB') { 
+        price = fobUSD / Math.max(0.01, denBase); 
+    } else if (mode === 'CIF') { 
+        price = (fobUSD + activeShipUSD) / Math.max(0.01, denFull); 
+        freight = activeShipUSD + price * 1.1 * activeInsRate; 
+    } else if (mode === 'DAP') { 
+        price = (fobUSD + activeShipUSD + activeDestUSD) / Math.max(0.01, denFull); 
+        freight = activeShipUSD + activeDestUSD + price * 1.1 * activeInsRate; 
+    } else if (mode === 'DDP') {
         const cifCost = fobUSD + activeShipUSD + activeDestUSD;
         duty = cifCost * (taxRate + (1 + taxRate) * vatRate);
         price = (cifCost + duty) / Math.max(0.01, denFull);
@@ -4233,12 +4399,9 @@ function headlessRecalculate(record) {
     const dutyAssumed = cifAssumed * (taxRate + (1 + taxRate) * vatRate);
     const ddpEquiv = financialRound((cifAssumed + dutyAssumed) / Math.max(0.05, denFull), 4);
 
-    let moqNum = 1;
     const moqStr = inputs.moqInput || '';
-    const parsedMoq = parseInt(moqStr.replace(/\D/g, ''), 10);
-    if (parsedMoq > 0) moqNum = parsedMoq;
+    const moqNum = _parseMOQ(moqStr);
 
-    // V8: 国家编码回显处理
     const countryKey = inputs.countrySelect;
     let countryName = countryKey || '未定';
     if (countryKey && typeof COUNTRIES !== 'undefined' && COUNTRIES[countryKey]) {
@@ -4255,245 +4418,150 @@ function headlessRecalculate(record) {
     return {
         settleRate, rebateAmt, freight: financialRound(freight, 2), duty: financialRound(duty, 2), 
         netProfitUSD, ddpEquiv, price, totalAmount: financialRound(price * moqNum, 2), 
-        moqStr, moqNum, logisticsStr, countryName
+        moqStr, moqNum, logisticsStr, countryName, unit // <--- 透传识别出的单位
     };
 }
 
 // [重构] ExcelJS 导出引擎：修复金额格式化错位、增加双币种前缀、修复下载文件名时区
-async function exportSelectedToExcel() {
-    const checkboxes = Array.from(document.querySelectorAll('.history-item-cb')).filter(cb => cb.checked);
-    if (checkboxes.length === 0) return;
+// ==================== [V8.0.1 终极合并版] 导出主引擎 ====================
 
-    const btn = document.getElementById('btnExportExcel');
-    const originalText = document.getElementById('excelBtnText').textContent;
-    btn.classList.add('disabled');
-    document.getElementById('excelBtnText').textContent = '处理中...';
-    document.getElementById('excelBtnIcon').textContent = '⏳';
+// [V8.0.2-FIX-1-SURGERY] 核心初始化中枢与并发控制
+let _mainAppInitialized = false;
+let _mainAppInitPromise = null;
+
+/**
+ * ensureMainAppInitialized
+ * 确保主应用环境（DOM 构建、数据加载）就绪。支持并发锁定。
+ */
+async function ensureMainAppInitialized() {
+    if (_mainAppInitialized) return true;
+    if (_mainAppInitPromise) return _mainAppInitPromise;
+
+    _mainAppInitPromise = (async () => {
+        try {
+            console.log('[System] 启动主应用外科手术式初始化...');
+
+            // 1. 同步关键路径：构建静态 DOM 结构（HS 品类面板）
+            const hsGrid = document.getElementById('hsGrid');
+            if (hsGrid) {
+                hsGrid.innerHTML = HS_CATEGORIES.map((h, i) =>
+                    `<div class="hs-item" onclick="selectHS(${i})" id="hs-${i}">
+                        <div>${h.icon}</div>
+                        <div style="font-size:10px;font-weight:600;">${h.name}</div>
+                    </div>`
+                ).join('');
+            }
+
+            // 2. 状态锁定：防止引导流逻辑在未初始化时触发
+            nextStep(1);
+
+            // 3. 数据层恢复：加载历史记录（核心资产，必须等待）
+            await loadHistory();
+
+            // 4. 业务逻辑自愈：初始化国家警告、FAB 状态
+            onCountryChange();
+            const fab = document.getElementById('fabResetBtn');
+            if (fab) {
+                fab.disabled = true;
+                fab.classList.add('disabled');
+            }
+
+            // 5. 触发“非关键路径”异步任务（静默运行，不阻塞初始化）
+            fetchRate(); // 汇率更新
+            loadVersionInfo(); // 内部函数：加载版本与日志
+
+            _mainAppInitialized = true;
+            return true;
+        } catch (err) {
+            console.error('[System] 初始化中断:', err);
+            _mainAppInitPromise = null;
+            return false;
+        }
+    })();
+
+    return _mainAppInitPromise;
+}
+
+/**
+ * [V8.0.2-FIX-3] 安全的版本信息加载函数
+ * 防御性编程：使用可选链防止 DOM 未就绪时的崩溃
+ */
+async function loadVersionInfo() {
+    const versionEl = document.getElementById('versionText');
+    const timeEl    = document.getElementById('buildTime');
+    const changelogEl = document.getElementById('changelogContent');
 
     try {
-        await loadExcelJS();
+        const res = await fetch('version.txt');
+        if (res.ok) {
+            const text = await res.text();
+            const vMatch = text.match(/Version:\s*(.+)/);
+            const tMatch = text.match(/Last updated:\s*(.+)/);
+            if (vMatch && versionEl) versionEl.innerHTML = `<strong>${escapeHTML(vMatch[1].trim())}</strong>`;
+            if (tMatch && timeEl) timeEl.textContent = tMatch[1].trim();
+        } else if (versionEl) {
+            versionEl.innerHTML = '<strong>dev build</strong>';
+        }
+    } catch (e) {
+        if (versionEl) versionEl.innerHTML = '<strong>offline</strong>';
+    }
 
-        const historyCache = window.__historyCache || JSON.parse(localStorage.getItem('quoteHistory') || '[]');
-        const selectedRecords = checkboxes.map(cb => historyCache.find(r => String(r.id) === cb.dataset.id)).filter(Boolean);
-
-        const workbook = new ExcelJS.Workbook();
-        workbook.creator = '专业外贸报价计算器 Pro';
-        const sheet = workbook.addWorksheet('报价历史库', { views:[{ state: 'frozen', xSplit: 3, ySplit: 3 }] });
-
-        sheet.mergeCells('A1:X1');
-        const warningCell = sheet.getCell('A1');
-        warningCell.value = '🔒 内部机密报价底稿，请勿外传！ (Confidential - Internal Use Only)';
-        warningCell.font = { color: { argb: 'FFFFFFFF' }, bold: true, size: 14 };
-        warningCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE74C3C' } };
-        warningCell.alignment = { horizontal: 'center', vertical: 'middle' };
-
-        const headersLayout =[
-            { title: '基础与制单信息', color: 'FFD9E1F2', cols:[
-                { k: 'product', w: 25, n: '产品名称' }, { k: 'mode', w: 12, n: '贸易条款' },
-                { k: 'price', w: 15, n: '建议报价(USD)' }, { k: 'total', w: 18, n: '订单预估总额(USD)' },
-                { k: 'moq', w: 15, n: '起订量(文本)' }, { k: 'pi', w: 22, n: 'PI 序号 / 买方' },
-                { k: 'lead', w: 15, n: '交货期' }
-            ]},
-            { title: '国内采购与费用', color: 'FFFFF2CC', cols:[
-                { k: 'costRmb', w: 16, n: '含税底价(¥)' }, { k: 'rebateAmt', w: 16, n: '退税净收入(¥)' },
-                { k: 'domFreight', w: 16, n: '国内运杂费(¥)' }
-            ]},
-            { title: '国际物流与税率', color: 'FFE2EFDA', cols:[
-                { k: 'country', w: 12, n: '目标国家' }, { k: 'tax', w: 15, n: '关税% / VAT%' },
-                { k: 'ship', w: 15, n: '国际主运费($)' }, { k: 'dest', w: 15, n: '目的港费($)' },
-                { k: 'dutyAmt', w: 15, n: '目标国总税金($)' }, { k: 'logistics', w: 30, n: '物流计费测算底稿' }
-            ]},
-            { title: '财务风控参数', color: 'FFF2F2F2', cols:[
-                { k: 'exRate', w: 12, n: '中间汇率' }, { k: 'buffer', w: 12, n: '汇率缓冲' },
-                { k: 'settleRate', w: 15, n: '安全结汇点位' }, { k: 'payFee', w: 12, n: '收款费率%' },
-                { k: 'profitRate', w: 15, n: '预期净利润率%' }
-            ]},
-            { title: '核心核算结果', color: 'FFC6E0B4', cols:[
-                { k: 'netProfit', w: 18, n: '单件绝对净利($)' }, { k: 'freightAmt', w: 18, n: '国际段总成本($)' },
-                { k: 'ddpEquiv', w: 22, n: '买家DDP预估落地价($)' }
-            ]}
-        ];
-
-        let colIndex = 1;
-        const colDefinitions =[];
-        const tier1Row = sheet.getRow(2);
-        const tier2Row = sheet.getRow(3);
-        tier1Row.height = 25; tier2Row.height = 30;
-
-        headersLayout.forEach(group => {
-            const startCol = colIndex;
-            group.cols.forEach(c => {
-                const cell2 = tier2Row.getCell(colIndex);
-                cell2.value = c.n;
-                cell2.font = { bold: true, color: { argb: 'FF333333' } };
-                cell2.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: group.color } };
-                cell2.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-                cell2.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
-                colDefinitions.push({ key: c.k, width: c.w });
-                colIndex++;
-            });
-            const endCol = colIndex - 1;
-            sheet.mergeCells(2, startCol, 2, endCol);
-            const cell1 = tier1Row.getCell(startCol);
-            cell1.value = group.title;
-            cell1.font = { bold: true, size: 12, color: { argb: 'FF1A1A1A' } };
-            cell1.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: group.color } };
-            cell1.alignment = { horizontal: 'center', vertical: 'middle' };
-            cell1.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
-        });
-        sheet.columns = colDefinitions;
-
-        selectedRecords.forEach(record => {
-            const inp = record.inputs || {};
-            const math = headlessRecalculate(record);
-            
-            const rowData = {
-                product: record.product, mode: record.mode, price: math.price, total: math.totalAmount,
-                moq: math.moqStr, pi: (inp.piNo || 'TBD') + (inp.buyerName ? `\n(${inp.buyerName})` : ''), 
-                lead: inp.leadTime || '未定',
-                costRmb: parseFloat(inp.costRMB)||0, rebateAmt: math.rebateAmt, domFreight: parseFloat(inp.domesticFreight)||0,
-                country: math.countryName, tax: `${inp.taxRate||0}% / ${inp.vatRate||0}%`,
-                ship: parseFloat(inp.shippingFee)||0, dest: parseFloat(inp.destFee)||0, dutyAmt: math.duty,
-                logistics: math.logisticsStr,
-                exRate: parseFloat(inp.exchangeRate)||0, buffer: parseFloat(inp.rateBuffer)||0, settleRate: math.settleRate,
-                payFee: parseFloat(inp.paymentFee)||0, profitRate: parseFloat(record.profitRate)||0,
-                netProfit: math.netProfitUSD, freightAmt: math.freight, ddpEquiv: math.ddpEquiv
-            };
-            const addedRow = sheet.addRow(rowData);
-            
-            // 样式与货币格式修复：美元列(usdCols) vs 人民币列(cnyCols)
-            addedRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
-                cell.border = { top: {style:'thin', color:{argb:'FFEEEEEE'}}, bottom: {style:'thin', color:{argb:'FFEEEEEE'}} };
-                cell.alignment = { vertical: 'middle', wrapText: true };
-                
-                const usdCols =[3, 4, 13, 14, 15, 22, 23, 24];
-                const cnyCols =[8, 9, 10];
-
-                if (typeof cell.value === 'number') {
-                    if (usdCols.includes(colNumber)) {
-                        cell.numFmt = '"$"#,##0.00'; 
-                    } else if (cnyCols.includes(colNumber)) {
-                        cell.numFmt = '"¥"#,##0.00';
-                    }
-                }
-            });
-            addedRow.getCell(3).font = { bold: true, color: { argb: 'FF1B4FD8' } }; 
-        });
-
-        const buffer = await workbook.xlsx.writeBuffer();
-        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        
-        // 核心修复：文件名时间戳采用本地时区 (YYYYMMDD_HHMM)
-        const now = new Date();
-        const ts = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
-        a.download = `外贸报价归档表_Pro_${ts}.xlsx`;
-        
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-
-        showToast(`✅ 成功导出 ${selectedRecords.length} 项报价数据`);
-        document.getElementById('historySelectAllCb').checked = false;
-        toggleSelectAllHistory();
-
-    } catch (err) {
-        console.error('[Export]', err);
-        showToast(err.message || '导出失败，请重试');
-    } finally {
-        document.getElementById('excelBtnText').textContent = originalText;
-        document.getElementById('excelBtnIcon').textContent = '📊';
-        updateExportButtonState();
+    try {
+        const res = await fetch('changelog.txt');
+        if (res.ok && changelogEl) {
+            changelogEl.textContent = (await res.text()).trim() || '暂无记录';
+        }
+    } catch (e) {
+        if (changelogEl) changelogEl.textContent = '无法获取更新日志';
     }
 }
 
-// v2.2: DOMContentLoaded 比 window.onload 更早触发（无需等待图片/字体资源加载完成）
+/**
+ * 路由与入口控制：监听初次加载
+ */
 window.addEventListener('DOMContentLoaded', async () => {
+    // 基础服务初始化（Auth / 事件绑定 / 下拉框填充）
     initSupabase();
+    initLogicBind();
 
-    // ── 共享静态数据初始化（两个模式都需要）──
-    // 填充国家下拉框（countrySelect）
     const s = document.getElementById('countrySelect');
     if (s && s.options.length <= 1) {
         Object.keys(COUNTRIES).forEach(k => {
             const o = document.createElement('option');
-            o.value = k;
-            o.text = COUNTRIES[k].name;
-            s.add(o);
+            o.value = k; o.text = COUNTRIES[k].name; s.add(o);
         });
     }
 
-    // ── 分享链接检测：优先于主应用初始化 ──
+    // 检测是否为分享视图
     const isShareView = window.location.hash.startsWith('#share=');
     if (isShareView) {
-        initLogicBind();
-        // 等待 Supabase SDK 加载，最多 4 秒，单一等待点
         await new Promise(resolve => setTimeout(resolve, 300));
-        checkShareHash();
-        return; // 分享页模式，跳过主应用其余初始化
-    }
-    initLogicBind();
-    nextStep(1);
-
-    // 填充 HS 品类快捷面板
-    const hsGrid = document.getElementById('hsGrid');
-    if (hsGrid) {
-        hsGrid.innerHTML = HS_CATEGORIES.map((h, i) =>
-            `<div class="hs-item" onclick="selectHS(${i})" id="hs-${i}">
-                <div>${h.icon}</div>
-                <div style="font-size:10px;font-weight:600;">${h.name}</div>
-            </div>`
-        ).join('');
-    }
-
-    // 4. 初始化触发国家提示（解决美国贸易战警告显示问题）
-    onCountryChange();
-
-    // 5. 获取实时汇率并加载本地历史
-    fetchRate();
-    loadHistory();
-
-    // 6. 加载版本信息（CI 生成的 version.txt / changelog.txt）
-    async function loadVersionInfo() {
-        // version.txt
-        const versionEl = document.getElementById('versionText');
-        const timeEl    = document.getElementById('buildTime');
-        try {
-            const res  = await fetch('version.txt');
-            if (!res.ok) throw new Error('not found');
-            const text = await res.text();
-            // 解析两行：Version: vXXXX  /  Last updated: XXXX
-            const vMatch = text.match(/Version:\s*(.+)/);
-            const tMatch = text.match(/Last updated:\s*(.+)/);
-            if (vMatch) versionEl.innerHTML = `<strong>${vMatch[1].trim()}</strong>`;
-            if (tMatch) timeEl.textContent   = tMatch[1].trim();
-        } catch {
-            // 本地文件协议或 version.txt 尚未生成时静默降级
-            versionEl.innerHTML = '<strong>dev build</strong>';
-            timeEl.textContent  = '—';
-        }
-
-        // changelog.txt
-        const changelogEl = document.getElementById('changelogContent');
-        try {
-            const res  = await fetch('changelog.txt');
-            if (!res.ok) throw new Error('not found');
-            const text = await res.text();
-            changelogEl.textContent = text.trim() || '暂无记录';
-        } catch {
-            changelogEl.textContent = '暂无记录';
+        const isRendered = await checkShareHash();
+        if (isRendered) {
+            console.log('[Router] 进入分享模式，暂缓主应用加载');
+            return; 
         }
     }
-    loadVersionInfo();
-// 初始化 FAB 为置灰状态（无数据时）
-const fab = document.getElementById('fabResetBtn');
-if (fab) {
-    fab.disabled = true;
-    fab.classList.add('disabled');
-}
+    
+    // 正常进入，初始化主应用
+    ensureMainAppInitialized();
+});
+
+/**
+ * 全局路由监听：处理浏览器“后退”或手动修改 URL 回到主页的场景
+ */
+window.addEventListener('hashchange', async () => {
+    const isShareView = window.location.hash.startsWith('#share=');
+    if (!isShareView) {
+        // 如果从分享页退出回到主页（hash 清空）
+        document.getElementById('shareViewPage').classList.remove('visible');
+        document.body.style.overflow = '';
+        await ensureMainAppInitialized();
+        switchTab('calc');
+    } else {
+        // 如果跳转到特定分享页
+        await checkShareHash();
+    }
 });
 
 // changelog 展开/收起
@@ -5092,158 +5160,305 @@ async function predictHSCode() {
 </div>
 
 <script>
-const AsyncTaskCenter = (() => {
-    let _activeCount = 0;
-    let _lastEndCfg  = null; 
+// [重构] ExcelJS 导出引擎：修复金额格式化错位、增加双币种前缀、修复下载文件名时区
+// ====================[V8.0.1 终极合并版] 导出主引擎 ====================
 
-    const TASK_CONFIG = {
-        predict_hs: {
-            title: 'HS Code 智能分析已完成',
-            body: '关税风险报告已就绪，点击查看完整分析。',
-            jumpLabel: '查看报告', jumpIcon: '🔍',
-            targetTab: 'calc', targetStep: 2, resultCardId: 'ai-hs-result-card',
-            bannerText: 'AI 正在查询海关数据库...'
-        },
-        generate_email: {
-            title: '跟进邮件生成完成',
-            body: '商务邮件草稿已就绪，点击前往查看。',
-            jumpLabel: '查看邮件', jumpIcon: '✉️',
-            targetTab: 'result', resultCardId: 'ai-email-result-card',
-            bannerText: 'AI 正在撰写商务邮件...'
-        }
-    };
-
-    function _updateBanner() {
-        const el = document.getElementById('atc-floating-banner');
-        const textEl = document.getElementById('atc-banner-text');
-        const badgeEl = document.getElementById('atc-task-badge');
-        if (!el) return;
-
-        if (_activeCount <= 0) {
-            el.style.opacity = '0';
-            el.style.transform = 'translateX(-50%) translateY(20px)';
-            el.style.pointerEvents = 'none'; 
-            return;
-        }
-
-        el.style.pointerEvents = 'all';
-        if (textEl) {
-            textEl.textContent = _activeCount === 1 ? (window._atcLastBannerText || 'AI 正在后台思考...') : `${_activeCount} 个任务进行中...`;
-        }
-        if (badgeEl) {
-            badgeEl.textContent = _activeCount;
-            badgeEl.style.display = _activeCount > 1 ? 'flex' : 'none';
-        }
-
-        el.style.opacity = '1';
-        el.style.transform = 'translateX(-50%) translateY(0)';
-    }
-
-    function _showDoneModal(cfg) {
-        const overlay = document.getElementById('atc-done-modal');
-        const titleEl = document.getElementById('atc-done-title');
-        const bodyEl = document.getElementById('atc-done-body');
-        const jumpLabelEl = document.getElementById('atc-done-jump-label');
-        const jumpIconEl = document.getElementById('atc-done-jump-icon');
-        if (!overlay) return;
-
-        titleEl.textContent = cfg.title;
-        bodyEl.textContent = cfg.body;
-        jumpLabelEl.textContent = cfg.jumpLabel;
-        jumpIconEl.textContent = cfg.jumpIcon;
+//[V8.0.2-FIX-4] 分片处理函数（防 ANR）— 与主循环字段格式保持同步
+async function _processRecordsChunked(records, sheet, workbook) {
+    const CHUNK_SIZE = 5;
+    
+    for (let i = 0; i < records.length; i += CHUNK_SIZE) {
+        const chunk = records.slice(i, i + CHUNK_SIZE);
         
-        overlay.style.display = 'flex';
-
-        // 适配输入法：如果正在输入，弱化干扰
-        const activeEl = document.activeElement;
-        if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
-            overlay.style.backgroundColor = 'rgba(0,0,0,0.1)';
-            overlay.style.backdropFilter = 'none';
-        } else {
-            overlay.style.backgroundColor = 'rgba(0,0,0,0.4)';
-            overlay.style.backdropFilter = 'blur(4px)';
-        }
-    }
-
-    function _dismissDone() {
-        const overlay = document.getElementById('atc-done-modal');
-        if (overlay) overlay.style.display = 'none';
-    }
-
-    function _doneJump() {
-        _dismissDone();
-        if (!_lastEndCfg) return;
-        if (typeof switchTab === 'function') switchTab(_lastEndCfg.targetTab);
-        if (_lastEndCfg.targetTab === 'calc' && _lastEndCfg.targetStep) {
-            if (typeof nextStep === 'function') nextStep(_lastEndCfg.targetStep);
-        }
-        setTimeout(() => {
-            const card = document.getElementById(_lastEndCfg.resultCardId);
-            if (card) {
-                card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                card.classList.add('atc-result-highlight');
-                setTimeout(() => card.classList.remove('atc-result-highlight'), 3000);
+        chunk.forEach(record => {
+            const inp = record.inputs || {};
+            const math = headlessRecalculate(record);
+            const addedRow = sheet.addRow({
+                product: record.product, 
+                mode: record.mode, 
+                price: `${fmt.num(math.price, 4)} / ${math.unit}`,
+                total: math.totalAmount,
+                moq: math.moqStr, 
+                pi: (inp.piNo || 'TBD') + (inp.buyerName ? `\n(${inp.buyerName})` : ''), 
+                lead: inp.leadTime || '未定', 
+                costRmb: parseFloat(inp.costRMB)||0, 
+                rebateAmt: math.rebateAmt, 
+                domFreight: parseFloat(inp.domesticFreight)||0, 
+                country: math.countryName, 
+                tax: `${inp.taxRate||0}% / ${inp.vatRate||0}%`,
+                ship: parseFloat(inp.shippingFee)||0, 
+                dest: parseFloat(inp.destFee)||0, 
+                dutyAmt: math.duty,
+                logistics: math.logisticsStr, 
+                exRate: parseFloat(inp.exchangeRate)||0, 
+                buffer: parseFloat(inp.rateBuffer)||0, 
+                settleRate: math.settleRate, 
+                payFee: parseFloat(inp.paymentFee)||0, 
+                profitRate: parseFloat(record.profitRate)||0,
+                netProfit: math.netProfitUSD, 
+                freightAmt: math.freight, 
+                ddpEquiv: math.ddpEquiv
+            });
+            addedRow.eachCell((cell, colNum) => {
+                const usdCols = [4, 13, 14, 15, 22, 23, 24]; // col3(price)已为字符串，不做数字格式化
+                const cnyCols = [8, 9, 10];
+                if (typeof cell.value === 'number') {
+                    if (usdCols.includes(colNum)) cell.numFmt = '"$"#,##0.00'; 
+                    else if (cnyCols.includes(colNum)) cell.numFmt = '"¥"#,##0.00';
+                }
+                cell.alignment = { vertical: 'middle', wrapText: true };
+                cell.border = { bottom: {style:'thin', color:{argb:'FFEEEEEE'}} };
+            });
+            addedRow.getCell(3).font = { bold: true, color: { argb: 'FF1B4FD8' } }; 
+        });
+        
+        // 每 5 条让出主线程，防止浏览器假死
+        if (i + CHUNK_SIZE < records.length) {
+            const btnText = document.getElementById('excelBtnText');
+            if (btnText) {
+                btnText.textContent = `处理中 ${Math.min(i + CHUNK_SIZE, records.length)}/${records.length}...`;
             }
-        }, 400);
+            await new Promise(resolve => requestAnimationFrame(resolve));
+        }
     }
+}
 
-    function _bannerTabJump() {
-        // 跳转目标固定为“结果分析”
-        if (typeof switchTab === 'function') switchTab('result');
+async function exportSelectedToExcel() {
+    const checkboxes = Array.from(document.querySelectorAll('.history-item-cb')).filter(cb => cb.checked);
+    if (checkboxes.length === 0) return;
+
+    const btn = document.getElementById('btnExportExcel');
+    const btnIcon = document.getElementById('excelBtnIcon');
+    const btnText = document.getElementById('excelBtnText');
+    const originalText = `导出 ${checkboxes.length} 项`;
+    
+    btn.classList.add('disabled');
+    btnIcon.textContent = '⏳';
+
+    try {
+        await loadExcelJS();
+        if (btnText) btnText.textContent = '数据重算中...';
+
+        const historyCache = window.__historyCache || JSON.parse(localStorage.getItem('quoteHistory') || '[]');
+        const selectedRecords = checkboxes.map(cb => historyCache.find(r => String(r.id) === cb.dataset.id)).filter(Boolean);
+
+        const workbook = new ExcelJS.Workbook();
+        workbook.creator = '专业外贸报价计算器 Pro';
+        const sheet = workbook.addWorksheet('报价归档', { views:[{ state: 'frozen', xSplit: 3, ySplit: 3 }] });
+
+        // --- A. 表格机密警告 ---
+        sheet.mergeCells('A1:X1');
+        const warningCell = sheet.getCell('A1');
+        warningCell.value = '🔒 内部机密报价底稿，请勿外传！ (Internal Use Only)';
+        warningCell.font = { color: { argb: 'FFFFFFFF' }, bold: true, size: 14 };
+        warningCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE74C3C' } };
+        warningCell.alignment = { horizontal: 'center', vertical: 'middle' };
+
+        // --- B. 双层表头排版 ---
+        const headersLayout =[
+            { title: '基础与制单信息', color: 'FFD9E1F2', cols:[{ k: 'product', w: 25, n: '产品名称' }, { k: 'mode', w: 12, n: '贸易条款' }, { k: 'price', w: 20, n: '建议报价 / 单位' }, { k: 'total', w: 18, n: '订单预估总额(USD)' }, { k: 'moq', w: 15, n: '起订量(文本)' }, { k: 'pi', w: 22, n: 'PI 序号 / 买方' }, { k: 'lead', w: 15, n: '交货期' }]},
+            { title: '国内采购与费用', color: 'FFFFF2CC', cols:[{ k: 'costRmb', w: 16, n: '含税底价(¥)' }, { k: 'rebateAmt', w: 16, n: '退税净收入(¥)' }, { k: 'domFreight', w: 16, n: '国内运杂费(¥)' }]},
+            { title: '国际物流与税率', color: 'FFE2EFDA', cols:[{ k: 'country', w: 12, n: '目标国家' }, { k: 'tax', w: 15, n: '关税% / VAT%' }, { k: 'ship', w: 15, n: '国际主运费($)' }, { k: 'dest', w: 15, n: '目的港费($)' }, { k: 'dutyAmt', w: 15, n: '目标国总税金($)' }, { k: 'logistics', w: 30, n: '物流计费测算底稿' }]},
+            { title: '财务风控参数', color: 'FFF2F2F2', cols:[{ k: 'exRate', w: 12, n: '中间汇率' }, { k: 'buffer', w: 12, n: '汇率缓冲' }, { k: 'settleRate', w: 15, n: '安全结汇点位' }, { k: 'payFee', w: 12, n: '收款费率%' }, { k: 'profitRate', w: 15, n: '预期净利润率%' }]},
+            { title: '核心核算结果', color: 'FFC6E0B4', cols:[{ k: 'netProfit', w: 18, n: '单件绝对净利($)' }, { k: 'freightAmt', w: 18, n: '国际段总成本($)' }, { k: 'ddpEquiv', w: 22, n: '买家DDP预估落地价($)' }]}
+        ];
+
+        let colIndex = 1;
+        const colDefinitions =[];
+        headersLayout.forEach(group => {
+            const startCol = colIndex;
+            group.cols.forEach(c => {
+                const cell2 = sheet.getRow(3).getCell(colIndex);
+                cell2.value = c.n;
+                cell2.font = { bold: true, color: { argb: 'FF333333' } };
+                cell2.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: group.color } };
+                cell2.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+                cell2.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+                colDefinitions.push({ key: c.k, width: c.w });
+                colIndex++;
+            });
+            sheet.mergeCells(2, startCol, 2, colIndex - 1);
+            const cell1 = sheet.getRow(2).getCell(startCol);
+            cell1.value = group.title;
+            cell1.font = { bold: true, size: 12 };
+            cell1.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: group.color } };
+            cell1.alignment = { horizontal: 'center', vertical: 'middle' };
+        });
+        sheet.columns = colDefinitions;
+
+        // --- C. 批量写入数据（分片防假死）---
+        await _processRecordsChunked(selectedRecords, sheet, workbook);
+
+        // --- D. 导出文件 ---
+        if (btnText) btnText.textContent = '正在发起下载...';
+        const buffer = await workbook.xlsx.writeBuffer();
+        const now = new Date();
+        const ts = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
+        const fileName = `外贸报价归档表_Pro_${ts}.xlsx`;
+
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = fileName;
+        document.body.appendChild(a); a.click();
+        setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 100);
+        
+        showToast(`✅ 成功导出 ${selectedRecords.length} 项数据`);
+        document.getElementById('historySelectAllCb').checked = false;
+        toggleSelectAllHistory();
+
+    } catch (err) {
+        console.error('[Export Fatal]', err);
+        showToast(err.message || '导出失败');
+    } finally {
+        btn.classList.remove('disabled');
+        btnIcon.textContent = '📊';
+        updateExportButtonState(); 
     }
+}
+// ==================== ASYNC TASK CENTER 核心逻辑驱动 [V8.0.3] ====================
+window.AsyncTaskCenter = {
+    _activeCount: 0,
+    _doneAction: null,
+    _doneCard: null,
+    _lastStartAction: null, // 记录最近一次启动的 AI 任务类型，供 Banner 跳转使用
 
-    function _isResultVisible(id) {
-        const card = document.getElementById(id);
+    // action → 结果所在 Tab 的映射表，集中维护，避免散落多处
+    _ACTION_TAB: {
+        predict_hs:     'calc',  // HS Code 结果在核算台（stage-2 内）
+        generate_email: 'slip'   // 邮件草稿在出口 PI 页
+    },
+
+    init() {
+        window.addEventListener('ai:start', (e) => this._handleStart(e.detail));
+        window.addEventListener('ai:end', (e) => this._handleEnd(e.detail));
+    },
+
+    _handleStart({ action }) {
+        this._activeCount++;
+        this._lastStartAction = action; // [FIX] 记录当前任务，供 _bannerTabJump 使用
+        const banner = document.getElementById('atc-floating-banner');
+        const badge = document.getElementById('atc-task-badge');
+        const text = document.getElementById('atc-banner-text');
+
+        text.textContent = action === 'predict_hs' ? 'AI 正在分析清关风险...' : 'AI 正在撰写商务邮件...';
+        banner.style.opacity = '1';
+        banner.style.transform = 'translateX(-50%) translateY(0)';
+        banner.style.pointerEvents = 'auto';
+
+        if (this._activeCount > 1) {
+            badge.style.display = 'flex';
+            badge.textContent = this._activeCount;
+        } else {
+            badge.style.display = 'none';
+        }
+    },
+
+    _handleEnd({ action, resultCard, hasContent, isAborted }) {
+        if (this._activeCount > 0) this._activeCount--;
+        
+        const banner = document.getElementById('atc-floating-banner');
+        if (this._activeCount === 0) {
+            banner.style.opacity = '0';
+            banner.style.transform = 'translateX(-50%) translateY(20px)';
+            banner.style.pointerEvents = 'none';
+        }
+
+        // 仅在非打断且有内容时提醒
+        if (!isAborted && hasContent) {
+            // 三层防御可见性判断：display → parentStage.active → 视口
+            if (!this._isResultVisible(resultCard)) {
+                setTimeout(() => this._showDoneModal(action, resultCard), 200);
+            } else {
+                if (resultCard) {
+                    resultCard.classList.add('atc-result-highlight');
+                    setTimeout(() => resultCard.classList.remove('atc-result-highlight'), 3000);
+                }
+            }
+        }
+    },
+
+    // 三层防御可见性判断：
+    //   第1层：卡片存在且未被 display:none 隐藏（inline style）
+    //   第2层：卡片所在的 step-stage 父级处于 active 状态
+    //   第3层：卡片实际出现在当前视口范围内
+    _isResultVisible(card) {
         if (!card || card.style.display === 'none') return false;
         const parentStage = card.closest('.step-stage');
         if (parentStage && !parentStage.classList.contains('active')) return false;
         const rect = card.getBoundingClientRect();
         return rect.top < window.innerHeight && rect.bottom > 0;
-    }
+    },
 
-    // 事件监听（集成 Ghost Fix 逻辑）
-    window.addEventListener('ai:start', (e) => {
-        const { action } = e.detail || {};
-        const cfg = TASK_CONFIG[action] || {};
-        _activeCount++;
-        window._atcLastBannerText = cfg.bannerText || 'AI 正在思考...';
-        _updateBanner();
-    });
-
-    window.addEventListener('ai:end', (e) => {
-        const { action, resultCard, hasContent, isAborted } = e.detail || {};
-        const cfg = TASK_CONFIG[action] || {
-            title: 'AI 分析已完成', body: '结果已就绪。',
-            jumpLabel: '查看结果', jumpIcon: '🔍',
-            targetTab: 'result', resultCardId: resultCard?.id || ''
-        };
-
-        _activeCount = Math.max(0, _activeCount - 1);
-        _lastEndCfg = cfg;
-        _updateBanner();
-
-        // 幽灵修复：仅在非打断且有内容时提醒
-        if (hasContent && !isAborted) {
-            if (!_isResultVisible(cfg.resultCardId)) {
-                setTimeout(() => _showDoneModal(cfg), 200);
-            } else {
-                const card = document.getElementById(cfg.resultCardId);
-                if (card) {
-                    card.classList.add('atc-result-highlight');
-                    setTimeout(() => card.classList.remove('atc-result-highlight'), 3000);
-                }
-            }
-        }
-    });
-
-    document.addEventListener('click', (e) => {
+    _showDoneModal(action, resultCard) {
+        this._doneAction = action;
+        this._doneCard = resultCard;
+        
         const modal = document.getElementById('atc-done-modal');
-        if (modal && e.target === modal) _dismissDone();
-    });
+        const title = document.getElementById('atc-done-title');
+        const body = document.getElementById('atc-done-body');
+        const jumpLabel = document.getElementById('atc-done-jump-label');
+        const jumpIcon = document.getElementById('atc-done-jump-icon');
+        if (!modal) return;
 
-    return { _bannerTabJump, _doneJump, _dismissDone };
-})();
+        if (action === 'predict_hs') {
+            title.textContent = 'HS Code 分析已就绪';
+            body.textContent = '报关建议与风险评估已生成。';
+            jumpLabel.textContent = '查看风险报告';
+            if (jumpIcon) jumpIcon.textContent = '🔍';
+        } else {
+            title.textContent = '跟进邮件已写好';
+            body.textContent = '高转化率商务草稿已就绪。';
+            jumpLabel.textContent = '查看邮件草稿';
+            if (jumpIcon) jumpIcon.textContent = '✉️';
+        }
+
+        modal.style.display = 'flex';
+
+        // 输入法适配：用户正在输入时弱化遮罩，避免打断输入
+        const activeEl = document.activeElement;
+        if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+            modal.style.backgroundColor = 'rgba(0,0,0,0.1)';
+            modal.style.backdropFilter = 'none';
+            modal.style.webkitBackdropFilter = 'none';
+        } else {
+            modal.style.backgroundColor = 'rgba(0,0,0,0.4)';
+            modal.style.backdropFilter = 'blur(4px)';
+            modal.style.webkitBackdropFilter = 'blur(4px)';
+        }
+    },
+
+    _dismissDone() {
+        const modal = document.getElementById('atc-done-modal');
+        if (modal) modal.style.display = 'none';
+    },
+
+    _doneJump() {
+        this._dismissDone();
+        const targetTab = this._ACTION_TAB[this._doneAction] || 'calc';
+        if (typeof switchTab === 'function') switchTab(targetTab);
+        // predict_hs 结果在 stage-2，需确保 step 切换到正确位置
+        if (this._doneAction === 'predict_hs' && typeof nextStep === 'function') {
+            nextStep(2);
+        }
+        setTimeout(() => {
+            this._doneCard?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            this._doneCard?.classList.add('atc-result-highlight');
+            setTimeout(() => this._doneCard?.classList.remove('atc-result-highlight'), 3000);
+        }, 400);
+    },
+
+    // Banner 点击跳转：根据最近启动的任务类型跳到对应 Tab
+    // predict_hs → calc，generate_email → slip
+    // 若无任务记录则默认 calc
+    _bannerTabJump() {
+        const targetTab = this._ACTION_TAB[this._lastStartAction] || 'calc';
+        if (typeof switchTab === 'function') switchTab(targetTab);
+    }
+};
+
+// 启动通知中心
+AsyncTaskCenter.init();
 </script>
-
 </body>
 </html>
