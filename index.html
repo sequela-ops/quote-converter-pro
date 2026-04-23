@@ -3147,8 +3147,9 @@ function onSlider(e) {
     autoCalculate();
 }
 
-// 伴生配套微调功能：利润率步进后触发核算（处理越界阻断，保证健壮性）
 //[V8.0.2-FIX-6] stepProfit 边界检查健壮化
+// 伴生配套微调功能：利润率步进后触发核算（处理越界阻断，保证健壮性）
+//[V8.0.2-FIX-6] stepProfit 边界检查健壮化（优化：按钮恢复个位数快速步进）
 function stepProfit(step) {
     const slider = document.getElementById('profitSlider');
     if (!slider) return; // ✅ 空指针防护
@@ -3157,12 +3158,13 @@ function stepProfit(step) {
     const currentVal = parseFloat(slider.value) || 20;
     const minVal = parseFloat(slider.min) || 1;      // ✅ 防 NaN
     const maxVal = parseFloat(slider.max) || 60;     // ✅ 防 NaN
-    const stepVal = parseFloat(slider.step) || 0.1;  // ✅ 防 NaN
+    const stepVal = parseFloat(slider.step) || 0.1;  // ✅ 防 NaN提取，用于下方保留滑块原本所设计的有效精度位数
     
-    let val = currentVal + (step * stepVal);
-    val = Math.max(minVal, Math.min(maxVal, val));   // ✅ 双重边界
+    // 恢复预期：按钮点击直接进行传入量（1或-1）的进退位，不再乘以滑块自身的微调步长
+    let val = currentVal + step;
+    val = Math.max(minVal, Math.min(maxVal, val));   // ✅ 双重边界保护
     
-    // 精度对齐，避免浮点误差
+    // 精度对齐，避免浮点误差（例如 20.1 减 1 得到 19.1，而非 19.09999）
     const precision = String(stepVal).split('.')[1]?.length || 1;
     val = parseFloat(val.toFixed(precision));
     
@@ -6062,7 +6064,7 @@ window.PdfExportEngine = (function() {
         };
     }
 
-    // ── 离屏渲染层 ──
+    // ── 离屏渲染层 (增加 pdf-unbreakable 防切割标识) ──
     function _buildOffscreenEl(data, version) {
         const d = data;
         const now = new Date();
@@ -6081,8 +6083,9 @@ window.PdfExportEngine = (function() {
         }
 
         const baseStyle = `font-family: 'PingFang SC', -apple-system, sans-serif; font-size: 11px; line-height: 1.6; color: #1A1A1A; background: #fff; padding: 0; margin: 0;`;
-        const row = (label, value, accent='', bold=false) => `<tr style="border-bottom:1px solid #F0EDE8;"><td style="padding:7px 10px; color:#706D67; font-size:10.5px; width:42%;">${label}</td><td style="padding:7px 10px; font-weight:${bold?'700':'500'}; font-family:${bold?'monospace':'inherit'}; color:${accent||'#1A1A1A'};">${value}</td></tr>`;
-        const sectionHeader = (title, color='#1B4FD8') => `<tr><td colspan="2" style="padding:10px 10px 6px; font-size:10px; font-weight:700; letter-spacing:0.8px; color:${color}; background:#F9F8F6; border-bottom:1px solid #E8E5DF;">${title}</td></tr>`;
+        // [核心注入] class="pdf-unbreakable"，通知底层分页引擎这些行不可切断
+        const row = (label, value, accent='', bold=false) => `<tr class="pdf-unbreakable" style="border-bottom:1px solid #F0EDE8;"><td style="padding:7px 10px; color:#706D67; font-size:10.5px; width:42%;">${label}</td><td style="padding:7px 10px; font-weight:${bold?'700':'500'}; font-family:${bold?'monospace':'inherit'}; color:${accent||'#1A1A1A'};">${value}</td></tr>`;
+        const sectionHeader = (title, color='#1B4FD8') => `<tr class="pdf-unbreakable"><td colspan="2" style="padding:10px 10px 6px; font-size:10px; font-weight:700; letter-spacing:0.8px; color:${color}; background:#F9F8F6; border-bottom:1px solid #E8E5DF;">${title}</td></tr>`;
 
         const briefContent = `
             <table style="width:100%; border-collapse:collapse; margin-bottom:12px;">
@@ -6132,10 +6135,10 @@ window.PdfExportEngine = (function() {
             </table>
             <table style="width:100%; border-collapse:collapse; margin-bottom:12px;">
                 ${sectionHeader('📦 物流核算底稿', '#0EA47A')}
-                <tr><td colspan="2" style="padding:8px 10px; font-size:10.5px; color:#1A1A1A; background:#ECFDF5; border-radius:4px; line-height:1.8;">${ldStr}</td></tr>
+                <tr class="pdf-unbreakable"><td colspan="2" style="padding:8px 10px; font-size:10.5px; color:#1A1A1A; background:#ECFDF5; border-radius:4px; line-height:1.8;">${ldStr}</td></tr>
             </table>
-            ${d.hsReport ? `<table style="width:100%; border-collapse:collapse; margin-bottom:12px;">${sectionHeader('🤖 AI HS Code 清关风险报告', '#0EA47A')}<tr><td colspan="2" style="padding:10px; font-size:10.5px; color:#374151; line-height:1.8; white-space:pre-wrap; background:#F0FDF4;">${d.hsReport.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</td></tr></table>` : ''}
-            ${d.emailDraft ? `<table style="width:100%; border-collapse:collapse; margin-bottom:12px;">${sectionHeader('✉️ AI 高转化跟进邮件草稿', '#1B4FD8')}<tr><td colspan="2" style="padding:10px; font-size:10.5px; color:#374151; line-height:1.8; white-space:pre-wrap; background:#EEF2FF;">${d.emailDraft.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</td></tr></table>` : ''}
+            ${d.hsReport ? `<table style="width:100%; border-collapse:collapse; margin-bottom:12px;">${sectionHeader('🤖 AI HS Code 清关风险报告', '#0EA47A')}<tr class="pdf-unbreakable"><td colspan="2" style="padding:10px; font-size:10.5px; color:#374151; line-height:1.8; white-space:pre-wrap; background:#F0FDF4;">${d.hsReport.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</td></tr></table>` : ''}
+            ${d.emailDraft ? `<table style="width:100%; border-collapse:collapse; margin-bottom:12px;">${sectionHeader('✉️ AI 高转化跟进邮件草稿', '#1B4FD8')}<tr class="pdf-unbreakable"><td colspan="2" style="padding:10px; font-size:10.5px; color:#374151; line-height:1.8; white-space:pre-wrap; background:#EEF2FF;">${d.emailDraft.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</td></tr></table>` : ''}
         ` : '';
 
         container.innerHTML = `
@@ -6143,7 +6146,7 @@ window.PdfExportEngine = (function() {
             <div style="height:40px; line-height:40px; box-sizing:border-box; background:#E53935; color:#fff; padding:0 16px; font-weight:700; font-size:12px; text-align:center; letter-spacing:0.5px;">
                 🔒 LOCK：内部核算机密，请勿外传 · INTERNAL USE ONLY
             </div>
-            <div style="padding:16px 16px 10px; border-bottom:2px solid #E8E5DF; display:flex; justify-content:space-between; align-items:flex-start;">
+            <div class="pdf-unbreakable" style="padding:16px 16px 10px; border-bottom:2px solid #E8E5DF; display:flex; justify-content:space-between; align-items:flex-start;">
                 <div>
                     <div style="font-size:18px; font-weight:800; color:#1B4FD8; letter-spacing:-0.3px;">外贸报价核算档案</div>
                     <div style="font-size:10px; color:#706D67; margin-top:2px;">Quotation Analysis · ${version === 'brief' ? 'Brief Version' : 'Full Version'}</div>
@@ -6153,11 +6156,10 @@ window.PdfExportEngine = (function() {
                     <div style="font-size:12px; font-weight:700; font-family:monospace;">${dateStr}</div>
                 </div>
             </div>
-            <div style="margin:12px 16px; background:linear-gradient(135deg,#1B4FD8,#1340b8); border-radius:14px; padding:18px 20px; color:#fff;">
+            <div class="pdf-unbreakable" style="margin:12px 16px; background:linear-gradient(135deg,#1B4FD8,#1340b8); border-radius:14px; padding:18px 20px; color:#fff;">
                 <div style="font-size:10px; opacity:0.8; letter-spacing:1px; text-transform:uppercase; margin-bottom:4px;">${d.mode} · 建议单价报价</div>
                 <div style="font-size:32px; font-weight:800; font-family:monospace; letter-spacing:-1px; line-height:1.1;">${d.price}</div>
                 <div style="font-size:12px; opacity:0.85; margin-top:2px;">${d.priceCNY}</div>
-                <!-- V8.1.0 回滚：4项核心 KPI 视觉横条 -->
                 <div style="display:flex; gap:20px; margin-top:14px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.2);">
                     <div><div style="font-size:9px; opacity:0.75;">净利润率</div><div style="font-weight:700; font-size:14px;">${d.profitRate}</div></div>
                     <div><div style="font-size:9px; opacity:0.75;">安全结汇点位</div><div style="font-weight:700; font-size:14px; font-family:monospace;">${d.settleRate}</div></div>
@@ -6212,19 +6214,14 @@ window.PdfExportEngine = (function() {
         }
     }
 
-    // ── 主导出流程 ──
+// ── 主导出流程 (集成 DOM 感知型智能分页算法) ──
     async function generate() {
         if (_isLoading) return;
         if (typeof state !== 'undefined' && !state.lastPrice) { showToast('⚠️ 暂无有效核算结果，无法导出'); return; }
         _setLoading(true);
         try {
-            // 字体就绪检查 + 2秒强制超时保护
-            // 确保排版精准的同时，绝不因为网络原因卡死导出流程
             if (document.fonts && document.fonts.ready) {
-                await Promise.race([
-                    document.fonts.ready,
-                    new Promise(resolve => setTimeout(resolve, 2000)) 
-                ]);
+                await Promise.race([ document.fonts.ready, new Promise(r => setTimeout(r, 2000)) ]);
             }
 
             showToast('⏳ 加载 PDF 渲染引擎...');
@@ -6233,28 +6230,73 @@ window.PdfExportEngine = (function() {
             const data = _scrapeResultData();
             const el = _buildOffscreenEl(data, _version);
             
-            showToast('🖨️ 正在捕获超清长图，请勿关闭弹窗...');
+            // === 核心防护：DOM 智能分页垫片注入算法 ===
+            // 通过与底板相同的精确度，计算 DOM 结构中 A4 纸视口的物理裁剪线
+            const scale = 2.5;
+            const contentWidth = 595.28 - (20 * 2);
+            const scaleX = contentWidth / (794 * scale);
+            const headerHeightPt = Math.round(40 * scale) * scaleX;
+            const usableHeightPt = 841.89 - 40 - headerHeightPt - 35;
+            const usableDOMPx = Math.floor(usableHeightPt / scaleX) / scale;
+            
+            let pageBottom = 40 + usableDOMPx; // 第一页的虚拟裁剪底线
+            
+            const unbreakables = Array.from(el.querySelectorAll('.pdf-unbreakable'));
+            for (let i = 0; i < unbreakables.length; i++) {
+                const node = unbreakables[i];
+                const rect = node.getBoundingClientRect();
+                const containerRect = el.getBoundingClientRect();
+                const offsetTop = rect.top - containerRect.top; // 抵消 scroll 导致的偏差
+                
+                // 快进到该元素所在的绝对页码
+                while (offsetTop >= pageBottom) {
+                    pageBottom += usableDOMPx;
+                }
+                
+                const offsetBottom = offsetTop + rect.height;
+                
+                // 裁切研判（+1px 容忍度消除次像素边框截断假阳性）
+                if (offsetBottom > pageBottom + 1) { 
+                    // 防死锁：只对正常尺寸块进行下推操作
+                    if (rect.height < usableDOMPx) { 
+                        // 追加 2px 安全沉降冗余，确保彻底脱离上一页画布切割边缘
+                        const pushAmount = pageBottom - offsetTop + 2; 
+                        
+                        if (node.tagName === 'TR') {
+                            const spacer = document.createElement('tr');
+                            // 极其安全的内联白墙，切断任何上层样式的继承渗漏
+                            spacer.innerHTML = `<td colspan="2" style="border:none !important; padding:0 !important; margin:0 !important; height:${pushAmount}px; background:#fff;"></td>`;
+                            node.parentNode.insertBefore(spacer, node);
+                        } else {
+                            node.style.marginTop = `${(parseFloat(window.getComputedStyle(node).marginTop) || 0) + pushAmount}px`;
+                        }
+                        pageBottom += usableDOMPx; 
+                    } else {
+                        // 遇到极长超规格元素（如超长 AI 报告），放行令其自然硬切割
+                        while (offsetBottom > pageBottom) pageBottom += usableDOMPx;
+                    }
+                }
+            }
+            // ==========================================
+
+            showToast('🖨️ 正在捕获超清排版，请勿关闭弹窗...');
             const canvas = await window.html2canvas(el, {
                 scale: 2.5,
                 useCORS: true,
                 allowTaint: false,
                 backgroundColor: '#ffffff',
                 windowWidth: 794,
-                // 强制回归零位锚定，防止页面滚动导致捕获偏移
-                scrollY: 0,
-                scrollX: 0
+                scrollY: 0, scrollX: 0 // 防抖动锁定绝对原点
             });
 
             const pdf = _canvasToMultiPagePdf(window.jspdf, canvas);
             
-            // 构建安全文件名
             const now = new Date();
             const ds = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
             const safeName = (data.productName || '未命名产品').replace(/[\/\\:*?"<>|]/g, '_').substring(0, 20);
             const fileName = `内部核算档案_${safeName}_${ds}.pdf`;
 
             _triggerDownload(pdf, fileName);
-            
             closeDrawer();
             showToast('✅ 内部档案导出成功');
         } catch(err) {
@@ -6262,14 +6304,10 @@ window.PdfExportEngine = (function() {
             showToast(`❌ 导出意外中断：${err.message || '未知渲染异常'}`);
         } finally {
             _setLoading(false);
-            // 【硬核内存释放】精准清理离屏 DOM 节点，防止 OOM 假死
             if (_currentOffscreenId) {
                 const garbage = document.getElementById(_currentOffscreenId);
-                if (garbage) {
-                    garbage.innerHTML = ''; // 剥离内部 DOM 树加速 GC
-                    garbage.remove();
-                }
-                _currentOffscreenId = null;
+                if (garbage) { garbage.innerHTML = ''; garbage.remove(); }
+                _currentOffscreenId = null; // GC 回收护城河
             }
         }
     }
