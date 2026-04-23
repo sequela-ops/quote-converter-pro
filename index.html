@@ -624,6 +624,94 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
 }
 .sv-load-text { font-size: 13px; color: var(--text3); }
 
+/* ==================== PDF EXPORT SYSTEM [V8.1.0] ==================== */
+.pdf-export-fab {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    width: 100%; margin-top: 12px;
+    background: #FFF5F5; color: #E53935;
+    border: 1.5px solid rgba(229,57,53,0.25); border-radius: var(--radius);
+    padding: 13px 16px; font-size: 14px; font-weight: 700; cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+    box-shadow: 0 2px 8px rgba(229,57,53,0.08);
+}
+.pdf-export-fab:active { background: rgba(229,57,53,0.12); transform: scale(0.98); }
+.pdf-export-fab .pdf-fab-icon { font-size: 18px; flex-shrink: 0; }
+
+/* PDF 底部抽屉 — 镜像 share-sheet-overlay 设计体系 */
+.pdf-sheet-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    display: none; align-items: flex-end; justify-content: center; z-index: 20000;
+}
+.pdf-sheet-overlay.open { display: flex; }
+.pdf-sheet {
+    background: var(--surface); width: 100%; max-width: 600px;
+    border-radius: 24px 24px 0 0; padding: 0 0 44px; overflow: hidden;
+    animation: sheetUp 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.pdf-sheet-handle-area { padding: 14px 24px 0; display: flex; justify-content: center; }
+.pdf-sheet-handle { width: 40px; height: 4px; background: var(--border2); border-radius: 2px; }
+.pdf-sheet-header { padding: 16px 24px 20px; border-bottom: 1px solid var(--border); }
+.pdf-sheet-title { font-size: 18px; font-weight: 800; color: var(--text); display: flex; align-items: center; gap: 10px; }
+.pdf-sheet-title-icon { font-size: 22px; }
+.pdf-sheet-sub { font-size: 12px; color: var(--text2); margin-top: 4px; line-height: 1.5; }
+
+/* 版本选择卡 */
+.pdf-version-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 20px 24px 0; }
+.pdf-version-card {
+    border: 1.5px solid var(--border); border-radius: 14px;
+    padding: 16px 14px; cursor: pointer; transition: all 0.2s; background: var(--surface2);
+    display: flex; flex-direction: column; gap: 6px; text-align: left;
+}
+.pdf-version-card:active { transform: scale(0.97); }
+.pdf-version-card.selected {
+    border-color: #E53935; background: #FFF5F5;
+    box-shadow: 0 4px 16px rgba(229,57,53,0.12);
+}
+.pdf-version-icon { font-size: 26px; }
+.pdf-version-label { font-size: 14px; font-weight: 800; color: var(--text); }
+.pdf-version-sub { font-size: 10px; color: var(--text3); line-height: 1.4; }
+.pdf-version-card.selected .pdf-version-label { color: #C62828; }
+.pdf-version-check {
+    width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--border2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; color: white; align-self: flex-end; margin-top: 4px;
+    transition: all 0.2s; background: var(--surface);
+}
+.pdf-version-card.selected .pdf-version-check {
+    background: #E53935; border-color: #E53935;
+}
+
+/* iOS 提示 */
+.pdf-ios-tip {
+    margin: 12px 24px 0; padding: 10px 14px;
+    background: #FFF8E1; border: 1px solid #FFE082; border-radius: var(--radius-sm);
+    font-size: 11px; color: #795548; line-height: 1.6; display: none;
+}
+.pdf-ios-tip.visible { display: block; }
+
+/* 导出按钮 */
+.pdf-generate-btn {
+    margin: 16px 24px 0; width: calc(100% - 48px);
+    background: #E53935; color: white; border: none;
+    border-radius: var(--radius); padding: 15px;
+    font-size: 15px; font-weight: 700; cursor: pointer;
+    transition: all 0.2s; box-shadow: 0 4px 16px rgba(229,57,53,0.3);
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+}
+.pdf-generate-btn:active { transform: scale(0.97); opacity: 0.9; }
+.pdf-generate-btn:disabled { opacity: 0.6; pointer-events: none; cursor: not-allowed; }
+.pdf-generate-btn .pdf-btn-spinner {
+    width: 16px; height: 16px; border: 2.5px solid rgba(255,255,255,0.4);
+    border-top-color: white; border-radius: 50%;
+    animation: spin 0.7s linear infinite; display: none; flex-shrink: 0;
+}
+.pdf-generate-btn.loading .pdf-btn-spinner { display: inline-block; }
+.pdf-generate-btn.loading .pdf-btn-label-text { opacity: 0.85; }
+
+.pdf-disclaimer { margin: 10px 24px 0; font-size: 11px; color: var(--text3); text-align: center; line-height: 1.6; }
+
 /* ==================== VERSION FOOTER ==================== */
 .version-footer {
     text-align: center;
@@ -779,6 +867,19 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
 }
 .btn-export-excel:active { transform: scale(0.96); background: #0b8a65; }
 .btn-export-excel.disabled { opacity: 0.5; pointer-events: none; filter: grayscale(1); box-shadow: none; }
+
+/* ==================== 游客模式导出入口置灰样式 ==================== */
+.export-guest-locked {
+    opacity: 0.45 !important;
+    filter: grayscale(0.6) !important;
+    cursor: not-allowed !important;
+    position: relative;
+}
+.export-guest-locked:active { transform: none !important; }
+/* Excel 导出按钮游客锁定：直接接管 pointer-events，阻止子元素穿透 */
+.btn-export-excel.export-guest-locked {
+    pointer-events: auto !important; /* 必须允许点击以显示提示，不能用 none */
+}
 </style>
 </head>
 <body>
@@ -786,7 +887,7 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
 <div class="header">
   <div class="header-left" style="display:flex; align-items:center;">
     <div class="header-logo">🚢</div>
-    <div class="header-title">外贸报价计算器 <span style="color:var(--accent);font-size:11px;background:var(--accent-light);padding:2px 6px;border-radius:6px;margin-left:4px;">V8</span></div>
+    <div class="header-title">外贸报价计算器 <span style="color:var(--accent);font-size:11px;background:var(--accent-light);padding:2px 6px;border-radius:6px;margin-left:4px;">V8.1.0</span></div>
   </div>
   <div style="display:flex; align-items:center; gap:8px;">
     <!-- 用户状态按钮 -->
@@ -1114,7 +1215,49 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
         <div class="disclaimer">
           * 提示：上方的“买家最终落地价”指无论您报什么条款，最终买家要将此货物拿到手（含双清包税）需要付出的预估总成本。这有助于您掌握对客谈判筹码。
         </div>
+
+        <!-- ==================== PDF EXPORT ENTRY [V8.1.0] ==================== -->
+        <button class="pdf-export-fab" id="btnPdfExportFab" onclick="PdfExportEngine.openDrawer()">
+            <span class="pdf-fab-icon">📄</span>
+            <span>导出内部核算档案 PDF</span>
+        </button>
     </div>
+</div>
+
+<!-- ==================== PDF EXPORT SHEET [V8.1.0] ==================== -->
+<div id="pdfSheetOverlay" class="pdf-sheet-overlay" onclick="PdfExportEngine.handleOverlayClick(event)">
+  <div class="pdf-sheet" onclick="event.stopPropagation()">
+    <div class="pdf-sheet-handle-area"><div class="pdf-sheet-handle"></div></div>
+    <div class="pdf-sheet-header">
+      <div class="pdf-sheet-title">
+        <span class="pdf-sheet-title-icon">📄</span>
+        <span>导出内部核算档案</span>
+      </div>
+      <div class="pdf-sheet-sub">选择档案规格后点击导出。文件仅供内部核算存档，请勿外传。</div>
+    </div>
+    <div class="pdf-version-grid">
+      <div class="pdf-version-card selected" id="pdfCardBrief" onclick="PdfExportEngine.selectVersion('brief')">
+        <div class="pdf-version-icon">⚡</div>
+        <div class="pdf-version-label">简要版</div>
+        <div class="pdf-version-sub">核心财务结果<br>自动分页 A4</div>
+        <div class="pdf-version-check">✓</div>
+      </div>
+      <div class="pdf-version-card" id="pdfCardFull" onclick="PdfExportEngine.selectVersion('full')">
+        <div class="pdf-version-icon">📋</div>
+        <div class="pdf-version-label">全面版</div>
+        <div class="pdf-version-sub">全参数 + AI 报告<br>自动多页分页</div>
+        <div class="pdf-version-check">✓</div>
+      </div>
+    </div>
+    <div class="pdf-ios-tip" id="pdfIosTip">
+      📱 <b>iOS 用户：</b>浏览器将自动预览 PDF。请点击右上角 <b>「分享」</b> 按钮，选择 <b>「存储到文件」</b> 即可保存到本机。
+    </div>
+    <button class="pdf-generate-btn" id="btnPdfGenerate" onclick="PdfExportEngine.generate()">
+      <div class="pdf-btn-spinner"></div>
+      <span class="pdf-btn-label-text" id="pdfBtnLabel">📥 立即导出 PDF</span>
+    </button>
+    <div class="pdf-disclaimer">文件将包含进货底价等商业机密 · 请妥善保管</div>
+  </div>
 </div>
 
 <!-- PAGE 3: 出口 PI -->
@@ -1530,6 +1673,15 @@ let state = {
 aiTasks: new Map(),
 isSaved: false // V7.4.0新增：当前展示的结果是否已保存
 };
+
+// [Hydration-1] 全局持久化字段清单 — saveHistory / 离场快照 / 回场还原 共用同一份，维护零成本
+const PERSIST_FIELDS = [
+    'costRMB', 'isRebate', 'rebateRate', 'inputVatRate', 'domesticFreight',
+    'shippingFee', 'destFee', 'insuranceRate', 'taxRate', 'vatRate',
+    'exchangeRate', 'rateBuffer', 'paymentFee', 'productName', 'moqInput',
+    'portInput', 'sellerName', 'buyerName', 'paymentTerm', 'leadTime', 'validDays',
+    'countrySelect'
+];
 
 // [补丁1.A] 中央 DOM 注册表：将散落在各处的查询集中管理，提升维护性 (解决 四.2)
 const UI = {
@@ -2337,9 +2489,18 @@ function setMode(el) {
     document.getElementById('row-insurance')?.classList.toggle('dimmed', !showIns);
     document.getElementById('section-tax')  ?.classList.toggle('dimmed', !showTax);
 
-// V7.4.0新增
+// V8.1.0新增
 resetSaveState();
     if (typeof autoCalculate === 'function') autoCalculate();
+
+    // 业务护卫：针对 EXW 特殊逻辑进行风险透传，防止用户产生“填了但没算进去”的亏损误判
+    if (state.mode === 'EXW') {
+        const dfInput = document.getElementById('domesticFreight');
+        const domFreight = parseFloat(dfInput?.value) || 0;
+        if (domFreight > 0) {
+            showToast('ℹ️ 提示：EXW 条款不计国内运杂费，您在 Stage 1 填写的 ¥' + domFreight + ' 已被自动忽略');
+        }
+    }
 }
 
 // ==================== V2 核心财务中枢 ====================
@@ -2665,13 +2826,7 @@ function loadHistory() {
 }
 
 function saveHistory(price, settleRate, costRMB) {
-    const PERSIST_FIELDS =[
-        'costRMB', 'isRebate', 'rebateRate', 'inputVatRate', 'domesticFreight', 
-        'shippingFee', 'destFee', 'insuranceRate', 'taxRate', 'vatRate', 
-        'exchangeRate', 'rateBuffer', 'paymentFee', 'productName', 'moqInput', 
-        'portInput', 'sellerName', 'buyerName', 'paymentTerm', 'leadTime', 'validDays',
-        'countrySelect' // V8 核心修复：持久化目标国家，供 Excel 分析调用
-    ];
+    // PERSIST_FIELDS 已提升为全局常量，此处直接复用
     
     const inputsData = {};
     PERSIST_FIELDS.forEach(id => {
@@ -3363,6 +3518,11 @@ function initLogicBind() {
 const SUPABASE_URL = 'https://ehotaizdxfhwuuitjhty.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVob3RhaXpkeGZod3V1aXRqaHR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5OTQ1MjMsImV4cCI6MjA5MTU3MDUyM30.z2YNyQxY2_VjkaZhXfb-qKejBikOOoNXKlVcYsALglM';
 
+// [Fix-1] 补全缺失的验证函数，避免致命的 ReferenceError 阻断初始化
+function isSupabaseConfigured() {
+    return typeof SUPABASE_URL !== 'undefined' && SUPABASE_URL !== '' && SUPABASE_URL !== 'YOUR_SUPABASE_URL_HERE';
+}
+
 let supabaseClient = null;
 let currentUser = null;
 let _authLastNotifiedId = null;
@@ -3449,6 +3609,71 @@ function renderGuestUI() {
     if (lbl) lbl.textContent = '（本机）';
     const banner = document.getElementById('syncBanner');
     if (banner) banner.style.display = isSupabaseConfigured() ? 'flex' : 'none';
+
+    // ── 游客模式：锁定导出入口，温柔引导登录 ──
+    _lockExportButtons();
+}
+
+// 锁定两个导出入口（游客模式调用）
+function _lockExportButtons() {
+    // 1. PDF 导出按钮
+    const pdfFab = document.getElementById('btnPdfExportFab');
+    if (pdfFab) {
+        // [Fix-2] 先清理潜在的旧监听器，避免多次调用叠加导致登录后永久锁死
+        if (pdfFab._guestHandler) {
+            pdfFab.removeEventListener('click', pdfFab._guestHandler, true);
+        }
+        pdfFab.classList.add('export-guest-locked');
+        pdfFab.title = '请登录后使用导出功能';
+        pdfFab._guestHandler = (e) => {
+            e.stopPropagation();
+            showToast('🔒 请先登录，即可导出内部核算档案 PDF');
+            setTimeout(() => openAuthSheet(), 600);
+        };
+        pdfFab.addEventListener('click', pdfFab._guestHandler, true);
+    }
+
+    // 2. Excel 导出按钮
+    const excelBtn = document.getElementById('btnExportExcel');
+    if (excelBtn) {
+        // [Fix-2] 先清理潜在的旧监听器，避免多次调用叠加导致登录后永久锁死
+        if (excelBtn._guestHandler) {
+            excelBtn.removeEventListener('click', excelBtn._guestHandler, true);
+        }
+        excelBtn.classList.add('export-guest-locked');
+        excelBtn.title = '请登录后使用导出功能';
+        excelBtn._guestHandler = (e) => {
+            e.stopPropagation();
+            showToast('🔒 请先登录，即可批量导出 Excel 报表');
+            setTimeout(() => openAuthSheet(), 600);
+        };
+        excelBtn.addEventListener('click', excelBtn._guestHandler, true);
+    }
+}
+
+// 恢复两个导出入口（登录后调用）
+function _unlockExportButtons() {
+    // 1. PDF 导出按钮
+    const pdfFab = document.getElementById('btnPdfExportFab');
+    if (pdfFab) {
+        pdfFab.classList.remove('export-guest-locked');
+        pdfFab.title = '';
+        if (pdfFab._guestHandler) {
+            pdfFab.removeEventListener('click', pdfFab._guestHandler, true);
+            delete pdfFab._guestHandler;
+        }
+    }
+
+    // 2. Excel 导出按钮
+    const excelBtn = document.getElementById('btnExportExcel');
+    if (excelBtn) {
+        excelBtn.classList.remove('export-guest-locked');
+        excelBtn.title = '';
+        if (excelBtn._guestHandler) {
+            excelBtn.removeEventListener('click', excelBtn._guestHandler, true);
+            delete excelBtn._guestHandler;
+        }
+    }
 }
 
 function renderLoggedInUI(user) {
@@ -3465,6 +3690,9 @@ function renderLoggedInUI(user) {
     // 用户菜单信息填充
     document.getElementById('menuAvatar').textContent = initial;
     document.getElementById('menuEmail').textContent = email;
+
+    // ── 登录后：解锁导出入口 ──
+    _unlockExportButtons();
 }
 
 // ---- 弹窗控制 ----
@@ -3477,6 +3705,8 @@ function openAuthSheet() {
 }
 function closeAuthSheet() {
     document.getElementById('authModalOverlay').classList.remove('open');
+    // [Fix-3A] 派发取消事件，回收 generateShareLink 等场景挂载的孤儿监听器，防幽灵弹窗
+    window.dispatchEvent(new CustomEvent('auth:cancel'));
 }
 function handleOverlayClick(e) {
     if (e.target === document.getElementById('authModalOverlay')) closeAuthSheet();
@@ -3508,6 +3738,29 @@ async function sendMagicLink() {
             options: { emailRedirectTo: window.location.href }
         });
         if (error) throw error;
+
+        // [Hydration-2] 离场快照：Magic Link 确认发出后立即保存当前表单状态。
+        // 时机选在"发送成功"而非"点击发送"，避免用户中途放弃时留下脏缓存。
+        // 覆盖所有触发登录的场景（分享拦截 / 主动登录），无需在各个拦截点分散写快照。
+        try {
+            const snapshot = {
+                inputs: {},
+                mode: state.mode,
+                profitRate: state.profitRate,
+                logistics: JSON.parse(JSON.stringify(state.logisticsData)),
+                ts: Date.now()
+            };
+            PERSIST_FIELDS.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) snapshot.inputs[id] = el.type === 'checkbox' ? el.checked : el.value;
+            });
+            localStorage.setItem('guest_draft_cache', JSON.stringify(snapshot));
+            console.log('[Hydration] 离场快照已保存');
+        } catch (snapErr) {
+            // 快照失败不影响登录主流程，静默忽略
+            console.warn('[Hydration] 快照写入失败:', snapErr);
+        }
+
         document.getElementById('sentEmailDisplay').textContent = email;
         document.getElementById('authFormState').style.display = 'none';
         document.getElementById('authSuccessState').style.display = 'block';
@@ -3870,11 +4123,21 @@ async function generateShareLink() {
         // 监听登录成功，自动重新打开分享页
         const _onLoginForShare = (e) => {
             if (e.detail?.user) {
-                window.removeEventListener('auth:login', _onLoginForShare);
+                cleanupListeners();
                 setTimeout(() => openShareSheet(), 500);
             }
         };
+
+        // [Fix-3B] 监听取消事件，回收孤儿监听器，防止用户关闭弹窗后幽灵弹窗复现
+        const _onCancelShare = () => cleanupListeners();
+
+        const cleanupListeners = () => {
+            window.removeEventListener('auth:login', _onLoginForShare);
+            window.removeEventListener('auth:cancel', _onCancelShare);
+        };
+
         window.addEventListener('auth:login', _onLoginForShare);
+        window.addEventListener('auth:cancel', _onCancelShare);
         return;
     }
 
@@ -3884,8 +4147,16 @@ async function generateShareLink() {
 
     try {
         const snapshot = collectSnapshot(shareState.mode, null); // piNo 先留空
+        const rawDays = snapshot.validDays || 10;
+        const validDays = Math.min(rawDays, 365); // 数据库存档上限 365 天
+
+        // 若用户填写的有效期超过上限，实时同步修正 UI 提示，保持业务透明
+        if (rawDays > 365) {
+            const expiryLabel = document.getElementById('shareExpiryDays');
+            if (expiryLabel) expiryLabel.textContent = validDays;
+        }
+
         const id = generateShareId();
-        const validDays = snapshot.validDays || 10;
         const expiresAt = new Date(Date.now() + validDays * 24 * 60 * 60 * 1000).toISOString();
 
         const row = {
@@ -4313,31 +4584,58 @@ function updateExportButtonState() {
 }
 
 // ==================== [V8.0.1 终极合并版] 插件加载逻辑 ====================
+// 静态加载锁，确保全局仅存在一个 ExcelJS 加载任务
+let _exceljsLoadingPromise = null;
+
 async function loadExcelJS() {
+    // 1. 状态自检：如果 window 对象已有实例，直接返回
     if (window.ExcelJS) return window.ExcelJS;
-    const urls = [
-        { name: '主节点', url: 'https://cdn.jsdelivr.net/npm/exceljs@4.3.0/dist/exceljs.min.js' },
-        { name: '备选节点', url: 'https://unpkg.com/exceljs@4.3.0/dist/exceljs.min.js' },
-        { name: '容灾节点', url: 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js' }
-    ];
-    const btnText = document.getElementById('excelBtnText');
-    for (let i = 0; i < urls.length; i++) {
-        const node = urls[i];
-        if (btnText) btnText.textContent = `连接${node.name}...`;
+    
+    // 2. 并发拦截：如果正在加载中，返回现有的 Promise 供调用者排队
+    if (_exceljsLoadingPromise) return _exceljsLoadingPromise;
+
+    // 3. 执行单例加载逻辑
+    _exceljsLoadingPromise = (async () => {
+        const urls = [
+            { name: '主节点', url: 'https://cdn.jsdelivr.net/npm/exceljs@4.3.0/dist/exceljs.min.js' },
+            { name: '备选节点', url: 'https://unpkg.com/exceljs@4.3.0/dist/exceljs.min.js' },
+            { name: '容灾节点', url: 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js' }
+        ];
+        const btnText = document.getElementById('excelBtnText');
+
         try {
-            await new Promise((resolve, reject) => {
-                const script = document.createElement('script');
-                script.src = node.url;
-                // 10秒超时：兼顾大文件体积与用户等待极限
-                const timer = setTimeout(() => { script.remove(); reject(new Error('Timeout')); }, 10000);
-                script.onload = () => { clearTimeout(timer); resolve(); };
-                script.onerror = () => { clearTimeout(timer); script.remove(); reject(new Error('NetworkError')); };
-                document.head.appendChild(script);
-            });
-            if (window.ExcelJS) return window.ExcelJS;
-        } catch (e) { console.warn(`[ExcelJS] ${node.name}加载失败，尝试下一个...`); }
-    }
-    throw new Error('网络受限，导出引擎加载失败');
+            for (let i = 0; i < urls.length; i++) {
+                const node = urls[i];
+                if (btnText) btnText.textContent = `连接${node.name}...`;
+                
+                try {
+                    await new Promise((resolve, reject) => {
+                        const script = document.createElement('script');
+                        script.src = node.url;
+                        // 10秒超时保护：防止 script 挂起导致的 Promise 永久不回传
+                        const timer = setTimeout(() => { script.remove(); reject(new Error('Timeout')); }, 10000);
+                        
+                        script.onload = () => { clearTimeout(timer); resolve(); };
+                        script.onerror = () => { clearTimeout(timer); script.remove(); reject(new Error('NetworkError')); };
+                        document.head.appendChild(script);
+                    });
+                    
+                    // 确认挂载成功
+                    if (window.ExcelJS) return window.ExcelJS;
+                } catch (e) {
+                    console.warn(`[ExcelJS] ${node.name} 加载失败，正在尝试下一个...`);
+                }
+            }
+            // 循环结束仍未成功
+            throw new Error('所有 CDN 节点均无法连接');
+        } catch (fatalError) {
+            // 核心修复：加载失败必须重置 Promise 锁，否则用户无法通过再次点击来重试
+            _exceljsLoadingPromise = null;
+            throw fatalError;
+        }
+    })();
+
+    return _exceljsLoadingPromise;
 }
 
 function headlessRecalculate(record) {
@@ -4439,6 +4737,45 @@ async function ensureMainAppInitialized() {
 
     _mainAppInitPromise = (async () => {
         try {
+            // [Hydration-3] 回场还原：检测离场快照，无感恢复游客填写的表单状态。
+            // 必须在 DOM 构建（步骤1）之前执行，确保还原写入时目标元素已存在。
+            // 放在 try 最开头，即使还原失败也不阻断后续初始化流程。
+            const _cache = localStorage.getItem('guest_draft_cache');
+            if (_cache) {
+                try {
+                    const _data = JSON.parse(_cache);
+                    if (Date.now() - _data.ts < 3600000) { // 1小时内有效
+                        // 1. 还原基础输入框（先于 DOM 构建完成前写值，HS Grid 等动态元素在步骤1后才存在，此处只写静态表单）
+                        Object.keys(_data.inputs || {}).forEach(id => {
+                            const el = document.getElementById(id);
+                            if (!el) return;
+                            if (el.type === 'checkbox') el.checked = _data.inputs[id];
+                            else el.value = _data.inputs[id];
+                        });
+                        // 2. 还原贸易术语：必须通过 setMode() 同步 state + DOM 高亮 + dimmed 字段显隐
+                        if (_data.mode) {
+                            const modeBtn = document.querySelector(`.mode-btn[data-mode="${_data.mode}"]`);
+                            if (modeBtn) setMode(modeBtn);
+                        }
+                        // 3. 还原利润率：直接操控 slider 值并触发 onSlider()，同步标签高亮和显示数字
+                        if (_data.profitRate != null) {
+                            const slider = document.getElementById('profitSlider');
+                            if (slider) {
+                                slider.value = _data.profitRate;
+                                onSlider(slider); // 同步 state.profitRate + profitDisplay + ptag.active
+                            }
+                        }
+                        // 4. 还原物流引擎状态（纯 JS 对象，无 DOM 副作用）
+                        if (_data.logistics) state.logisticsData = _data.logistics;
+                        console.log('[Hydration] 游客草稿已完美续接至登录态 ✓');
+                    }
+                } catch (hydrateErr) {
+                    console.warn('[Hydration] 还原失败，以空白态启动:', hydrateErr);
+                } finally {
+                    localStorage.removeItem('guest_draft_cache'); // 阅后即焚，无论成败均清理
+                }
+            }
+
             console.log('[System] 启动主应用外科手术式初始化...');
 
             // 1. 同步关键路径：构建静态 DOM 结构（HS 品类面板）
@@ -4498,6 +4835,7 @@ async function loadVersionInfo() {
             const vMatch = text.match(/Version:\s*(.+)/);
             const tMatch = text.match(/Last updated:\s*(.+)/);
             if (vMatch && versionEl) versionEl.innerHTML = `<strong>${escapeHTML(vMatch[1].trim())}</strong>`;
+            if (vMatch) state.appVersion = vMatch[1].trim(); // [V8.1.0] PDF印记动态版本
             if (tMatch && timeEl) timeEl.textContent = tMatch[1].trim();
         } else if (versionEl) {
             versionEl.innerHTML = '<strong>dev build</strong>';
@@ -5224,6 +5562,13 @@ async function _processRecordsChunked(records, sheet, workbook) {
 }
 
 async function exportSelectedToExcel() {
+    // 双保险：游客模式下禁止导出
+    if (typeof currentUser === 'undefined' || !currentUser) {
+        showToast('🔒 请先登录，即可批量导出 Excel 报表');
+        setTimeout(() => { if (typeof openAuthSheet === 'function') openAuthSheet(); }, 600);
+        return;
+    }
+
     const checkboxes = Array.from(document.querySelectorAll('.history-item-cb')).filter(cb => cb.checked);
     if (checkboxes.length === 0) return;
 
@@ -5456,6 +5801,435 @@ window.AsyncTaskCenter = {
         if (typeof switchTab === 'function') switchTab(targetTab);
     }
 };
+
+
+// ==================== PDF EXPORT ENGINE [V8.1.0] ====================
+// 独立模块：低耦合、高内聚。严禁修改核心核算引擎或数据结构。
+// 技术栈：html2canvas + jsPDF (懒加载 CDN)
+// 字体方案：html2canvas 直接捕获浏览器渲染结果（Canvas像素级），天然支持中文，无需字体嵌入。
+// ==================== PDF EXPORT ENGINE [V8.1.0-PRODUCTION-READY] ====================
+// 架构特性：精确分页、白场遮罩防重叠、DOM内存级释放、跨端下载兼容、词法作用域安全
+window.PdfExportEngine = (function() {
+    'use strict';
+
+    let _version = 'brief';
+    let _isLoading = false;
+    let _currentOffscreenId = null; // 精确追踪离屏 DOM，防止 OOM 内存泄漏
+
+    const A4_W = 595.28;
+    const A4_H = 841.89;
+    const MARGIN = 20;
+    const FOOTER_SPACE = 35; // 页脚受保护区高度
+
+    const CDN_JSPDF =[
+        'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js',
+        'https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js'
+    ];
+    const CDN_H2C =[
+        'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js',
+        'https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js'
+    ];
+
+    async function _loadScript(urls) {
+        for (const url of urls) {
+            try {
+                await new Promise((res, rej) => {
+                    if (document.querySelector(`script[src="${url}"]`)) return res();
+                    const s = document.createElement('script');
+                    s.src = url;
+                    const timer = setTimeout(() => { s.remove(); rej(new Error('timeout')); }, 10000);
+                    s.onload = () => { clearTimeout(timer); res(); };
+                    s.onerror = () => { clearTimeout(timer); s.remove(); rej(new Error('error')); };
+                    document.head.appendChild(s);
+                });
+                return;
+            } catch (e) {
+                console.warn(`[PdfEngine] CDN 节点异常，切换至备用: ${url}`);
+            }
+        }
+        throw new Error('PDF 渲染引擎加载失败，请检查网络限制');
+    }
+
+    async function _ensureLibs() {
+        const promises =[];
+        if (!window.jspdf) promises.push(_loadScript(CDN_JSPDF));
+        if (!window.html2canvas) promises.push(_loadScript(CDN_H2C));
+        await Promise.all(promises);
+        if (!window.jspdf) throw new Error('jsPDF 加载失败，请检查网络或刷新重试');
+        if (!window.html2canvas) throw new Error('html2canvas 加载失败，请检查网络或刷新重试');
+    }
+
+    // ── 核心安全：跨端下载器 ──
+    // 修复了 iPadOS 识别漏洞、解决了文件名丢失问题、优化了腾讯系沙箱存活率
+    function _triggerDownload(pdf, fileName) {
+    if (!pdf || !fileName) return;
+
+    // 采用更准确的元数据定义
+    const cleanTitle = fileName.replace('.pdf', '');
+    pdf.setProperties({
+        title: cleanTitle,
+        subject: 'Foreign Trade Quotation Analysis', // 符合报价计算器语义
+        author: 'Navail Quote Calculator',          // 明确来源
+        creator: 'Navail Nexus'             // 明确生成工具
+    });
+
+    const ua = navigator.userAgent.toLowerCase();
+    const isIOS = /ipad|iphone|ipod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    
+    // 简洁写法
+    const isTencent = ua.indexOf('micromessenger') > -1 || ua.indexOf('qq/') > -1;
+
+    if (isIOS || isTencent) {
+        const blob = pdf.output('blob');
+        const url = URL.createObjectURL(blob);
+        
+        if (isTencent) {
+            window.location.href = url;
+        } else {
+            const a = document.createElement('a');
+            a.href = url;
+            a.target = '_blank';
+            a.rel = 'noopener'; // 安全特性
+            a.download = fileName; 
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => { if (a.parentNode) document.body.removeChild(a); }, 1000);
+        }
+
+        setTimeout(() => URL.revokeObjectURL(url), 20000);
+    } else {
+        pdf.save(fileName);
+    }
+}
+
+    // ── 核心安全：带保护区的分页引擎 ──
+    function _canvasToMultiPagePdf(jsPDF, canvas) {
+        const { jsPDF: JsPDF } = jsPDF;
+        const pdf = new JsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+        
+        const contentWidth = A4_W - (MARGIN * 2);
+        const scaleX = contentWidth / canvas.width;
+
+        // 1. 提取顶部机密横幅 (高度精确计算)
+        const dpr = canvas.width / 794; 
+        const headerHeightPx = Math.round(40 * dpr);
+        const headerHeightPt = headerHeightPx * scaleX;
+        
+        const headerCanvas = document.createElement('canvas');
+        headerCanvas.width = canvas.width;
+        headerCanvas.height = headerHeightPx;
+        headerCanvas.getContext('2d').drawImage(canvas, 0, 0, canvas.width, headerHeightPx, 0, 0, canvas.width, headerHeightPx);
+        const headerImgData = headerCanvas.toDataURL('image/jpeg', 0.95);
+
+        // 2. 高度分配：严防死守页脚区
+        const usableHeightPt = A4_H - (MARGIN * 2) - headerHeightPt - FOOTER_SPACE;
+        const slicePx = Math.floor(usableHeightPt / scaleX);
+        
+        let yOff = headerHeightPx;
+        let page = 1;
+        const total = Math.ceil((canvas.height - headerHeightPx) / slicePx) || 1;
+
+        while (yOff < canvas.height) {
+            if (page > 1) pdf.addPage();
+
+            // A. 切片绘制
+            const curH_px = Math.min(slicePx, canvas.height - yOff);
+            const slice = document.createElement('canvas');
+            slice.width = canvas.width;
+            slice.height = curH_px;
+            slice.getContext('2d').drawImage(canvas, 0, yOff, canvas.width, curH_px, 0, 0, canvas.width, curH_px);
+            
+            pdf.addImage(slice.toDataURL('image/jpeg', 0.94), 'JPEG', MARGIN, MARGIN + headerHeightPt, contentWidth, curH_px * scaleX);
+
+            // B. 物理隔离层：纯白遮罩强制覆盖底部，杜绝字体腰斩导致的像素渗漏
+            pdf.setFillColor(255, 255, 255);
+            pdf.rect(0, A4_H - FOOTER_SPACE - MARGIN, A4_W, FOOTER_SPACE + MARGIN, 'F');
+
+            // C. 永远置顶的机密横幅
+            pdf.addImage(headerImgData, 'JPEG', MARGIN, MARGIN, contentWidth, headerHeightPt);
+
+            // D. 绝对定位的规整页脚
+            _drawFooter(pdf, page, total);
+
+            yOff += curH_px;
+            page++;
+        }
+        return pdf;
+    }
+
+    // ── 规整的页脚绘制 (本地时区安全) ──
+    function _drawFooter(pdf, current, total) {
+        const footerY = A4_H - 25; // 紧贴底部的安全线
+        pdf.setFontSize(8);
+        pdf.setTextColor(112, 109, 103);
+        
+        // 【关键修复】直接使用外层作用域的 state，避免 window.state 读取失败
+        const appVer = (typeof state !== 'undefined' && state.appVersion ? state.appVersion : 'V8.1.0').replace(/\s/g, '');
+        const now = new Date();
+        const dateStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+
+        pdf.text(`Powered by Navail Quote Calculator ${appVer}`, MARGIN, footerY);
+        pdf.text(`Page ${current} / ${total}`, A4_W / 2, footerY, { align: 'center' });
+        pdf.text(`Archive Date: ${dateStr}`, A4_W - MARGIN, footerY, { align: 'right' });
+    }
+
+    // ── 数据采集层 ──
+    function _scrapeResultData() {
+        const g = id => { const el = document.getElementById(id); return el ? (el.innerText || el.textContent || el.value || '').trim() : '—'; };
+        const gv = id => { const el = document.getElementById(id); return el ? (el.value || '').trim() : ''; };
+        const gcb = id => { const el = document.getElementById(id); return el ? el.checked : false; };
+        const gsel = id => {
+            const el = document.getElementById(id);
+            return el && el.options[el.selectedIndex] ? el.options[el.selectedIndex].text : (el?.value || '');
+        };
+
+        // 【关键修复】直接使用外层作用域的 state 引用
+        const piNo = typeof state !== 'undefined' && state.currentPiNo ? state.currentPiNo : '—';
+        const productName = gv('productName') || 'TBD Product';
+        const mode = g('rh-mode') || (typeof state !== 'undefined' ? state.mode : 'FOB');
+        
+        const inputVatVal = parseFloat(gv('inputVatRate')) || 0;
+        const isRebate = gcb('isRebate') && inputVatVal > 0;
+        
+        const ld = (typeof state !== 'undefined' && state.logisticsData && state.logisticsData.result) ? state.logisticsData : null;
+        
+        const aiHsText = document.getElementById('ai-hs-result-text');
+        const hsReport = (aiHsText && aiHsText.closest('#ai-hs-result-card')?.style.display !== 'none') ? aiHsText.textContent.trim() : '';
+        
+        const aiEmailText = document.getElementById('ai-email-text');
+        const emailDraft = (aiEmailText && aiEmailText.closest('#ai-email-result-card')?.style.display !== 'none') ? aiEmailText.value.trim() : '';
+
+        return {
+            piNo, productName, mode,
+            moq: gv('moqInput') || '—', port: gv('portInput') || '—', leadTime: gv('leadTime') || '—',
+            validDays: gv('validDays') || '10', countryName: gsel('countrySelect'),
+            price: g('rh-price').replace(/<[^>]*>/g, '').trim(), priceCNY: g('rh-price-cny'),
+            profitRate: g('rh-profit-rate'), settleRate: g('rh-rate-note'), taxVal: g('rh-tax-val'),
+            netProfit: g('bk-profit'), rebateIncome: g('bk-rebate'), freightTotal: g('bk-freight'), ddpEquiv: g('bk-ddp'),
+            costRMB: gv('costRMB'), isRebate, rebateRate: gv('rebateRate'), inputVatLabel: gsel('inputVatRate'),
+            domesticFreight: gv('domesticFreight'), shippingFee: gv('shippingFee'), destFee: gv('destFee'),
+            insuranceRate: gv('insuranceRate'), taxRate: gv('taxRate'), vatRate: gv('vatRate'),
+            exchangeRate: gv('exchangeRate'), rateBuffer: gv('rateBuffer'), paymentFee: gv('paymentFee'),
+            sellerName: gv('sellerName'), buyerName: gv('buyerName'), paymentTerm: gv('paymentTerm'),
+            ld, hsReport, emailDraft
+        };
+    }
+
+    // ── 离屏渲染层 ──
+    function _buildOffscreenEl(data, version) {
+        const d = data;
+        const now = new Date();
+        const dateStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+        
+        const container = document.createElement('div');
+        _currentOffscreenId = `pdf-render-env-${Date.now()}`;
+        container.id = _currentOffscreenId;
+        // 强制隐藏，绝不影响现有页面
+        container.style.cssText = 'position:fixed; left:0; top:0; transform:translateX(-200vw); z-index:-1; background:#fff;';
+        
+        let ldStr = '未使用物流计费引擎';
+        if (d.ld) {
+            const modeMap = {'sea':'海运LCL(RT)','sea_kg':'海派/海卡(KG)','rail':'铁路/卡航(KG)','air':'标准空运','air_sp':'空派专线(实重)','express':'国际快递'};
+            ldStr = `${d.ld.l||'-'}×${d.ld.w||'-'}×${d.ld.h||'-'} cm / 毛重 ${d.ld.gw||'-'} kg/箱 / 装率 ${d.ld.perCtn||'-'} pcs/箱 / ${modeMap[d.ld.logisticsMode]||d.ld.logisticsMode} / 单件运费 $${d.ld.result||'-'}`;
+        }
+
+        const baseStyle = `font-family: 'PingFang SC', -apple-system, sans-serif; font-size: 11px; line-height: 1.6; color: #1A1A1A; background: #fff; padding: 0; margin: 0;`;
+        const row = (label, value, accent='', bold=false) => `<tr style="border-bottom:1px solid #F0EDE8;"><td style="padding:7px 10px; color:#706D67; font-size:10.5px; width:42%;">${label}</td><td style="padding:7px 10px; font-weight:${bold?'700':'500'}; font-family:${bold?'monospace':'inherit'}; color:${accent||'#1A1A1A'};">${value}</td></tr>`;
+        const sectionHeader = (title, color='#1B4FD8') => `<tr><td colspan="2" style="padding:10px 10px 6px; font-size:10px; font-weight:700; letter-spacing:0.8px; color:${color}; background:#F9F8F6; border-bottom:1px solid #E8E5DF;">${title}</td></tr>`;
+
+        const briefContent = `
+            <table style="width:100%; border-collapse:collapse; margin-bottom:12px;">
+                ${sectionHeader('📦 报价单标识')}
+                ${row('PI 报价单号', d.piNo, '#1B4FD8', true)}
+                ${row('产品名称', d.productName || '—')}
+                ${row('目标国家', d.countryName || '—')}
+                ${row('起订量 MOQ', d.moq || '—')}
+                ${row('交期 Lead Time', d.leadTime || '—')}
+                ${row('报价有效期', d.validDays ? d.validDays + ' 天' : '—')}
+                ${sectionHeader('💰 商务核心结果')}
+                ${row('建议单价 (USD)', d.price, '#1B4FD8', true)}
+                ${row('人民币等值参考', d.priceCNY, '', true)}
+                ${row('贸易条款', d.mode, '', true)}
+                ${row('结算汇率', d.settleRate, '', true)}
+                ${sectionHeader('📊 盈利能力分析')}
+                ${row('预期净利润率', d.profitRate, d.profitRate.startsWith('-') ? '#D4500A' : '#0EA47A', true)}
+                ${row('单件绝对净利', d.netProfit, '#0EA47A', true)}
+                ${row('退税额外收入', d.rebateIncome)}
+                ${row('国际段总成本', d.freightTotal)}
+                ${sectionHeader('🌍 风险与成本参考')}
+                ${row('目标国税金', d.taxVal)}
+                ${row('核算关税 / VAT 率', (d.taxRate ? d.taxRate + '%' : '0%') + ' / ' + (d.vatRate ? d.vatRate + '%' : '0%'))}
+                ${row('单件进货底价 (¥)', d.costRMB ? '¥' + d.costRMB : '—', '#D4500A')}
+                ${row('买家DDP预估落地价', d.ddpEquiv, '#D4500A', true)}
+                ${row('安全结汇点位', d.settleRate, '', true)}
+            </table>`;
+
+        const fullExtra = version === 'full' ? `
+            <table style="width:100%; border-collapse:collapse; margin-bottom:12px;">
+                ${sectionHeader('⚙️ 原始输入参数矩阵', '#5D5A54')}
+                ${row('单件含税底价', d.costRMB ? '¥' + d.costRMB : '—', '#D4500A')}
+                ${row('出口退税', d.isRebate ? '✅ 已开启 · 退税率 ' + d.rebateRate + '%' : '❌ 已关闭')}
+                ${row('进项票税率', d.inputVatLabel)}
+                ${row('国内运杂费', d.domesticFreight ? '¥' + d.domesticFreight + ' / 件' : '¥0')}
+                ${row('国际主运费', d.shippingFee ? '$' + d.shippingFee + ' / 件' : '$0')}
+                ${row('目的港杂费', d.destFee ? '$' + d.destFee + ' / 件' : '$0')}
+                ${row('运输保险率', d.insuranceRate ? d.insuranceRate + '%' : '0%')}
+                ${row('进口关税率', d.taxRate ? d.taxRate + '%' : '0%')}
+                ${row('当地增值税率', d.vatRate ? d.vatRate + '%' : '0%')}
+                ${row('中间汇率', d.exchangeRate)}
+                ${row('汇率缓冲', '- ' + (d.rateBuffer || '0'))}
+                ${row('收款手续费', d.paymentFee ? d.paymentFee + '%' : '0%')}
+                ${row('买方', d.buyerName || '—')}
+                ${row('卖方', d.sellerName || '—')}
+                ${row('付款条件', d.paymentTerm || '—')}
+            </table>
+            <table style="width:100%; border-collapse:collapse; margin-bottom:12px;">
+                ${sectionHeader('📦 物流核算底稿', '#0EA47A')}
+                <tr><td colspan="2" style="padding:8px 10px; font-size:10.5px; color:#1A1A1A; background:#ECFDF5; border-radius:4px; line-height:1.8;">${ldStr}</td></tr>
+            </table>
+            ${d.hsReport ? `<table style="width:100%; border-collapse:collapse; margin-bottom:12px;">${sectionHeader('🤖 AI HS Code 清关风险报告', '#0EA47A')}<tr><td colspan="2" style="padding:10px; font-size:10.5px; color:#374151; line-height:1.8; white-space:pre-wrap; background:#F0FDF4;">${d.hsReport.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</td></tr></table>` : ''}
+            ${d.emailDraft ? `<table style="width:100%; border-collapse:collapse; margin-bottom:12px;">${sectionHeader('✉️ AI 高转化跟进邮件草稿', '#1B4FD8')}<tr><td colspan="2" style="padding:10px; font-size:10.5px; color:#374151; line-height:1.8; white-space:pre-wrap; background:#EEF2FF;">${d.emailDraft.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</td></tr></table>` : ''}
+        ` : '';
+
+        container.innerHTML = `
+        <div style="${baseStyle} width:794px;">
+            <div style="height:40px; line-height:40px; box-sizing:border-box; background:#E53935; color:#fff; padding:0 16px; font-weight:700; font-size:12px; text-align:center; letter-spacing:0.5px;">
+                🔒 LOCK：内部核算机密，请勿外传 · INTERNAL USE ONLY
+            </div>
+            <div style="padding:16px 16px 10px; border-bottom:2px solid #E8E5DF; display:flex; justify-content:space-between; align-items:flex-start;">
+                <div>
+                    <div style="font-size:18px; font-weight:800; color:#1B4FD8; letter-spacing:-0.3px;">外贸报价核算档案</div>
+                    <div style="font-size:10px; color:#706D67; margin-top:2px;">Quotation Analysis · ${version === 'brief' ? 'Brief Version' : 'Full Version'}</div>
+                </div>
+                <div style="text-align:right;">
+                    <div style="font-size:10px; color:#706D67;">归档日期 Date</div>
+                    <div style="font-size:12px; font-weight:700; font-family:monospace;">${dateStr}</div>
+                </div>
+            </div>
+            <div style="margin:12px 16px; background:linear-gradient(135deg,#1B4FD8,#1340b8); border-radius:14px; padding:18px 20px; color:#fff;">
+                <div style="font-size:10px; opacity:0.8; letter-spacing:1px; text-transform:uppercase; margin-bottom:4px;">${d.mode} · 建议单价报价</div>
+                <div style="font-size:32px; font-weight:800; font-family:monospace; letter-spacing:-1px; line-height:1.1;">${d.price}</div>
+                <div style="font-size:12px; opacity:0.85; margin-top:2px;">${d.priceCNY}</div>
+                <!-- V8.1.0 回滚：4项核心 KPI 视觉横条 -->
+                <div style="display:flex; gap:20px; margin-top:14px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.2);">
+                    <div><div style="font-size:9px; opacity:0.75;">净利润率</div><div style="font-weight:700; font-size:14px;">${d.profitRate}</div></div>
+                    <div><div style="font-size:9px; opacity:0.75;">安全结汇点位</div><div style="font-weight:700; font-size:14px; font-family:monospace;">${d.settleRate}</div></div>
+                    <div><div style="font-size:9px; opacity:0.75;">目标国税金</div><div style="font-weight:700; font-size:14px;">${d.taxVal}</div></div>
+                    <div><div style="font-size:9px; opacity:0.75;">单件净利</div><div style="font-weight:700; font-size:14px; font-family:monospace;">${d.netProfit}</div></div>
+                </div>
+            </div>
+            <div style="padding:0 16px 16px;">
+                ${briefContent}
+                ${fullExtra}
+            </div>
+        </div>`;
+
+        document.body.appendChild(container);
+        return container;
+    }
+
+    // ── 控制器 ──
+    function openDrawer() {
+        // 双保险：游客模式下禁止打开 PDF 导出抽屉
+        if (typeof currentUser === 'undefined' || !currentUser) {
+            showToast('🔒 请先登录，即可导出内部核算档案 PDF');
+            setTimeout(() => { if (typeof openAuthSheet === 'function') openAuthSheet(); }, 600);
+            return;
+        }
+        if (typeof state !== 'undefined' && !state.lastPrice) { showToast('⚠️ 暂无有效核算结果，请先生成报价'); return; }
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        const iosTip = document.getElementById('pdfIosTip');
+        if (iosTip) iosTip.classList.toggle('visible', isIOS);
+        document.getElementById('pdfSheetOverlay').classList.add('open');
+    }
+
+    function closeDrawer() { document.getElementById('pdfSheetOverlay').classList.remove('open'); }
+
+    function handleOverlayClick(e) { if (e.target.id === 'pdfSheetOverlay' || e.target.classList.contains('pdf-sheet-overlay')) closeDrawer(); }
+
+    function selectVersion(v) {
+        _version = v;
+        const b = document.getElementById('pdfCardBrief'), f = document.getElementById('pdfCardFull');
+        if(b) b.className = 'pdf-version-card' + (v === 'brief' ? ' selected' : '');
+        if(f) f.className = 'pdf-version-card' + (v === 'full' ? ' selected' : '');
+    }
+
+    function _setLoading(val) {
+        _isLoading = val;
+        const btn = document.getElementById('btnPdfGenerate');
+        if (btn) {
+            btn.disabled = val;
+            btn.classList.toggle('loading', val);
+            const lbl = btn.querySelector('.pdf-btn-label-text') || btn;
+            lbl.textContent = val ? '数据分析排版中...' : '📥 立即导出 PDF';
+        }
+    }
+
+    // ── 主导出流程 ──
+    async function generate() {
+        if (_isLoading) return;
+        if (typeof state !== 'undefined' && !state.lastPrice) { showToast('⚠️ 暂无有效核算结果，无法导出'); return; }
+        _setLoading(true);
+        try {
+            // 字体就绪检查 + 2秒强制超时保护
+            // 确保排版精准的同时，绝不因为网络原因卡死导出流程
+            if (document.fonts && document.fonts.ready) {
+                await Promise.race([
+                    document.fonts.ready,
+                    new Promise(resolve => setTimeout(resolve, 2000)) 
+                ]);
+            }
+
+            showToast('⏳ 加载 PDF 渲染引擎...');
+            await _ensureLibs();
+
+            const data = _scrapeResultData();
+            const el = _buildOffscreenEl(data, _version);
+            
+            showToast('🖨️ 正在捕获超清长图，请勿关闭弹窗...');
+            const canvas = await window.html2canvas(el, {
+                scale: 2.5,
+                useCORS: true,
+                allowTaint: false,
+                backgroundColor: '#ffffff',
+                windowWidth: 794,
+                // 强制回归零位锚定，防止页面滚动导致捕获偏移
+                scrollY: 0,
+                scrollX: 0
+            });
+
+            const pdf = _canvasToMultiPagePdf(window.jspdf, canvas);
+            
+            // 构建安全文件名
+            const now = new Date();
+            const ds = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+            const safeName = (data.productName || '未命名产品').replace(/[\/\\:*?"<>|]/g, '_').substring(0, 20);
+            const fileName = `内部核算档案_${safeName}_${ds}.pdf`;
+
+            _triggerDownload(pdf, fileName);
+            
+            closeDrawer();
+            showToast('✅ 内部档案导出成功');
+        } catch(err) {
+            console.error('[PdfEngine Fatal]', err);
+            showToast(`❌ 导出意外中断：${err.message || '未知渲染异常'}`);
+        } finally {
+            _setLoading(false);
+            // 【硬核内存释放】精准清理离屏 DOM 节点，防止 OOM 假死
+            if (_currentOffscreenId) {
+                const garbage = document.getElementById(_currentOffscreenId);
+                if (garbage) {
+                    garbage.innerHTML = ''; // 剥离内部 DOM 树加速 GC
+                    garbage.remove();
+                }
+                _currentOffscreenId = null;
+            }
+        }
+    }
+
+    return { openDrawer, closeDrawer, handleOverlayClick, selectVersion, generate };
+})();
+// ==================== PDF EXPORT ENGINE END ====================
 
 // 启动通知中心
 AsyncTaskCenter.init();
