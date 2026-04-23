@@ -3570,13 +3570,32 @@ async function initSupabase() {
             }
         });
         
-        // 获取当前 session（页面刷新后恢复登录态）
-        const { data: { session } } = await supabaseClient.auth.getSession();
-        currentUser = session?.user ?? null;
-        if (currentUser) {
-            renderLoggedInUI(currentUser);
-        } else {
+        // [Fix-MagicLink-2 v2] 检测 Magic Link auth 回调，兼容两种 flow：
+        // - PKCE flow（SDK v2 默认）：Supabase 把 code 放在 ?code= query string，
+        //   window.location.hash 为空，原仅检测 hash 的逻辑在此场景下永远不触发（死代码）。
+        // - Implicit flow：token 在 #access_token= hash fragment。
+        // 两种场景下 SDK createClient() 均会自动处理 token 并触发 onAuthStateChange(SIGNED_IN)，
+        // 此时 getSession() 必然返回 null（token 尚在兑换中），强行调用会渲染游客 UI 覆盖登录态。
+        // 检测到 auth-callback 时跳过 getSession()，先渲染游客 UI 占位，
+        // 等 onAuthStateChange 回调触发后自动切换为已登录 UI。
+        const _cbHash = window.location.hash;
+        const _cbSearch = window.location.search;
+        const _isAuthCallback = _cbHash.startsWith('#access_token=')
+            || _cbSearch.includes('code=')
+            || _cbSearch.includes('access_token=');
+
+        if (_isAuthCallback) {
             renderGuestUI();
+            console.log('[Auth] Magic Link 回调：等待 onAuthStateChange 处理 token');
+        } else {
+            // 获取当前 session（页面刷新后恢复登录态）
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            currentUser = session?.user ?? null;
+            if (currentUser) {
+                renderLoggedInUI(currentUser);
+            } else {
+                renderGuestUI();
+            }
         }
     } catch (err) {
         console.warn('[Auth] Supabase 初始化失败，降级为游客模式', err);
@@ -3735,7 +3754,12 @@ async function sendMagicLink() {
     try {
         const { error } = await supabaseClient.auth.signInWithOtp({
             email,
-            options: { emailRedirectTo: window.location.href }
+            options: {
+                // [Fix-MagicLink-3] 仅传 origin+pathname，不含 hash/search，
+                // 避免当前页面残留的 hash（如 #share=xxx）污染 Magic Link 回调 URL，
+                // 导致 Supabase 回调后 hash 解析异常、token 提取失败。
+                emailRedirectTo: window.location.origin + window.location.pathname
+            }
         });
         if (error) throw error;
 
@@ -4858,8 +4882,9 @@ async function loadVersionInfo() {
  * 路由与入口控制：监听初次加载
  */
 window.addEventListener('DOMContentLoaded', async () => {
-    // 基础服务初始化（Auth / 事件绑定 / 下拉框填充）
-    initSupabase();
+    // [Fix-MagicLink-1 v2] initLogicBind 和下拉填充不依赖 Supabase，
+    // 必须在 await initSupabase() 之前执行，保证首屏 TTI 不受 SDK 加载耗时影响。
+    // 用户打开页面即可操作表单，SDK 在后台并行加载。
     initLogicBind();
 
     const s = document.getElementById('countrySelect');
@@ -4870,8 +4895,30 @@ window.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
+    // [Fix-MagicLink-1] await 确保 SDK 加载完毕、onAuthStateChange 注册完毕，
+    // 再执行 hash 路由判断，消除 token 被错过的竞态条件。
+    // 此处 await 仅阻塞路由逻辑，不阻塞上方的表单交互绑定。
+    await initSupabase();
+
+    // [Fix-MagicLink-2 v2] 检测 Magic Link auth 回调，兼容两种 flow：
+    // - PKCE flow（SDK v2 默认）：token 在 query string，?code=xxx
+    // - Implicit flow：token 在 hash fragment，#access_token=xxx
+    // 两种场景下 SDK 均已通过 onAuthStateChange 自动处理，主流程无需干预，
+    // 直接初始化主应用等待回调即可。
+    const _hash = window.location.hash;
+    const _search = window.location.search;
+    const _isAuthCallback = _hash.startsWith('#access_token=')
+        || _search.includes('code=')
+        || _search.includes('access_token=');
+
+    if (_isAuthCallback) {
+        console.log('[Router] 检测到 Magic Link auth 回调，交由 SDK 处理');
+        ensureMainAppInitialized();
+        return;
+    }
+
     // 检测是否为分享视图
-    const isShareView = window.location.hash.startsWith('#share=');
+    const isShareView = _hash.startsWith('#share=');
     if (isShareView) {
         await new Promise(resolve => setTimeout(resolve, 300));
         const isRendered = await checkShareHash();
