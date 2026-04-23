@@ -5611,11 +5611,22 @@ async function _processRecordsChunked(records, sheet, workbook) {
 }
 
 async function exportSelectedToExcel() {
-    // 双保险：游客模式下禁止导出
+    // 1. 权限校验 (原有逻辑)
     if (typeof currentUser === 'undefined' || !currentUser) {
         showToast('🔒 请先登录，即可批量导出 Excel 报表');
         setTimeout(() => { if (typeof openAuthSheet === 'function') openAuthSheet(); }, 600);
         return;
+    }
+
+    // 2. [无损修复] 腾讯沙箱环境检测
+    const ua = navigator.userAgent.toLowerCase();
+    const isTencent = /micromessenger|qq\/|mqqbrowser/.test(ua);
+    
+    if (isTencent) {
+        // 直接使用系统级 alert，虽然样式普通，但在腾讯沙箱内是最可靠、
+        // 且绝对不会污染任何 DOM 状态的方案，符合“零侵入”原则。
+        alert("⚠️ 环境受限提示\n\n由于 QQ邮箱/微信 的内部安全限制，无法直接下载 Excel。\n\n请点击右上角 [...] 选择 [在浏览器打开] 即可正常导出。");
+        return; 
     }
 
     const checkboxes = Array.from(document.querySelectorAll('.history-item-cb')).filter(cb => cb.checked);
