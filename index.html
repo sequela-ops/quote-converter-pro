@@ -2953,7 +2953,7 @@ function restoreHistory(id) {
 
     // 7. 强制触发业务联动逻辑（进项票类型 / 国家警告 / WITS 初始态）
     onInputVatChange(document.getElementById('inputVatRate'));
-    onCountryChange();
+    onCountryChange(true);
 
     // 8. 彻底清除过往 AI 结果卡片及内部文字，防止数据误导与幽灵弹窗
     const aiHsCard = document.getElementById('ai-hs-result-card');
@@ -3046,30 +3046,38 @@ function renderCompare(fob, pr, py, ins, logisticsShip, logisticsDest) {
     tbody.appendChild(frag);
 }
 
-function onCountryChange() {
-    const c = COUNTRIES[document.getElementById('countrySelect').value];
-    document.getElementById('taxRate').value = c.tax;
-    document.getElementById('vatRate').value = c.vat;
+function onCountryChange(skipValueReset = false) {
+    const countryKey = document.getElementById('countrySelect').value;
+    const c = COUNTRIES[countryKey];
+    
+    // 核心修复：仅在非恢复模式下，才从数据库模板覆盖数值
+    // 如果是恢复历史记录（skipValueReset 为 true），则保留历史快照中的数值
+    if (!skipValueReset) {
+        document.getElementById('taxRate').value = c.tax;
+        document.getElementById('vatRate').value = c.vat;
+    }
+    
     const n = document.getElementById('countryNoteBox');
-    n.className = 'info-banner ' + (c.level || 'info');
-    n.innerText = 'ℹ️ ' + c.note;
-    n.style.display = 'block';
+    if (n) {
+        n.className = 'info-banner ' + (c.level || 'info');
+        n.innerText = 'ℹ️ ' + c.note;
+        n.style.display = 'block';
+    }
 
-    // V5: 切换国家时重置 WITS 查询状态，避免上次结果误导
-    const witsBtn   = document.getElementById('witsQueryBtn');
-    const witsIcon  = document.getElementById('witsQueryIcon');
-    const witsLabel = document.getElementById('witsQueryLabel');
-    const witsChip  = document.getElementById('witsResultChip');
+    // 重置 WITS UI 状态等原有逻辑保持不变...
+    const witsBtn = document.getElementById('witsQueryBtn');
     if (witsBtn) {
         witsBtn.classList.remove('loading', 'success', 'error');
-        witsIcon.textContent = '🌐';
-        witsLabel.textContent = '查询实时 MFN 关税（WITS 世界银行数据库）';
+        document.getElementById('witsQueryIcon').textContent = '🌐';
+        document.getElementById('witsQueryLabel').textContent = '查询实时 MFN 关税（WITS 世界银行数据库）';
     }
+    const witsChip = document.getElementById('witsResultChip');
     if (witsChip) witsChip.classList.add('hidden');
 
-// V7.4.0新增
     resetSaveState();
-    if (typeof autoCalculate === 'function') autoCalculate();
+    
+    // 优化点：如果是恢复模式，不在此处触发冗余的防抖重算，由 restoreHistory 统一触发
+    if (!skipValueReset && typeof autoCalculate === 'function') autoCalculate();
 }
 
 function toggleHS() { state.hsOpen = !state.hsOpen; document.getElementById('hs-collapsible').classList.toggle('open', state.hsOpen); document.getElementById('hs-arrow').innerText = state.hsOpen?'▲':'▼'; }
@@ -3113,22 +3121,28 @@ function fetchRate(isManualClick = false) {
     // 如果是用户主动点击顶部徽章拉取，则解除手动锁定
     if (isManualClick) state.manualRate = false; 
 
-    document.getElementById('rateDisplay').innerText = '拉取中...';
-    fetch('https://open.er-api.com/v6/latest/USD')
+    const displayEl = document.getElementById('rateDisplay');
+if (displayEl) displayEl.innerText = '拉取中...';
+    fetch(`https://open.er-api.com/v6/latest/USD?t=${Date.now()}`)
         .then(r => r.json())
         .then(d => {
             const r = d.rates.CNY.toFixed(4);
-            // ⬇️ 核心保护：只有在用户没有手动修改的情况下，才执行覆盖
-            if (!state.manualRate) {
-                document.getElementById('exchangeRate').value = r;
+const inputEl = document.getElementById('exchangeRate');
+            // ⬇️ 核心保护：只有在用户没有手动修改的情况下，才物理回填输入框
+            if (!state.manualRate && inputEl) {
+                inputEl.value = r;
+                // 管辖权唤醒：回填后立即触发“统一管辖”下的静默重算，确保分析页数据实时同步
+                if (typeof autoCalculate === 'function') autoCalculate(); 
             }
-            document.getElementById('rateDisplay').innerText = '实时 ' + r;
+            
+            if (displayEl) displayEl.innerText = '实时 ' + r;
         })
         .catch(e => {
-            document.getElementById('rateDisplay').innerText = '获取失败';
+            if (displayEl) displayEl.innerText = '获取失败';
             showToast('⚠️ 网络受阻，请手动核对当前汇率');
         });
 }
+            
 
 function onSlider(e) { 
     const val = parseFloat(e.value);
