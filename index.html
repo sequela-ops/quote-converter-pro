@@ -4094,9 +4094,18 @@ function openShareSheet() {
         showToast('⚠️ 请先完成核算再生成分享链接');
         return;
     }
-    // 同步有效期显示
-    const validDays = parseInt(document.getElementById('validDays').value) || 10;
-    document.getElementById('shareExpiryDays').textContent = validDays;
+
+    // 1. 获取并处理逻辑：封顶 365
+    const rawDays = parseInt(document.getElementById('validDays').value) || 10;
+    const isCapped = rawDays > 365;
+    const expiryDaysEl = document.getElementById('shareExpiryDays');
+
+    if (expiryDaysEl) {
+        expiryDaysEl.textContent = isCapped ? 365 : rawDays;
+        // 关键增强：若触发封顶，使用 warn 颜色；正常则恢复默认（防止颜色残留）
+        expiryDaysEl.style.color = isCapped ? 'var(--warn)' : 'inherit';
+        expiryDaysEl.style.fontWeight = isCapped ? '700' : 'inherit';
+    }
 
     // 重置链接结果区
     document.getElementById('shareLinkResult').classList.remove('visible');
@@ -4105,7 +4114,7 @@ function openShareSheet() {
     shareState.generatedId = null;
     shareState.generatedUrl = null;
 
-    // native share 按钮可见性
+    // Web Share API 适配
     if (navigator.share) {
         document.getElementById('shareNativeBtn').style.display = 'flex';
     }
