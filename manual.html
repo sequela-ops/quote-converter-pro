@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>产品手册 · Navail Quote OS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #F5F4F0;
+  --surface: #FFFFFF;
+  --surface2: #F9F8F6;
+  --border: #E8E5DF;
+  --border2: #D4CFC6;
+  --text: #1A1A1A;
+  --text2: #5D5A54;
+  --text3: #706D67;
+  --accent: #1B4FD8;
+  --accent-light: #EEF2FF;
+  --accent2: #0EA47A;
+  --accent2-light: #ECFDF5;
+  --warn: #D4500A;
+  --warn-light: #FFF4ED;
+  --radius-sm: 8px;
+  --radius: 14px;
+  --radius-lg: 20px;
+  --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+  --sidebar-w: 260px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  height: 100%;
+  font-family: 'DM Sans', -apple-system, 'PingFang SC', sans-serif;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--bg);
+  line-height: 1.6;
+  overflow: hidden; /* 防止双滚动条 */
+}
+
+/* ══════════════════════════════════════
+   布局骨架
+══════════════════════════════════════ */
+.layout {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ══════════════════════════════════════
+   侧边栏
+══════════════════════════════════════ */
+.sidebar {
+  width: var(--sidebar-w);
+  height: 100vh;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  overflow: hidden;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 200;
+}
+
+.sidebar-header {
+  padding: 28px 24px 20px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+.sidebar-logo {
+  width: 32px; height: 32px;
+  background: var(--accent);
+  border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; color: white;
+  flex-shrink: 0;
+}
+.sidebar-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.2px;
+}
+.sidebar-name span {
+  font-size: 10px;
+  background: var(--text);
+  color: white;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 5px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+.sidebar-subtitle {
+  font-size: 11px;
+  color: var(--text3);
+  margin-top: 4px;
+  font-weight: 400;
+}
+
+/* 导航列表 */
+.sidebar-nav {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 12px;
+  scrollbar-width: none;
+}
+.sidebar-nav::-webkit-scrollbar { display: none; }
+
+.nav-group-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text3);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 0 12px;
+  margin: 8px 0 4px;
+}
+.nav-group-label:first-child { margin-top: 0; }
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s;
+  color: var(--text3);
+  font-size: 13px;
+  font-weight: 500;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  position: relative;
+}
+.nav-item:hover { background: var(--surface2); color: var(--text2); }
+.nav-item.active {
+  background: var(--accent-light);
+  color: var(--accent);
+  font-weight: 600;
+}
+.nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 20%; bottom: 20%;
+  width: 3px;
+  background: var(--accent);
+  border-radius: 0 3px 3px 0;
+}
+.nav-icon {
+  width: 18px; height: 18px;
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+.nav-item.active .nav-icon { opacity: 1; }
+.nav-num {
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: var(--border);
+  color: var(--text3);
+  font-size: 10px;
+  font-weight: 700;
+  font-family: 'DM Mono', monospace;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: 0.15s;
+}
+.nav-item.active .nav-num {
+  background: var(--accent);
+  color: white;
+}
+
+/* 侧边栏底部 */
+.sidebar-footer {
+  padding: 16px 24px 28px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.sidebar-back-btn {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; font-weight: 600;
+  color: var(--text3);
+  cursor: pointer;
+  border: none; background: none;
+  padding: 0;
+  transition: color 0.15s;
+  text-decoration: none;
+}
+.sidebar-back-btn:hover { color: var(--accent); }
+.sidebar-footer-meta {
+  font-size: 10px;
+  color: var(--border2);
+  margin-top: 12px;
+  font-family: 'DM Mono', monospace;
+  line-height: 1.8;
+}
+
+/* ══════════════════════════════════════
+   主内容区
+══════════════════════════════════════ */
+.main {
+  flex: 1;
+  height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* 移动端顶栏（桌面端隐藏） */
+.mobile-topbar {
+  display: none;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 16px;
+  height: 52px;
+  align-items: center;
+  justify-content: space-between;
+}
+.mobile-topbar-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+.topbar-icon-btn {
+  width: 36px; height: 36px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  color: var(--text2);
+  transition: 0.15s;
+}
+.topbar-icon-btn:active { background: var(--surface2); }
+
+/* 内容容器 */
+.content {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 48px 40px 80px;
+}
+
+/* 面包屑 */
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text3);
+  margin-bottom: 32px;
+  font-weight: 500;
+}
+.breadcrumb-sep { opacity: 0.4; }
+.breadcrumb-current { color: var(--text2); }
+
+/* 章节标题 */
+.section-eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.section-title {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.25;
+  letter-spacing: -0.5px;
+  margin-bottom: 8px;
+}
+.section-subtitle {
+  font-size: 14px;
+  color: var(--text3);
+  line-height: 1.6;
+  margin-bottom: 36px;
+  font-weight: 400;
+}
+.divider {
+  width: 40px; height: 3px;
+  background: var(--accent);
+  border-radius: 2px;
+  margin: 16px 0 32px;
+}
+
+/* 正文排版 */
+.prose {
+  font-size: 14px;
+  color: var(--text2);
+  line-height: 1.85;
+}
+.prose p { margin-bottom: 16px; }
+.prose strong { color: var(--text); font-weight: 600; }
+
+/* 高亮引用块 */
+.quote-block {
+  background: var(--accent-light);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  padding: 16px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent);
+  line-height: 1.6;
+  margin: 24px 0;
+}
+
+/* 能力卡片 */
+.cap-cards { display: flex; flex-direction: column; gap: 12px; margin: 24px 0; }
+.cap-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  box-shadow: var(--shadow);
+  transition: 0.2s;
+}
+.cap-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.08); transform: translateY(-1px); }
+.cap-icon {
+  width: 40px; height: 40px;
+  border-radius: 11px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.cap-icon.blue { background: var(--accent-light); }
+.cap-icon.green { background: var(--accent2-light); }
+.cap-icon.orange { background: var(--warn-light); }
+.cap-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+.cap-desc { font-size: 13px; color: var(--text2); line-height: 1.65; }
+
+/* 子章节标题 */
+.sub-h2 {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 32px 0 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sub-h2::before {
+  content: '';
+  display: block; width: 3px; height: 16px;
+  background: var(--accent);
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* 功能条目 */
+.feature-list { display: flex; flex-direction: column; gap: 10px; }
+.feature-item {
+  background: var(--surface2);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  font-size: 13px;
+  color: var(--text2);
+  line-height: 1.75;
+  border-left: 2.5px solid var(--border2);
+  transition: 0.15s;
+}
+.feature-item:hover { border-left-color: var(--accent); background: var(--accent-light); }
+.feature-item strong { color: var(--text); }
+.formula {
+  display: inline-block;
+  background: #1a1a1a;
+  color: #93c5fd;
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  padding: 5px 11px;
+  border-radius: var(--radius-sm);
+  margin: 6px 0;
+}
+
+/* 操作时间轴 */
+.timeline { display: flex; flex-direction: column; margin: 8px 0; }
+.tl-item { display: flex; gap: 16px; }
+.tl-left { display: flex; flex-direction: column; align-items: center; flex: 0 0 36px; }
+.tl-dot {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: var(--accent-light);
+  border: 2px solid var(--accent);
+  color: var(--accent);
+  font-size: 13px; font-weight: 700;
+  font-family: 'DM Mono', monospace;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.tl-line { width: 2px; flex: 1; background: var(--border); margin: 5px 0; min-height: 24px; }
+.tl-right { padding-bottom: 24px; flex: 1; }
+.tl-title { font-size: 14px; font-weight: 700; color: var(--text); margin: 8px 0 5px; }
+.tl-desc { font-size: 13px; color: var(--text2); line-height: 1.7; }
+
+/* 进阶技巧 */
+.tip-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 12px;
+  box-shadow: var(--shadow);
+  transition: 0.2s;
+}
+.tip-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+.tip-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.tip-icon { font-size: 20px; }
+.tip-title { font-size: 14px; font-weight: 700; color: var(--text); }
+.tip-desc { font-size: 13px; color: var(--text2); line-height: 1.75; }
+
+/* FAQ */
+.faq-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 8px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  transition: box-shadow 0.2s;
+}
+.faq-item[open] { box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+.faq-summary {
+  padding: 16px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  line-height: 1.5;
+  list-style: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.faq-summary::-webkit-details-marker { display: none; }
+.faq-q-text { flex: 1; }
+.faq-q-label { color: var(--accent); font-weight: 700; margin-right: 5px; }
+.faq-arrow {
+  flex-shrink: 0; font-size: 11px; color: var(--text3);
+  margin-top: 3px;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-block;
+}
+.faq-item[open] .faq-arrow { transform: rotate(180deg); }
+.faq-body {
+  padding: 14px 18px 16px;
+  font-size: 13px;
+  color: var(--text2);
+  line-height: 1.8;
+  border-top: 1px solid var(--border);
+}
+.faq-a-label { color: var(--accent2); font-weight: 700; margin-right: 5px; }
+
+/* 页脚 */
+.content-footer {
+  margin-top: 48px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.footer-meta {
+  font-size: 11px;
+  color: var(--text3);
+  font-family: 'DM Mono', monospace;
+  line-height: 1.8;
+}
+.back-to-app {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 13px; font-weight: 600;
+  color: var(--accent);
+  text-decoration: none;
+  background: var(--accent-light);
+  border: 1.5px solid rgba(27,79,216,0.15);
+  border-radius: 20px;
+  padding: 8px 16px;
+  transition: 0.15s;
+}
+.back-to-app:hover { background: var(--accent); color: white; }
+
+/* 移动端遮罩 */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.2);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 150;
+}
+.sidebar-overlay.visible { display: block; }
+
+/* 淡入动画 */
+.section-page {
+  display: none;
+  animation: fadeUp 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.section-page.active { display: block; }
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ══════════════════════════════════════
+   响应式：移动端
+══════════════════════════════════════ */
+@media (max-width: 760px) {
+  .sidebar {
+    position: fixed;
+    left: 0; top: 0;
+    transform: translateX(-100%);
+    box-shadow: 4px 0 32px rgba(0,0,0,0.12);
+  }
+  .sidebar.open { transform: translateX(0); }
+
+  .mobile-topbar { display: flex; }
+
+  .content {
+    padding: 24px 20px 80px;
+  }
+  .section-title { font-size: 22px; }
+  .content-footer { flex-direction: column; gap: 16px; align-items: flex-start; }
+}
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- ══ 侧边栏 ══ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-brand">
+        <div class="sidebar-logo">🚢</div>
+        <div>
+          <div class="sidebar-name">Navail <span>OS</span></div>
+        </div>
+      </div>
+      <div class="sidebar-subtitle">产品使用手册</div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-group-label">文档目录</div>
+
+      <button class="nav-item active" data-section="philosophy" onclick="navigate('philosophy', this)">
+        <div class="nav-num">1</div>
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+        导读 · Philosophy
+      </button>
+
+      <button class="nav-item" data-section="core" onclick="navigate('core', this)">
+        <div class="nav-num">2</div>
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        核心能力 · Core
+      </button>
+
+      <button class="nav-item" data-section="features" onclick="navigate('features', this)">
+        <div class="nav-num">3</div>
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+        功能特性 · Features
+      </button>
+
+      <button class="nav-item" data-section="quickstart" onclick="navigate('quickstart', this)">
+        <div class="nav-num">4</div>
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        操作教程 · Quick Start
+      </button>
+
+      <button class="nav-item" data-section="tips" onclick="navigate('tips', this)">
+        <div class="nav-num">5</div>
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        进阶技巧 · Tips
+      </button>
+
+      <button class="nav-item" data-section="faq" onclick="navigate('faq', this)">
+        <div class="nav-num">6</div>
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        常见问题 · FAQ
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <a href="index.html" class="sidebar-back-btn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        返回核算台
+      </a>
+      <div class="sidebar-footer-meta">
+        <div>v1.0.0_8.1.0</div>
+        <div>© 2026 Navail Tech.</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- 移动端遮罩 -->
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+  <!-- ══ 主内容区 ══ -->
+  <main class="main" id="mainContent">
+
+    <!-- 移动端顶栏 -->
+    <div class="mobile-topbar">
+      <button class="topbar-icon-btn" id="hamburgerBtn" onclick="openSidebar()" aria-label="打开目录">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="mobile-topbar-title" id="mobileTitle">导读</div>
+      <a href="index.html" class="topbar-icon-btn" aria-label="返回核算台">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </a>
+    </div>
+
+    <!-- ── §1 导读 ── -->
+    <div class="section-page active" id="sec-philosophy">
+      <div class="content">
+        <div class="breadcrumb">
+          <span>手册</span>
+          <span class="breadcrumb-sep">/</span>
+          <span class="breadcrumb-current">导读</span>
+        </div>
+        <div class="section-eyebrow">Chapter 01</div>
+        <h1 class="section-title">导读：理念</h1>
+        <p class="section-subtitle">Philosophy — 为什么 Navail Quote OS 与众不同</p>
+        <div class="divider"></div>
+        <div class="prose">
+          <p>在跨境贸易中，报价是一场涉及<strong>汇率敞口、关税波动、净利锚定、税务合规与物流规划</strong>的精密决策。绝大多数外贸人依赖 Excel 表格或简单计算器，在黑盒里反复试算，最终报出一个「差不多」的价格——而这往往意味着隐性亏损或竞争力的悄然流失。</p>
+          <p><strong>Navail Quote OS</strong> 的设计初衷，是将极具复杂度的财务模型与合规风控，集成于极简的操作界面之下。让每一次报价，都建立在可量化、可验证、可追溯的财务确定性之上。</p>
+        </div>
+        <div class="quote-block">
+          💡 这不仅是一个计算器，更是您的「报价全链路决策中枢」。
+        </div>
+        <div class="prose">
+          <p>系统的每一项设计——从利润反推公式，到 Incoterms 动态沙盒，再到异步 AI 协作——都服务于同一个目标：<strong>将工程级的严谨，转化为业务侧的确定性。</strong></p>
+        </div>
+        <div class="content-footer">
+          <div class="footer-meta">
+            <div>Navail Quote OS · 产品使用手册</div>
+            <div>© 2026 Navail Tech. All rights reserved.</div>
+          </div>
+          <button class="back-to-app" onclick="navigate('core', document.querySelector('[data-section=core]'))">
+            下一章 →
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── §2 核心能力 ── -->
+    <div class="section-page" id="sec-core">
+      <div class="content">
+        <div class="breadcrumb">
+          <span>手册</span><span class="breadcrumb-sep">/</span>
+          <span class="breadcrumb-current">核心能力</span>
+        </div>
+        <div class="section-eyebrow">Chapter 02</div>
+        <h1 class="section-title">核心能力速览</h1>
+        <p class="section-subtitle">Core Capabilities — 三大支柱，构建报价确定性</p>
+        <div class="divider"></div>
+        <div class="cap-cards">
+          <div class="cap-card">
+            <div class="cap-icon blue">🔒</div>
+            <div>
+              <div class="cap-title">利润锁定</div>
+              <div class="cap-desc">财务反推模型自动覆盖汇率折损、代垫税金与隐性手续费，确保预期净利分毫不差。设定多少，到账多少。</div>
+            </div>
+          </div>
+          <div class="cap-card">
+            <div class="cap-icon green">🛡️</div>
+            <div>
+              <div class="cap-title">风控前置</div>
+              <div class="cap-desc">Incoterms 与成本逻辑深度绑定，自动阻断漏算关税、多算运费等业务失误。错误在提交前被系统层面拦截。</div>
+            </div>
+          </div>
+          <div class="cap-card">
+            <div class="cap-icon orange">⚡</div>
+            <div>
+              <div class="cap-title">高效核价</div>
+              <div class="cap-desc">参数毫秒级重算，AI 任务后台静默运行，彻底消除等待感。滑块拖动，结果即现。</div>
+            </div>
+          </div>
+        </div>
+        <div class="content-footer">
+          <div class="footer-meta"><div>Chapter 02 / 06</div></div>
+          <button class="back-to-app" onclick="navigate('features', document.querySelector('[data-section=features]'))">下一章 →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── §3 功能特性 ── -->
+    <div class="section-page" id="sec-features">
+      <div class="content">
+        <div class="breadcrumb">
+          <span>手册</span><span class="breadcrumb-sep">/</span>
+          <span class="breadcrumb-current">功能特性</span>
+        </div>
+        <div class="section-eyebrow">Chapter 03</div>
+        <h1 class="section-title">功能特性</h1>
+        <p class="section-subtitle">Features — 将工程级严谨，转化为业务确定性</p>
+        <div class="divider"></div>
+
+        <div class="sub-h2">3.1 财务与风控引擎</div>
+        <div class="feature-list">
+          <div class="feature-item">
+            <strong>反推定价模型：</strong>摒弃易造成暗亏的「成本加成」法，采用严谨的利润反推分母公式：<br>
+            <span class="formula">Price = Cost ÷ (1 − Profit% − Fee%)</span><br>
+            无论是退税差额的剥离，还是收款手续费的均摊，系统确保您设定的预期净利即为真实的落地收益。
+          </div>
+          <div class="feature-item">
+            <strong>DDP 隐性成本覆盖：</strong>当您选择 DDP 时，系统自动将「目的地代垫税金」纳入基数进行利润加成，以算法层面的设计对冲代垫资金的隐性风险。
+          </div>
+          <div class="feature-item">
+            <strong>底层精度保护：</strong>针对外贸大单因小数四舍五入引发的「乘数效应」亏损，计算引擎精确至小数点后 4 位，分毫不差。
+          </div>
+        </div>
+
+        <div class="sub-h2">3.2 Incoterms 动态沙盒</div>
+        <div class="feature-list">
+          <div class="feature-item">
+            <strong>业务逻辑自适应：</strong>深度内化 5 大国际贸易术语。切换不同术语时，系统智能对齐成本项的计入规则——例如切换至 EXW 将自动置灰国内运费框，切换至 DAP 则不再计入关税。
+          </div>
+          <div class="feature-item">
+            <strong>实时 WITS 税率接入：</strong>针对 DDP 报价，一键直连世界银行 WITS 数据库获取最新 MFN 关税，消除信息差。
+          </div>
+        </div>
+
+        <div class="sub-h2">3.3 智能物流与 AI 协作模块</div>
+        <div class="feature-list">
+          <div class="feature-item">
+            <strong>全场景物流支持：</strong>覆盖海、陆、空 6 大主流物流模式。专业模式下只需输入箱规与重量，系统自动运算计重基础和单件运费，减轻您的认知和计算负担。
+          </div>
+          <div class="feature-item">
+            <strong>内置 AI SOTA 大模型：</strong>融合大模型能力进行 HS Code 查询、清关分析报告和商务邮件生成。采用异步处理架构，任务完成后通过轻量级灵动岛通知推送，提供丝滑工作流体验。
+          </div>
+        </div>
+
+        <div class="sub-h2">3.4 三位一体的数据交付</div>
+        <div class="feature-list">
+          <div class="feature-item">
+            <strong>权限级动态快照：</strong>一键生成带时间戳的专属 Web 链接。内部协作模式展示全量数据；客户报价模式仅透出最终价格与条款，从机制上杜绝商业机密泄露。
+          </div>
+          <div class="feature-item">
+            <strong>金融级鉴权与云同步：</strong>全面接入无密码（Magic Link）高阶安全登录体系。身份核验后，您的核心历史报价单与测算参数将自动加密同步至云端，实现跨设备的安全、无缝协同。
+          </div>
+          <div class="feature-item">
+            <strong>原生 PDF 排版：</strong>采用现代渲染技术，辅以智能防切割算法，避免跨页生硬截断内容，导出企业级专业排版的内部核算档案。
+          </div>
+        </div>
+
+        <div class="content-footer">
+          <div class="footer-meta"><div>Chapter 03 / 06</div></div>
+          <button class="back-to-app" onclick="navigate('quickstart', document.querySelector('[data-section=quickstart]'))">下一章 →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── §4 操作教程 ── -->
+    <div class="section-page" id="sec-quickstart">
+      <div class="content">
+        <div class="breadcrumb">
+          <span>手册</span><span class="breadcrumb-sep">/</span>
+          <span class="breadcrumb-current">操作教程</span>
+        </div>
+        <div class="section-eyebrow">Chapter 04</div>
+        <h1 class="section-title">操作教程</h1>
+        <p class="section-subtitle">Quick Start — 六步完成完整报价全链路</p>
+        <div class="divider"></div>
+        <div class="timeline">
+          <div class="tl-item">
+            <div class="tl-left"><div class="tl-dot">1</div><div class="tl-line"></div></div>
+            <div class="tl-right">
+              <div class="tl-title">输入基础成本</div>
+              <div class="tl-desc">录入单件进货底价、出口退税率与国内分摊运杂费。以单件（1 pc）为基准，所有费用需分摊到单件后填入。</div>
+            </div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-left"><div class="tl-dot">2</div><div class="tl-line"></div></div>
+            <div class="tl-right">
+              <div class="tl-title">配置物流与税率</div>
+              <div class="tl-desc">选择交货条款（如 FOB / DDP）。系统根据规则自动开关国际段费用输入框，无需手动管理。</div>
+            </div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-left"><div class="tl-dot">3</div><div class="tl-line"></div></div>
+            <div class="tl-right">
+              <div class="tl-title">财务与动态调参</div>
+              <div class="tl-desc">设定汇率与缓冲值，拖动利润滑块。报价结果实时响应，无需点击计算。</div>
+            </div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-left"><div class="tl-dot">4</div><div class="tl-line"></div></div>
+            <div class="tl-right">
+              <div class="tl-title">外贸制单</div>
+              <div class="tl-desc">补充买卖主体与有效期等信息，生成合规格式 PI（形式发票）。此步骤可跳过，直接进入结果查看。</div>
+            </div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-left"><div class="tl-dot">5</div><div class="tl-line"></div></div>
+            <div class="tl-right">
+              <div class="tl-title">结果与归档</div>
+              <div class="tl-desc">审阅最终报价结果与多维度的成本拆解。点击「存入历史库」将本次方案存档，或直接导出 PDF 档案。</div>
+            </div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-left"><div class="tl-dot">6</div></div>
+            <div class="tl-right">
+              <div class="tl-title">调参试算</div>
+              <div class="tl-desc">支持历史库回档数据，反复调整参数模拟计算，确定最优报价。可从历史库多选导出 Excel 表格，实现各段数据精确比对。</div>
+            </div>
+          </div>
+        </div>
+        <div class="content-footer">
+          <div class="footer-meta"><div>Chapter 04 / 06</div></div>
+          <button class="back-to-app" onclick="navigate('tips', document.querySelector('[data-section=tips]'))">下一章 →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── §5 进阶技巧 ── -->
+    <div class="section-page" id="sec-tips">
+      <div class="content">
+        <div class="breadcrumb">
+          <span>手册</span><span class="breadcrumb-sep">/</span>
+          <span class="breadcrumb-current">进阶技巧</span>
+        </div>
+        <div class="section-eyebrow">Chapter 05</div>
+        <h1 class="section-title">进阶使用技巧</h1>
+        <p class="section-subtitle">Tips — 让核价效率再提升一个量级</p>
+        <div class="divider"></div>
+        <div class="tip-card">
+          <div class="tip-header">
+            <span class="tip-icon">⚡</span>
+            <span class="tip-title">滑块无缝试算</span>
+          </div>
+          <p class="tip-desc">报价博弈中，寻找客户心理价位尤为关键。在拖动预期利润滑块时，系统引擎会瞬时自动重算。无需反复点击操作，报价结果实时动态响应，最大程度为您减负。</p>
+        </div>
+        <div class="tip-card">
+          <div class="tip-header">
+            <span class="tip-icon">🚀</span>
+            <span class="tip-title">全局无感续航</span>
+          </div>
+          <p class="tip-desc">游客状态下核算到一半发现还没登录？系统基于离场快照机制，将当前进程缓存至本地。再次访问时，输入框、滑块甚至未完成的物流测算都将自动原样恢复，无缝续接工作流。</p>
+        </div>
+        <div class="tip-card">
+          <div class="tip-header">
+            <span class="tip-icon">🧮</span>
+            <span class="tip-title">内置小计算器</span>
+          </div>
+          <p class="tip-desc">处理货代发来的「各项杂费汇总」时，无需调用外部计算器。点击对应输入框旁的「🧮」图标，输入总额与总件数，系统将自动算出精准单件成本，一键回填至主流程并记忆 MOQ 信息。</p>
+        </div>
+        <div class="content-footer">
+          <div class="footer-meta"><div>Chapter 05 / 06</div></div>
+          <button class="back-to-app" onclick="navigate('faq', document.querySelector('[data-section=faq]'))">下一章 →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── §6 FAQ ── -->
+    <div class="section-page" id="sec-faq">
+      <div class="content">
+        <div class="breadcrumb">
+          <span>手册</span><span class="breadcrumb-sep">/</span>
+          <span class="breadcrumb-current">常见问题</span>
+        </div>
+        <div class="section-eyebrow">Chapter 06</div>
+        <h1 class="section-title">常见问题与解析</h1>
+        <p class="section-subtitle">FAQ — 厘清疑惑，理解系统背后的设计逻辑</p>
+        <div class="divider"></div>
+
+        <details class="faq-item">
+          <summary class="faq-summary">
+            <span class="faq-q-text"><span class="faq-q-label">Q</span>为什么设定了 20% 利润率，实际显示的净利润率可能是 19.98%？</span>
+            <span class="faq-arrow">▼</span>
+          </summary>
+          <div class="faq-body"><span class="faq-a-label">A</span>这是符合商业常理的「财务截断」机制。国际贸易报给客人的单价最终通常只保留 2 到 4 位小数。系统在得出理论上的无限小数后，会执行合规截断。随后用截断后的最终单价去反向验算各项成本，得出的真实利润率自然会产生微小浮动。这是对您最终利润率的精确还原，而非计算误差。</div>
+        </details>
+
+        <details class="faq-item">
+          <summary class="faq-summary">
+            <span class="faq-q-text"><span class="faq-q-label">Q</span>为什么普票（0%）模式下，无法勾选出口退税？</span>
+            <span class="faq-arrow">▼</span>
+          </summary>
+          <div class="faq-body"><span class="faq-a-label">A</span>这是系统级的合规性阻断。普票无法抵扣进项税，在海关与税务体系中不具备出口退税资格。系统通过底层联动自动锁死退税输入，从源头防止因误算退税而导致实际利润缩水。</div>
+        </details>
+
+        <details class="faq-item">
+          <summary class="faq-summary">
+            <span class="faq-q-text"><span class="faq-q-label">Q</span>为什么汇率模块有一个默认的「汇率预留缓冲」？</span>
+            <span class="faq-arrow">▼</span>
+          </summary>
+          <div class="faq-body"><span class="faq-a-label">A</span>汇率敞口是对冲远期结汇风险的关键。系统拉取实时中间价后，默认扣减一定的缓冲值（如 0.05）。这是为了确保在报价生成到最终尾款到账期间，即便人民币发生小幅升值，您的既定净利也不会被汇损吞噬。</div>
+        </details>
+
+        <details class="faq-item">
+          <summary class="faq-summary">
+            <span class="faq-q-text"><span class="faq-q-label">Q</span>Excel 导出功能为何在部分应用内无响应？</span>
+            <span class="faq-arrow">▼</span>
+          </summary>
+          <div class="faq-body"><span class="faq-a-label">A</span>由于微信 / QQ 邮箱等 App 内置沙箱的严格安全策略，原生文件系统调取会被阻断。若您需要使用 Excel 导出功能，建议直接使用 Chrome、Edge、Safari 等原生浏览器，从网页端邮箱登录账号，以获得最佳体验。</div>
+        </details>
+
+        <div class="content-footer">
+          <div class="footer-meta">
+            <div>Navail Quote OS · 产品使用手册 v1.0</div>
+            <div>© 2026 Navail Tech. All rights reserved.</div>
+          </div>
+          <a href="index.html" class="back-to-app">← 返回核算台</a>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+const SECTION_LABELS = {
+  philosophy: '导读',
+  core: '核心能力',
+  features: '功能特性',
+  quickstart: '操作教程',
+  tips: '进阶技巧',
+  faq: '常见问题'
+};
+
+function navigate(sectionId, navEl) {
+  /* 1. 隐藏所有页面 */
+  document.querySelectorAll('.section-page').forEach(p => p.classList.remove('active'));
+  /* 2. 显示目标页面 */
+  var target = document.getElementById('sec-' + sectionId);
+  if (target) {
+    target.classList.add('active');
+    /* 重置主区域滚动位置 */
+    document.getElementById('mainContent').scrollTop = 0;
+  }
+  /* 3. 更新侧边栏高亮 */
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+  var activeNav = document.querySelector('[data-section="' + sectionId + '"]');
+  if (activeNav) activeNav.classList.add('active');
+  /* 4. 更新移动端顶栏标题 */
+  var mobileTitle = document.getElementById('mobileTitle');
+  if (mobileTitle) mobileTitle.textContent = SECTION_LABELS[sectionId] || '';
+  /* 5. 移动端：关闭侧边栏 */
+  closeSidebar();
+}
+
+function openSidebar() {
+  document.getElementById('sidebar').classList.add('open');
+  document.getElementById('sidebarOverlay').classList.add('visible');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('visible');
+  document.body.style.overflow = '';
+}
+
+/* URL Hash 路由支持（可选） */
+(function() {
+  var hash = location.hash.replace('#', '');
+  if (hash && document.getElementById('sec-' + hash)) {
+    navigate(hash, null);
+  }
+})();
+</script>
+</body>
+</html>
