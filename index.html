@@ -908,6 +908,11 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
   <div class="tab locked" data-tab="slip" data-req-calc="true" onclick="switchTab('slip')">📄 出口 PI</div>
   <div class="tab" data-tab="history" onclick="switchTab('history')">🕒 历史库</div>
   <div class="tab" data-tab="compare" onclick="switchTab('compare')">🌍 税距</div>
+<!-- 极简大厂风手册入口：零依赖、零侵入 -->
+<div class="tab" style="color: var(--accent); font-weight: 700; border: 1.5px solid var(--accent-light); border-radius: 20px; padding: 4px 14px; margin-left: 12px; font-size: 12px; background: var(--surface2); display: flex; align-items: center; gap: 4px; cursor: pointer;" 
+     onclick="showToast('📚 正在打开产品手册...'); setTimeout(()=>window.location.href='manual.html', 400)">
+     <span style="font-size: 14px;">📖</span> 手册
+</div>
 </div>
 
 <!-- PAGE 1: 成本核算 -->
