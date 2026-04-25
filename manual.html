@@ -895,12 +895,28 @@ html, body {
           <div class="faq-body"><span class="faq-a-label">A</span>这是符合商业常理的「财务截断」机制。国际贸易报给客人的单价最终通常只保留 2 到 4 位小数。系统在得出理论上的无限小数后，会执行合规截断。随后用截断后的最终单价去反向验算各项成本，得出的真实利润率自然会产生微小浮动。这是对您最终利润率的精确还原，而非计算误差。</div>
         </details>
 
+<details class="faq-item">
+          <summary class="faq-summary">
+            <span class="faq-q-text"><span class="faq-q-label">Q</span>为什么建议报价、汇率等关键数据保留至小数点后 4 位，而不是常见的 2 位？</span>
+            <span class="faq-arrow">▼</span>
+          </summary>
+          <div class="faq-body"><span class="faq-a-label">A</span>在 B2B 跨境大宗贸易中，MOQ 往往以万起步。如果在核算成本环节过早地「保留两位小数」，微小的误差乘以庞大的总件数后，可能产生破坏性的<strong>「乘数效应」</strong>，导致数百美元的隐性利润流失。为此，系统对汇率、汇率锁汇点、单件分摊成本和最终生成的建议报价单价，严格执行 4 位小数的高精度防线，最大限度规避因截断误差引发的暗亏。</div>
+        </details>
+
         <details class="faq-item">
           <summary class="faq-summary">
             <span class="faq-q-text"><span class="faq-q-label">Q</span>为什么普票（0%）模式下，无法勾选出口退税？</span>
             <span class="faq-arrow">▼</span>
           </summary>
           <div class="faq-body"><span class="faq-a-label">A</span>这是系统级的合规性阻断。普票无法抵扣进项税，在海关与税务体系中不具备出口退税资格。系统通过底层联动自动锁死退税输入，从源头防止因误算退税而导致实际利润缩水。</div>
+        </details>
+
+<details class="faq-item">
+          <summary class="faq-summary">
+            <span class="faq-q-text"><span class="faq-q-label">Q</span>汇率数据来源实时准确吗？它是每分每秒都在刷新，还是需要手动点击才能刷新？</span>
+            <span class="faq-arrow">▼</span>
+          </summary>
+          <div class="faq-body"><span class="faq-a-label">A</span>系统直连国际标准汇率 API 获取最新参考中间价。在刷新机制上，系统秉持<strong>「计算确定性」</strong>原则，并未采用“每分每秒”刷新的后台机制（因为实时的汇率跳动会严重干扰您的调参试算与报价连贯性）。系统仅在您<strong>进入或刷新网页</strong>，或<strong>主动点击右上角汇率按钮</strong>时执行汇率调取与填充。此外，如果您直接修改了输入框中的数值，系统将严格保护您的自定义汇率，直到您主动点击汇率按钮才会解除锁定。</div>
         </details>
 
         <details class="faq-item">
@@ -917,6 +933,14 @@ html, body {
             <span class="faq-arrow">▼</span>
           </summary>
           <div class="faq-body"><span class="faq-a-label">A</span>由于微信 / QQ 邮箱等 App 内置沙箱的严格安全策略，原生文件系统调取会被阻断。若您需要使用 Excel 导出功能，建议直接使用 Chrome、Edge、Safari 等原生浏览器，从网页端邮箱登录账号，以获得最佳体验。</div>
+        </details>
+
+<details class="faq-item">
+          <summary class="faq-summary">
+            <span class="faq-q-text"><span class="faq-q-label">Q</span>我的产品单位是双（pairs）或套（sets），或者我在起订量中输入了“1.5K”、“1万件”等格式，这会导致生成的 PI 与 Excel 报表数据错乱吗？</span>
+            <span class="faq-arrow">▼</span>
+          </summary>
+          <div class="faq-body"><span class="faq-a-label">A</span>请放心输入。系统底层植入了<strong>多策略智能语义提取引擎</strong>。无论您输入「1.5K pcs」、「500 pairs」，还是带有中文的「1万件」，系统均能自动识别并换算为对应标准数字以参与严谨的财务运算。同时，引擎会智能提取您的原生业务单位（如 pairs, sets 等），并在生成的 PI 形式发票与 Excel 档案中无缝还原，完美适配多行业的制单习惯。</div>
         </details>
 
         <div class="content-footer">
@@ -982,6 +1006,19 @@ function closeSidebar() {
     navigate(hash, null);
   }
 })();
+
+/* FAQ 手风琴互斥交互：保持页面高度克制与视线聚焦 */
+document.querySelectorAll('.faq-item').forEach(item => {
+  item.addEventListener('toggle', function() {
+    if (this.open) {
+      document.querySelectorAll('.faq-item').forEach(other => {
+        if (other !== this && other.open) {
+          other.open = false;
+        }
+      });
+    }
+  });
+});
 </script>
 </body>
 </html>
