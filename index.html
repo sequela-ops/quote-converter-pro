@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>专业外贸报价计算器 Pro</title>
+<title>Navail 外贸报价计算器</title>
 
 <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-D018ZYMWZE"></script>
@@ -887,7 +887,7 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
 <div class="header">
   <div class="header-left" style="display:flex; align-items:center;">
     <div class="header-logo">🚢</div>
-    <div class="header-title">外贸报价计算器 <span style="color:var(--accent);font-size:11px;background:var(--accent-light);padding:2px 6px;border-radius:6px;margin-left:4px;">V8.1.0</span></div>
+    <div class="header-title">外贸报价计算器 <span style="color:var(--accent);font-size:11px;background:var(--accent-light);padding:2px 6px;border-radius:6px;margin-left:4px;">V8.1.1</span></div>
   </div>
   <div style="display:flex; align-items:center; gap:8px;">
     <!-- 用户状态按钮 -->
@@ -1802,47 +1802,66 @@ const fmt = {
 };
 
 // 自动单位识别：从 MOQ 提取单位并做单数化处理
+// 依赖 MAGNITUDE_RE（由 MAGNITUDE_MAP 自动派生），量词扩展无需改动本函数。
 function getUnit() {
-    const moqStr = document.getElementById('moqInput').value || '';
-    const match = moqStr.match(/[a-zA-Z]+/);
-    let unit = match ? match[0].toLowerCase() : 'pc';
+    const moqStr = (document.getElementById('moqInput').value || '').toLowerCase();
+
+    // 中文单位映射（优先级最高，外贸场景下中文语义明确）
+    const unitMap = { '双': 'pair', '对': 'pair', '套': 'set', '组': 'set', '打': 'dz', '箩': 'gr' };
+    for (const [key, val] of Object.entries(unitMap)) {
+        if (moqStr.includes(key)) return val;
+    }
+
+    // 提取所有英文词，跳过量词，取第一个真实单位词
+    // 例：'1.5k pairs' → ['k','pairs'] → 跳过 'k' → 'pairs'
+    const words = moqStr.match(/[a-z]+/g) || [];
+    let unit = words.find(w => !MAGNITUDE_RE.test(w)) || 'pc';
+
+// 不规则词直接映射，跳过通用单数化
+const IRREGULAR = { 'pieces': 'piece', 'pcs': 'pc' };
+if (IRREGULAR[unit]) return IRREGULAR[unit];
+
+    // 单数化：boxes→box / pairs→pair / sets→set
     if (unit.endsWith('s') && unit.length > 2) {
-        if (unit.endsWith('es')) unit = unit.slice(0, -2);
-        else unit = unit.slice(0, -1);
+        unit = unit.endsWith('es') ? unit.slice(0, -2) : unit.slice(0, -1);
     }
     return unit;
 }
 
-//[V8.1.0] 升级版独立解析函数，支持高阶语义提取与多策略降级
+// ── [SSOT] 数量级量词注册表 ──────────────────────────────────────────────────
+// 新增量词只需在此追加一行，_parseMOQ 和 getUnit 自动同步，无需其他改动。
+const MAGNITUDE_MAP = [
+    { pattern: /([0-9]*\.?[0-9]+)\s*m/,     multiplier: 1000000 }, // m  = Million
+    { pattern: /([0-9]*\.?[0-9]+)\s*[w万]/, multiplier: 10000   }, // w/万 = 万
+    { pattern: /([0-9]*\.?[0-9]+)\s*[k千]/, multiplier: 1000    }, // k/千 = Kilo
+];
+
+// 从 MAGNITUDE_MAP 自动派生过滤用正则，供 getUnit 使用
+// 提取每条 pattern 中紧跟数字的量词字符集部分，构造成 ^(w|万|k|千|m)$ 形式
+const MAGNITUDE_RE = new RegExp(
+    '^(' + MAGNITUDE_MAP.map(e => e.pattern.source.split('\\s*')[1]).join('|') + ')$', 'i'
+);
+
+// [V8.1.0] 升级版独立解析函数，支持高阶语义提取与多策略降级
 function _parseMOQ(moqStr) {
     if (!moqStr || typeof moqStr !== 'string') return 1000;
-    
-    // 清理逗号并统一转小写，方便处理 "10,000", "1.5K", "2W" 等格式
-    const cleanStr = moqStr.replace(/,/g, '').trim().toLowerCase();
-    
-// 策略 1：新增对 m / 百万 的支持（Million）
-    const mMatch = cleanStr.match(/([0-9]*\.?[0-9]+)\s*m/);
-    if (mMatch) return Math.round(parseFloat(mMatch[1]) * 1000000);
 
-    // 策略 2：解析 w / 万 级单位（全局提取，兼容 "约 1.5w", "MOQ 2万件"）
-    const wMatch = cleanStr.match(/([0-9]*\.?[0-9]+)\s*[w万]/);
-    if (wMatch) {
-        return Math.round(parseFloat(wMatch[1]) * 10000);
+    // 清理逗号并统一转小写，兼容 "10,000" / "1.5K" / "2W" 等格式
+    const cleanStr = moqStr.replace(/,/g, '').trim().toLowerCase();
+
+    // 遍历 MAGNITUDE_MAP，按优先级依次匹配
+    for (const { pattern, multiplier } of MAGNITUDE_MAP) {
+        const hit = cleanStr.match(pattern);
+        if (hit) return Math.round(parseFloat(hit[1]) * multiplier);
     }
-    
-    // 策略 3：解析 k / 千 级单位（全局提取，兼容 "约 1.5k", "MOQ 3千双"）
-    const kMatch = cleanStr.match(/([0-9]*\.?[0-9]+)\s*[k千]/);
-    if (kMatch) {
-        return Math.round(parseFloat(kMatch[1]) * 1000);
-    }
-    
-    // 策略 4：回退降级策略 —— 纯数字提取
+
+    // 降级：纯数字提取
     const numMatch = cleanStr.match(/([0-9]+)/);
     if (numMatch) {
         const num = parseInt(numMatch[1], 10);
         if (!isNaN(num) && num > 0) return num;
     }
-    
+
     return 1000; // 最终降级基准防线
 }
 
@@ -2708,7 +2727,29 @@ function buildPIText() {
         'Buyer        : ' + buyer,
         '',
         'Product      : ' + name,
-        'Quantity     : ' + (moqStr.match(/[a-zA-Z]/) ? moqStr : moqStr + ' pcs'),
+        // --- 核心优化：实现起订量从语义到专业格式的转化 ---
+    const moqNum = _parseMOQ(moqStr);
+    const unit = getUnit(); // 获取识别出的单位（如 pc, pair, set）
+    
+    // 格式化数字：20000 -> "20,000"
+    const formattedQtyNum = new Intl.NumberFormat('en-US').format(moqNum);
+    
+    // 组装最终显示文本：20,000 + pcs
+    const finalQtyDisplay = `${formattedQtyNum} ${moqNum > 1 ? unit + 's' : unit}`;
+
+    return [
+        'PROFORMA INVOICE',
+        '------------------------------------------------',
+        'PI No.       : ' + piNo,
+        'Date         : ' + formatDateStr(now),
+        'Valid Until  : ' + formatDateStr(validDate),
+        '',
+        'Seller       : ' + seller,
+        'Buyer        : ' + buyer,
+        '',
+        'Product      : ' + name,
+        // --- 修改点：使用格式化后的专业显示 ---
+        'Quantity     : ' + finalQtyDisplay, 
         'Unit Price   : USD ' + priceStr + ' / ' + unit,
         'Total Amount : USD ' + totalAmount,
         '',
@@ -4557,7 +4598,7 @@ function bindShareCTAEvents(d) {
 function renderShareBranding() {
     return `
         <div class="sv-branding">
-            由 <a href="${window.location.origin + window.location.pathname}">外贸报价计算器 Pro</a> 生成<br>
+            由 <a href="${window.location.origin + window.location.pathname}">Navail 外贸报价计算器</a> 生成<br>
             专业外贸人的报价定价工具
         </div>
     `;
@@ -5702,7 +5743,7 @@ async function exportSelectedToExcel() {
         const selectedRecords = checkboxes.map(cb => historyCache.find(r => String(r.id) === cb.dataset.id)).filter(Boolean);
 
         const workbook = new ExcelJS.Workbook();
-        workbook.creator = '专业外贸报价计算器 Pro';
+        workbook.creator = 'Navail 外贸报价计算器';
         const sheet = workbook.addWorksheet('报价归档', { views:[{ state: 'frozen', xSplit: 3, ySplit: 3 }] });
 
         // --- A. 表格机密警告 ---
