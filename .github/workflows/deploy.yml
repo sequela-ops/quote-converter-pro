@@ -33,7 +33,7 @@ jobs:
       - name: Prepare dist
         run: |
           mkdir dist
-          cp index.html dist/
+          cp *.html dist/
           cp version.txt dist/
           cp changelog.txt dist/
 
