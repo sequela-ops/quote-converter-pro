@@ -1813,33 +1813,37 @@ function getUnit() {
     return unit;
 }
 
-//[V8.0.2-FIX-7] 新增独立解析函数，支持多策略降级
+//[V8.1.0] 升级版独立解析函数，支持高阶语义提取与多策略降级
 function _parseMOQ(moqStr) {
     if (!moqStr || typeof moqStr !== 'string') return 1000;
     
-    // 策略 1：直接数字提取（兼容 "1,000", "1000 pcs"）
-    const directMatch = moqStr.replace(/[^0-9]/g, '');
-    if (directMatch) {
-        const num = parseInt(directMatch, 10);
-        if (!isNaN(num) && num > 0) return num;
+    // 清理逗号并统一转小写，方便处理 "10,000", "1.5K", "2W" 等格式
+    const cleanStr = moqStr.replace(/,/g, '').trim().toLowerCase();
+    
+// 策略 1：新增对 m / 百万 的支持（Million）
+    const mMatch = cleanStr.match(/([0-9]*\.?[0-9]+)\s*m/);
+    if (mMatch) return Math.round(parseFloat(mMatch[1]) * 1000000);
+
+    // 策略 2：解析 w / 万 级单位（全局提取，兼容 "约 1.5w", "MOQ 2万件"）
+    const wMatch = cleanStr.match(/([0-9]*\.?[0-9]+)\s*[w万]/);
+    if (wMatch) {
+        return Math.round(parseFloat(wMatch[1]) * 10000);
     }
     
-    // 策略 2：k/K 后缀（如 "1.5k", "2K"）
-    const kMatch = moqStr.match(/^([0-9]*\.?[0-9]+)\s*[kK]/);
+    // 策略 3：解析 k / 千 级单位（全局提取，兼容 "约 1.5k", "MOQ 3千双"）
+    const kMatch = cleanStr.match(/([0-9]*\.?[0-9]+)\s*[k千]/);
     if (kMatch) {
-        const num = parseFloat(kMatch[1]) * 1000;
-        if (!isNaN(num) && num > 0) return Math.round(num);
+        return Math.round(parseFloat(kMatch[1]) * 1000);
     }
     
-    // 策略 3：万/千 中文单位
-    const cnMatch = moqStr.match(/([0-9]+)\s*[万千]/);
-    if (cnMatch) {
-        const unit = moqStr.includes('万') ? 10000 : 1000;
-        const num = parseInt(cnMatch[1], 10) * unit;
+    // 策略 4：回退降级策略 —— 纯数字提取
+    const numMatch = cleanStr.match(/([0-9]+)/);
+    if (numMatch) {
+        const num = parseInt(numMatch[1], 10);
         if (!isNaN(num) && num > 0) return num;
     }
     
-    return 1000; // 最终降级
+    return 1000; // 最终降级基准防线
 }
 
 // ==================== 全局强杀逻辑 (保持不变，用于安全清空) ====================
@@ -3226,29 +3230,23 @@ function openMiniCalc(targetId, titleName) {
     titleBox.innerHTML = `正在为您计算：<b style="color:var(--text);">${titleName}</b> 的单件分摊`;
     totalInput.value = '';
     
-// 4. 自动抓取主表单已填写的 MOQ 进行分摊
-    if (mainMoqInput && mainMoqInput.value) {
-        const moqNum = _parseMOQ(mainMoqInput.value); // [V8.0.2-FIX-7]
-        qtyInput.value = moqNum;
-    } else {
-        qtyInput.value = '';
-    }
+// 4. 自动抓取主表单已填写的 MOQ 进行分摊 (V8.1.0 视觉脱敏版)
+    const mainMoqRaw = (mainMoqInput && mainMoqInput.value) ? mainMoqInput.value : '';
     
+    // 简单模式：清空深色值，填入浅色占位符
+    qtyInput.value = '';
+    qtyInput.placeholder = mainMoqRaw || '1000';
+
     resDisplay.innerText = '0.0000';
 
-    // 5. Pro 模式：预填 MOQ 到 mcTotalPcs，并恢复上次物流引擎状态
-    const totalPcsInput = document.getElementById('mcTotalPcs');
+    // 5. Pro 模式：清空深色值，填入浅色占位符
+const totalPcsInput = document.getElementById('mcTotalPcs');
     if (totalPcsInput) {
-        if (state.logisticsData.totalPcs) {
-            totalPcsInput.value = state.logisticsData.totalPcs;
-        } else if (mainMoqInput && mainMoqInput.value) {
-            const moqNum = _parseMOQ(mainMoqInput.value); // [V8.0.2-FIX-7]
-            totalPcsInput.value = moqNum;
-        } else {
-            totalPcsInput.value = '';
-        }
+        totalPcsInput.value = '';
+        // 优先级：上次测算量 > 主起订量 > 默认值1000
+        totalPcsInput.placeholder = state.logisticsData.totalPcs || mainMoqRaw || '1000';
     }
-    
+
     // 6. 显示弹窗，默认停在简单模式
     toggleMiniMode('simple');
     modal.style.display = 'flex';
@@ -3273,11 +3271,12 @@ function closeMiniCalc() {
 
 function doMiniCalc() {
     const total = parseFloat(document.getElementById('mcTotal').value) || 0;
-    const qty = parseFloat(document.getElementById('mcQty').value) || 0;
+    // 关键升级：使用智能解析引擎获取数量，确保 1w/1.5k 在预览时就计算正确
+    const qty = _parseMOQ(document.getElementById('mcQty').value); 
     const resEl = document.getElementById('mcResult');
     
     if (qty > 0 && total > 0) {
-        // 保持 4 位精度，解决外贸单件分摊数值细微的问题
+        // 保持 4 位精度，确保预览与主核算台逻辑一致
         resEl.innerText = (total / qty).toFixed(4); 
     } else {
         resEl.innerText = '0.0000';
@@ -3286,15 +3285,28 @@ function doMiniCalc() {
 
 function applyMiniCalc() {
     const total = parseFloat(document.getElementById('mcTotal').value) || 0;
-    const qty = parseFloat(document.getElementById('mcQty').value) || 0;
+    const qtyInputVal = document.getElementById('mcQty').value;
+    const qty = _parseMOQ(qtyInputVal); // 使用智能解析引擎
     
     if (qty > 0 && total > 0 && currentCalcTarget) {
         const res = (total / qty).toFixed(4); 
         const targetEl = document.getElementById(currentCalcTarget);
         if(targetEl) {
-            targetEl.value = res; // V7: 直接赋字符串，避免 parseFloat 精度截断
+            targetEl.value = res;
+
+            // --- 核心同步逻辑：保持财务模型一致性 ---
+            const mainMoqEl = document.getElementById('moqInput');
+            const mainQty = _parseMOQ(mainMoqEl.value);
+            
+            // 如果计算器用的数量和主表单不一致，自动同步并提示用户
+            if (qty !== mainQty) {
+                mainMoqEl.value = qtyInputVal; // 保留用户的输入格式（如 1.5k）
+                showToast(`✅ 成本已回填，且已同步主起订量为 ${qtyInputVal}`);
+            } else {
+                showToast('✅ 分摊成本已回填');
+            }
+
             if (typeof autoCalculate === 'function') autoCalculate();
-            showToast('✅ 分摊成本已回填');
         }
     } else {
         showToast('⚠️ 数值不完整，无法分摊');
@@ -3354,7 +3366,7 @@ window.doLogisticsPro = debounce(function() {
         h:        getVal('mcH'),
         gw:       getVal('mcGw'),
         perCtn:   getVal('mcPerCtn'),
-        totalPcs: getVal('mcTotalPcs'),
+        totalPcs: _parseMOQ(document.getElementById('mcTotalPcs')?.value),
         uPrice:   getVal('mcUnitPrice'),
         mode:     document.getElementById('mcLogisticsMode')?.value
     };
@@ -3448,15 +3460,29 @@ window.doLogisticsPro = debounce(function() {
  */
 function applyLogisticsPro() {
     const ld = state.logisticsData;
-    if (!ld.result) {
+    if (!ld || !ld.result) {
         showToast('⚠️ 请先完整输入箱规数据以完成测算');
         return;
     }
     const targetEl = document.getElementById(currentCalcTarget);
     if (targetEl) {
-        targetEl.value = ld.result; // 字符串直接赋值，保留 4 位精度
+        targetEl.value = ld.result;
+
+        // --- 核心同步逻辑：保持财务模型一致性 ---
+        const mainMoqEl = document.getElementById('moqInput');
+        const mainQty = _parseMOQ(mainMoqEl.value);
+        const calculatorQty = parseFloat(ld.totalPcs); // 物流引擎内已解析过的纯数字
+
+        if (calculatorQty !== mainQty) {
+            // 注意：物流引擎手动输入框 ID 是 mcTotalPcs
+            const rawInput = document.getElementById('mcTotalPcs').value;
+            mainMoqEl.value = rawInput; 
+            showToast(`✅ 运费已回填，并同步主起订量为 ${rawInput}`);
+        } else {
+            showToast('✅ 单件运费已回填');
+        }
+
         if (typeof autoCalculate === 'function') autoCalculate();
-        showToast('✅ 单件运费已回填');
     }
     closeMiniCalc();
 }
@@ -5187,7 +5213,7 @@ async function generateAIEmail() {
     const countrySel = document.getElementById('countrySelect');
     const destination = countrySel.options[countrySel.selectedIndex].text;
     const moqStr = document.getElementById('moqInput').value || '1000 pcs';
-    let moqNum = parseInt(moqStr.replace(/\D/g, ''), 10) || 1000;
+    let moqNum = _parseMOQ(moqStr); // 统一调用 V8.1.0 引擎，确保 1w 识别为 10000
 
     const salesMode = document.getElementById('salesModeSelect').value; // 👈 抓取模式
     const clientType = document.getElementById('clientTypeSelect').value; // 👈 后续版本预留字段
