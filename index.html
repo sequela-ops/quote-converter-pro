@@ -270,6 +270,14 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
     transition: 0.2s; white-space: nowrap;
 }
 .auth-btn:active { background: var(--accent-light); color: var(--accent); border-color: var(--accent); }
+/* 新增：登录徽章内文字截断样式，防止长邮箱挤压左侧产品标题 */
+.auth-name-text {
+    max-width: 65px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: block;
+}
 .auth-avatar {
     width: 24px; height: 24px; background: var(--accent);
     border-radius: 50%; display: flex; align-items: center; justify-content: center;
@@ -885,14 +893,14 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
 <body>
 
 <div class="header">
-  <div class="header-left" style="display:flex; align-items:center;">
+  <div class="header-left" style="display:flex; align-items:center; flex-shrink:0; white-space:nowrap;">
     <div class="header-logo">🚢</div>
     <div class="header-title">外贸报价计算器 <span style="color:var(--accent);font-size:11px;background:var(--accent-light);padding:2px 6px;border-radius:6px;margin-left:4px;">V8.1.1</span></div>
   </div>
   <div style="display:flex; align-items:center; gap:8px;">
     <!-- 用户状态按钮 -->
     <div id="authBtn" class="auth-btn" onclick="openAuthSheet()">
-      <span>👤</span><span id="authBtnLabel">登录</span>
+      <span>👤</span><span id="authBtnLabel" class="auth-name-text">登录</span>
     </div>
     <button class="rate-badge" id="rateBadge" onclick="fetchRate(true)">
       <span class="dot"></span>
@@ -3685,7 +3693,7 @@ function loadScript(src) {
 // ---- UI 渲染 ----
 function renderGuestUI() {
     const btn = document.getElementById('authBtn');
-    btn.innerHTML = '<span>👤</span><span id="authBtnLabel">登录</span>';
+    btn.innerHTML = '<span>👤</span><span id="authBtnLabel" class="auth-name-text">登录</span>';
     btn.onclick = () => {
         if (!isSupabaseConfigured()) {
             showToast('⚙️ 请先在代码中填写 Supabase 配置');
@@ -3769,7 +3777,7 @@ function renderLoggedInUI(user) {
     const email = user?.email || '';
     const initial = email ? email[0].toUpperCase() : 'U';
     const btn = document.getElementById('authBtn');
-    btn.innerHTML = `<div class="auth-avatar" style="width:20px;height:20px;font-size:10px;">${initial}</div><span>${email.split('@')[0]}</span>`;
+    btn.innerHTML = `<div class="auth-avatar" style="width:20px;height:20px;font-size:10px;">${initial}</div><span class="auth-name-text">${email.split('@')[0]}</span>`;
     btn.onclick = openUserMenu;
     // 历史库标题
     const lbl = document.getElementById('historySourceLabel');
