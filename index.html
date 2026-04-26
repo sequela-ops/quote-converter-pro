@@ -2716,26 +2716,9 @@ function buildPIText() {
     const totalAmount = fmt.num(state.lastPrice * moqNum, 2);
     const piNo = state.currentPiNo || generatePINo();
 
-    return [
-        'PROFORMA INVOICE',
-        '------------------------------------------------',
-        'PI No.       : ' + piNo,
-        'Date         : ' + formatDateStr(now),
-        'Valid Until  : ' + formatDateStr(validDate),
-        '',
-        'Seller       : ' + seller,
-        'Buyer        : ' + buyer,
-        '',
-        'Product      : ' + name,
-        // --- 核心优化：实现起订量从语义到专业格式的转化 ---
-    const moqNum = _parseMOQ(moqStr);
-    const unit = getUnit(); // 获取识别出的单位（如 pc, pair, set）
-    
-    // 格式化数字：20000 -> "20,000"
-    const formattedQtyNum = new Intl.NumberFormat('en-US').format(moqNum);
-    
-    // 组装最终显示文本：20,000 + pcs
-    const finalQtyDisplay = `${formattedQtyNum} ${moqNum > 1 ? unit + 's' : unit}`;
+    // --- 核心优化：实现起订量从语义到专业格式的转化 ---
+    const formattedMoqNum = new Intl.NumberFormat('en-US').format(moqNum);
+    const finalMoqDisplay = `${formattedMoqNum} ${moqNum > 1 ? unit + 's' : unit}`;
 
     return [
         'PROFORMA INVOICE',
@@ -2748,8 +2731,7 @@ function buildPIText() {
         'Buyer        : ' + buyer,
         '',
         'Product      : ' + name,
-        // --- 修改点：使用格式化后的专业显示 ---
-        'Quantity     : ' + finalQtyDisplay, 
+        'Quantity     : ' + finalMoqDisplay, 
         'Unit Price   : USD ' + priceStr + ' / ' + unit,
         'Total Amount : USD ' + totalAmount,
         '',
@@ -5655,12 +5637,19 @@ async function _processRecordsChunked(records, sheet, workbook) {
         chunk.forEach(record => {
             const inp = record.inputs || {};
             const math = headlessRecalculate(record);
+            
+            // --- 【核心修复：交付轨逻辑对齐】 ---
+            // 提取与 PI 构建逻辑完全一致的规范化 MOQ 显示字符串
+            const formattedMoqNum = new Intl.NumberFormat('en-US').format(math.moqNum);
+            const finalMoqDisplay = `${formattedMoqNum} ${math.moqNum > 1 ? math.unit + 's' : math.unit}`;
+            // ------------------------------------
+
             const addedRow = sheet.addRow({
                 product: record.product, 
                 mode: record.mode, 
                 price: `${fmt.num(math.price, 4)} / ${math.unit}`,
                 total: math.totalAmount,
-                moq: math.moqStr, 
+                moq: finalMoqDisplay, 
                 pi: (inp.piNo || 'TBD') + (inp.buyerName ? `\n(${inp.buyerName})` : ''), 
                 lead: inp.leadTime || '未定', 
                 costRmb: parseFloat(inp.costRMB)||0, 
@@ -5682,7 +5671,7 @@ async function _processRecordsChunked(records, sheet, workbook) {
                 ddpEquiv: math.ddpEquiv
             });
             addedRow.eachCell((cell, colNum) => {
-                const usdCols = [4, 13, 14, 15, 22, 23, 24]; // col3(price)已为字符串，不做数字格式化
+                const usdCols =[4, 13, 14, 15, 22, 23, 24]; // col3(price)已为字符串，不做数字格式化
                 const cnyCols = [8, 9, 10];
                 if (typeof cell.value === 'number') {
                     if (usdCols.includes(colNum)) cell.numFmt = '"$"#,##0.00'; 
@@ -6130,9 +6119,9 @@ window.PdfExportEngine = (function() {
 
     // ── 数据采集层 ──
     function _scrapeResultData() {
-        const g = id => { const el = document.getElementById(id); return el ? (el.innerText || el.textContent || el.value || '').trim() : '—'; };
-        const gv = id => { const el = document.getElementById(id); return el ? (el.value || '').trim() : ''; };
-        const gcb = id => { const el = document.getElementById(id); return el ? el.checked : false; };
+    const g = id => { const el = document.getElementById(id); return el ? (el.innerText || el.textContent || el.value || '').trim() : '—'; };
+    const gv = id => { const el = document.getElementById(id); return el ? (el.value || '').trim() : ''; };
+    const gcb = id => { const el = document.getElementById(id); return el ? el.checked : false; };
         const gsel = id => {
             const el = document.getElementById(id);
             return el && el.options[el.selectedIndex] ? el.options[el.selectedIndex].text : (el?.value || '');
@@ -6154,9 +6143,17 @@ window.PdfExportEngine = (function() {
         const aiEmailText = document.getElementById('ai-email-text');
         const emailDraft = (aiEmailText && aiEmailText.closest('#ai-email-result-card')?.style.display !== 'none') ? aiEmailText.value.trim() : '';
 
+const rawMoq = gv('moqInput') || '1000';
+    const moqNum = _parseMOQ(rawMoq); // 语义还原
+    const unit = getUnit();           // 单位推演
+
         return {
             piNo, productName, mode,
-            moq: gv('moqInput') || '—', port: gv('portInput') || '—', leadTime: gv('leadTime') || '—',
+            moqNum,  // 存储纯数字
+        unit,    // 存储推演出的单位
+        rawMoq,  // 保留原始输入备用
+        port: gv('portInput') || '—', 
+        leadTime: gv('leadTime') || '—',
             validDays: gv('validDays') || '10', countryName: gsel('countrySelect'),
             price: g('rh-price').replace(/<[^>]*>/g, '').trim(), priceCNY: g('rh-price-cny'),
             profitRate: g('rh-profit-rate'), settleRate: g('rh-rate-note'), taxVal: g('rh-tax-val'),
@@ -6173,6 +6170,8 @@ window.PdfExportEngine = (function() {
     // ── 离屏渲染层 (增加 pdf-unbreakable 防切割标识) ──
     function _buildOffscreenEl(data, version) {
         const d = data;
+        const formattedMoqNum = new Intl.NumberFormat('en-US').format(d.moqNum);
+        const finalMoqDisplay = `${formattedMoqNum} ${d.moqNum > 1 ? d.unit + 's' : d.unit}`;
         const now = new Date();
         const dateStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
         
@@ -6199,7 +6198,7 @@ window.PdfExportEngine = (function() {
                 ${row('PI 报价单号', d.piNo, '#1B4FD8', true)}
                 ${row('产品名称', d.productName || '—')}
                 ${row('目标国家', d.countryName || '—')}
-                ${row('起订量 MOQ', d.moq || '—')}
+                ${row('起订量 MOQ', finalMoqDisplay)}
                 ${row('交期 Lead Time', d.leadTime || '—')}
                 ${row('报价有效期', d.validDays ? d.validDays + ' 天' : '—')}
                 ${sectionHeader('💰 商务核心结果')}
