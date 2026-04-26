@@ -190,22 +190,35 @@ html, body {
   flex-shrink: 0;
 }
 .sidebar-back-btn {
-  display: flex; align-items: center; gap: 8px;
-  font-size: 13px; font-weight: 600;
-  color: var(--text3);
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  font-size: 13px; font-weight: 700;
+  color: var(--text);
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
   cursor: pointer;
-  border: none; background: none;
-  padding: 0;
-  transition: color 0.15s;
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
   text-decoration: none;
+  width: 100%;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.03);
 }
-.sidebar-back-btn:hover { color: var(--accent); }
+.sidebar-back-btn:hover, .sidebar-back-btn:active { 
+  border-color: var(--accent); 
+  color: var(--accent); 
+  background: var(--accent-light); 
+  box-shadow: 0 4px 12px rgba(27,79,216,0.1); 
+}
+.sidebar-back-btn:active {
+  transform: scale(0.97);
+}
 .sidebar-footer-meta {
   font-size: 10px;
   color: var(--border2);
-  margin-top: 12px;
+  margin-top: 16px;
   font-family: 'DM Mono', monospace;
   line-height: 1.8;
+  text-align: center; /* 配合通栏按钮居中排版 */
 }
 
 /* ══════════════════════════════════════
@@ -499,20 +512,27 @@ html, body {
   border-radius: 20px;
   padding: 8px 16px;
   transition: 0.15s;
+  cursor: pointer;
+  outline: none;
 }
-.back-to-app:hover { background: var(--accent); color: white; }
+.back-to-app:hover { background: var(--accent); color: white; border-color: var(--accent); }
 
 /* 移动端遮罩 */
 .sidebar-overlay {
-  display: none;
+  visibility: hidden;
+  opacity: 0;
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.2);
+  background: rgba(0,0,0,0.4);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
   z-index: 150;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.sidebar-overlay.visible { display: block; }
+.sidebar-overlay.visible { 
+  visibility: visible; 
+  opacity: 1; 
+}
 
 /* 淡入动画 */
 .section-page {
@@ -536,6 +556,22 @@ html, body {
     box-shadow: 4px 0 32px rgba(0,0,0,0.12);
   }
   .sidebar.open { transform: translateX(0); }
+
+  /* 修复：侧边栏顶部避开刘海屏/灵动岛 */
+  .sidebar-header {
+    padding: calc(28px + env(safe-area-inset-top, 0px)) 24px 20px;
+  }
+
+  /* 修复：侧边栏底部避开 Home Bar */
+  .sidebar-footer {
+    padding-bottom: calc(28px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* 修复：移动端顶栏避开刘海屏/灵动岛 */
+  .mobile-topbar {
+    padding: env(safe-area-inset-top, 0px) 16px 0;
+    height: calc(52px + env(safe-area-inset-top, 0px));
+  }
 
   .mobile-topbar { display: flex; }
 
@@ -601,6 +637,12 @@ html, body {
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
         常见问题 · FAQ
       </button>
+
+      <button class="nav-item" data-section="epilogue" onclick="navigate('epilogue', this)">
+        <div class="nav-num">7</div>
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><line x1="12" y1="22" x2="12" y2="8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
+        结语 · Epilogue
+      </button>
     </nav>
 
     <div class="sidebar-footer">
@@ -609,7 +651,7 @@ html, body {
         返回核算台
       </a>
       <div class="sidebar-footer-meta">
-        <div>v1.0.0</div>
+        <div>v1.0.1</div>
         <div>© 2026 Navail Nexus.</div>
       </div>
     </div>
@@ -656,7 +698,7 @@ html, body {
         </div>
         <div class="content-footer">
           <div class="footer-meta">
-            <div>Navail Quote OS · 产品使用手册 v1.0.0</div>
+            <div>Navail Quote OS · 产品使用手册 v1.0.1</div>
             <div>© 2026 Navail Nexus. All rights reserved.</div>
           </div>
           <button class="back-to-app" onclick="navigate('core', document.querySelector('[data-section=core]'))">
@@ -702,7 +744,7 @@ html, body {
         </div>
         <div class="content-footer">
           <div class="footer-meta">
-            <div>Navail Quote OS · 产品使用手册 v1.0.0</div>
+            <div>Navail Quote OS · 产品使用手册 v1.0.1</div>
             <div>© 2026 Navail Nexus. All rights reserved.</div>
           </div>
           <button class="back-to-app" onclick="navigate('features', document.querySelector('[data-section=features]'))">下一章 →</button>
@@ -772,7 +814,7 @@ html, body {
 
         <div class="content-footer">
           <div class="footer-meta">
-            <div>Navail Quote OS · 产品使用手册 v1.0.0</div>
+            <div>Navail Quote OS · 产品使用手册 v1.0.1</div>
             <div>© 2026 Navail Nexus. All rights reserved.</div>
           </div>
           <button class="back-to-app" onclick="navigate('quickstart', document.querySelector('[data-section=quickstart]'))">下一章 →</button>
@@ -837,7 +879,7 @@ html, body {
         </div>
         <div class="content-footer">
           <div class="footer-meta">
-            <div>Navail Quote OS · 产品使用手册 v1.0.0</div>
+            <div>Navail Quote OS · 产品使用手册 v1.0.1</div>
             <div>© 2026 Navail Nexus. All rights reserved.</div>
           </div>
           <button class="back-to-app" onclick="navigate('tips', document.querySelector('[data-section=tips]'))">下一章 →</button>
@@ -879,7 +921,7 @@ html, body {
         </div>
         <div class="content-footer">
           <div class="footer-meta">
-            <div>Navail Quote OS · 产品使用手册 v1.0.0</div>
+            <div>Navail Quote OS · 产品使用手册 v1.0.1</div>
             <div>© 2026 Navail Nexus. All rights reserved.</div>
           </div>
           <button class="back-to-app" onclick="navigate('faq', document.querySelector('[data-section=faq]'))">下一章 →</button>
@@ -960,7 +1002,7 @@ html, body {
             <br><br>
             2. <strong>业务单位的自动锚定与合规化：</strong>引擎具备智能的语义识别能力。它能从录入文本中自动滤除 K/W/M 等数值量词，瞬时锚定真正的业务逻辑单位（如 <code>pairs</code>、<code>sets</code>、<code>双</code>、<code>套</code>）。更进一步，内核会自动执行“术语清洗”，智能处理单复数逻辑并校正非规范缩写，确保即便录入时完全不管规范，输出到交付文档中的单位依然符合严谨的贸易规范。
             <br><br>
-            3. <strong>运算与交付双轨并行：</strong>系统采用「双轨制」数据处理。<strong>运算轨</strong>执行严谨的纯数字财务逻辑；<strong>交付轨</strong>（PI/PDF/Excel）则完美还原并格式化您的业务语义。
+            3. <strong>运算与交付双轨并行：</strong>系统采用「双轨制」数据处理。<strong>运算轨</strong>执行严谨的纯数字财务逻辑；<strong>交付轨</strong>（PI / PDF / Excel）则完美还原并格式化您的业务语义。
             <br><br>
             这意味着，您可以像在草稿纸上一样随性录入，而系统会以教科书级的专业标准为您输出严谨的 PI，PDF 档案和 Excel 报表。
           </div>
@@ -968,10 +1010,49 @@ html, body {
 
         <div class="content-footer">
           <div class="footer-meta">
-            <div>Navail Quote OS · 产品使用手册 v1.0.0</div>
+            <div>Navail Quote OS · 产品使用手册 v1.0.1</div>
             <div>© 2026 Navail Nexus. All rights reserved.</div>
           </div>
-          <a href="index.html" class="back-to-app">← 返回核算台</a>
+          <button class="back-to-app" onclick="navigate('epilogue', document.querySelector('[data-section=epilogue]'))">下一章 →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── §7 结语 ── -->
+    <div class="section-page" id="sec-epilogue">
+      <div class="content">
+        <div class="breadcrumb">
+          <span>手册</span><span class="breadcrumb-sep">/</span>
+          <span class="breadcrumb-current">结语</span>
+        </div>
+        <div class="section-eyebrow">Chapter 07</div>
+        <h1 class="section-title">结语</h1>
+        <p class="section-subtitle">Epilogue — 智领全球，策动未来</p>
+        <div class="divider"></div>
+
+        <div class="sub-h2">关于 Navail Nexus</div>
+        <div class="prose">
+          <p><strong>Navail</strong> 源自 Navigation（航行/指引）与 Availability（可得性），代表我们致力于将复杂的外贸决策能力，转化为每个人都能随时使用的数字化工具。</p>
+          <p><strong>Nexus</strong> 则意味着连接与中枢。在实际业务中，汇率、税费、物流与利润往往分散在不同的环节，难以进行统一的风险判断。Navail Nexus 的初心，就是将这些复杂的变量整合在同一套逻辑矩阵中，帮助您更清晰地理解成本结构，并做出更稳健的报价决策。</p>
+        </div>
+
+        <div class="quote-block">
+          💡 它不是替代您进行商业判断的 Agent，而是让您的每一项判断都具备真实的财务依据。
+        </div>
+
+        <div class="prose">
+          <p>在外贸业务中，外部的不确定性无法被完全消除，但可以被有效地量化与管理。Navail Nexus 存在的意义，是确保您的每一次报价，都不再建立在“大概”和“直觉”之上，而是建立在清晰的结构与完整的信息流之上。</p>
+        </div>
+
+        <div class="content-footer" style="margin-top: 60px;">
+          <div class="footer-meta">
+            <div>Navail Quote OS · 产品使用手册 v1.0.1</div>
+            <div>© 2026 Navail Nexus. All rights reserved.</div>
+          </div>
+          <a href="index.html" class="back-to-app">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:2px;"><polyline points="15 18 9 12 15 6"/></svg>
+            返回核算台
+          </a>
         </div>
       </div>
     </div>
@@ -986,7 +1067,8 @@ const SECTION_LABELS = {
   features: '功能特性',
   quickstart: '操作教程',
   tips: '进阶技巧',
-  faq: '常见问题'
+  faq: '常见问题',
+  epilogue: '结语'
 };
 
 function navigate(sectionId, navEl) {
