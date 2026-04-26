@@ -73,12 +73,28 @@ body { background: var(--bg); color: var(--text); font-family: 'DM Sans', -apple
   white-space: nowrap;
   /* 严禁：overflow:hidden / text-overflow:ellipsis */
 }
+/* 精确确定位置：.header-version 样式类 */
 .header-version {
-  font-size: 10px; font-weight: 700; letter-spacing: 0.2px;
-  color: #2563EB;           /* 品牌蓝，清晰可见 */
-  font-family: 'DM Mono', monospace;
+  display: inline-flex; 
+  align-items: center;
+  justify-content: center; /* 确保文字居中 */
+  font-size: 10px; 
+  font-weight: 700; 
+  letter-spacing: 0.3px;
+  color: #2563EB;
+  font-family: -apple-system, 'SF Pro Text', 'PingFang SC', sans-serif;
   line-height: 1;
-  opacity: 0.85;
+  background: rgba(37,99,235,0.08);
+  border: 1px solid rgba(37,99,235,0.15);
+  border-radius: 999px;
+  /* 调整点：由 2px 7px 优化为更紧凑的比例 */
+  padding: 1px 6px; 
+  /* 关键点：强制宽度由内容决定 */
+  width: fit-content;
+  /* 关键点：防止在 flex 容器中被拉伸 */
+  flex: none;
+  /* 辅助：防止文字换行影响宽度计算 */
+  white-space: nowrap;
 }
 
 /* ── 中：登录按钮 ── */
