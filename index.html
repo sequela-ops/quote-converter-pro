@@ -3289,8 +3289,10 @@ function onInputVatChange(sel) {
         isRebateEl.checked = false; isRebateEl.disabled = true; rebateRateEl.disabled = true;
         showToast('⚠️ 普票无进项，已自动阻断退税链路');
     } else {
-        isRebateEl.disabled = false; rebateRateEl.disabled = false;
-    }
+    isRebateEl.disabled = false;
+    rebateRateEl.disabled = false;
+    isRebateEl.checked = true;  // 切回专票时同步恢复勾选
+}
 }
 
 function fetchRate(isManualClick = false) {
