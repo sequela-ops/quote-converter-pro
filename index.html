@@ -33,19 +33,110 @@
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 body { background: var(--bg); color: var(--text); font-family: 'DM Sans', -apple-system, 'PingFang SC', sans-serif; font-size: 14px; line-height: 1.5; min-height: 100vh; max-width: 600px; margin: 0 auto; box-shadow: 0 0 40px rgba(0,0,0,0.05); }
 
-/* 页面布局组件 */
-.header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 16px 20px 14px; position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; }
-.header-logo { width: 34px; height: 34px; background: var(--accent); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 16px; color: white; }
-.header-title { font-size: 16px; font-weight: 700; color: var(--text); margin-left: 10px; }
-.rate-badge { background: var(--accent-light); color: var(--accent); font-size: 11px; font-weight: 600; padding: 5px 10px; border-radius: 20px; cursor: pointer; display: flex; align-items: center; gap: 4px; border: none; flex-shrink: 0; white-space: nowrap; }
-.rate-badge .dot { width: 6px; height: 6px; background: var(--accent2); border-radius: 50%; animation: pulse 2s infinite; }
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+/* ══════════════════════════════════════
+   顶栏 v4：flex space-between 三柱
+   品牌(左·不可压缩) | 登录(中) | 汇率(右)
+══════════════════════════════════════ */
+.header {
+  background: rgba(255,255,255,0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(0,0,0,0.06);
+  padding: 18px 16px;
+  position: sticky; top: 0; z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.04), 0 2px 8px rgba(0,0,0,0.03);
+}
+
+/* ── 左：品牌区 — 绝不压缩，绝不截断 ── */
+.header-brand {
+  display: flex; align-items: center; gap: 10px;
+  flex-shrink: 0;      /* 关键：品牌区不参与压缩 */
+  white-space: nowrap; /* 关键：整体不换行 */
+}
+.header-logo {
+  width: 32px; height: 32px;
+  background: var(--accent); border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; color: white; flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(27,79,216,0.25);
+}
+.header-brand-text {
+  display: flex; flex-direction: column; gap: 3px;
+}
+.header-title {
+  font-size: 14px; font-weight: 700; color: var(--text);
+  letter-spacing: -0.3px; line-height: 1;
+  white-space: nowrap;
+  /* 严禁：overflow:hidden / text-overflow:ellipsis */
+}
+.header-version {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.2px;
+  color: #2563EB;           /* 品牌蓝，清晰可见 */
+  font-family: 'DM Mono', monospace;
+  line-height: 1;
+  opacity: 0.85;
+}
+
+/* ── 中：登录按钮 ── */
+.header-auth-wrap {
+  flex-shrink: 0;
+}
+
+/* ── 右：汇率徽章（沿用上版双行胶囊设计） ── */
+.rate-badge {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 1px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 6px 13px;
+  cursor: pointer;
+  transition: transform 0.18s cubic-bezier(0.34,1.56,0.64,1),
+              box-shadow 0.18s ease,
+              background 0.15s ease;
+  white-space: nowrap; flex-shrink: 0;
+}
+.rate-badge:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  background: var(--surface);
+}
+.rate-badge:active {
+  transform: scale(0.94);
+  box-shadow: none;
+  background: var(--accent-light);
+}
+.rate-badge-label {
+  font-size: 9px; font-weight: 500;
+  color: var(--text3);
+  font-family: 'DM Sans', sans-serif;
+  letter-spacing: 0.3px;
+  display: flex; align-items: center; gap: 3px;
+  line-height: 1;
+}
+.rate-badge-label .dot {
+  width: 5px; height: 5px;
+  background: var(--accent2); border-radius: 50%;
+  animation: pulse 2s infinite; flex-shrink: 0;
+}
+.rate-badge-value {
+  font-size: 13px; font-weight: 700;
+  color: var(--text);
+  font-family: 'DM Mono', monospace;
+  letter-spacing: -0.3px;
+  line-height: 1;
+}
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
 
 .tabs { display: flex; background: var(--surface); border-bottom: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; }
 .tab { flex: 0 0 auto; padding: 12px 18px; font-size: 13px; font-weight: 500; color: var(--text3); border-bottom: 2px solid transparent; cursor: pointer; white-space: nowrap; transition: 0.2s; }
 .tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
 
-.page { display: none; padding: 16px; padding-bottom: 60px; }
+.page { display: none; padding: 12px 16px 60px; }
 .page.active { display: block; animation: fadeIn 0.3s ease; }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
@@ -58,7 +149,7 @@ body { background: var(--bg); color: var(--text); font-family: 'DM Sans', -apple
 .field-label { font-size: 13px; font-weight: 500; color: var(--text); flex: 0 0 110px; }
 .field-label small { display: block; font-size: 10px; color: var(--text3); font-weight: 400; }
 .field-input, .field-select { flex: 1; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 12px; font-size: 16px; font-family: 'DM Mono', monospace; background: var(--surface2); outline: none; width: 100%; -webkit-appearance: none; }
-.field-select { appearance: auto; background-image: none; }
+.field-select { appearance: auto; background-image: none; font-size: 13px; font-family: 'DM Sans', -apple-system, 'PingFang SC', sans-serif; }
 .field-unit { font-size: 12px; color: var(--text3); flex: 0 0 32px; text-align: right; }
 .field-row.dimmed { opacity: 0.3; pointer-events: none; background: #fafafa; }
 
@@ -210,7 +301,7 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
 .m-btn-cancel { background: transparent; color: var(--text3); font-size: 13px; font-weight: 400; margin-top: 10px; }
 
 /* 引导流系统 - 全面升级交互 */
-.step-progress-wrapper { padding: 10px 4px 24px; margin-bottom: 12px; }
+.step-progress-wrapper { padding: 8px 4px 14px; margin-bottom: 8px; }
 .step-progress-bar { display: flex; justify-content: space-between; align-items: center; position: relative; max-width: 400px; margin: 0 auto; }
 .progress-line { position: absolute; top: 16px; left: 30px; right: 30px; height: 2px; background: var(--border); z-index: 1; }
 .progress-line-fill { position: absolute; top: 0; left: 0; height: 100%; background: var(--accent); transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1); width: 0%; }
@@ -220,7 +311,7 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
 .step-dot:active .dot-circle { transform: scale(0.95) !important; }
 
 .step-dot .dot-circle { width: 32px; height: 32px; background: var(--surface); border: 2px solid var(--border); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; font-family: 'DM Mono', monospace; color: var(--text3); transition: all 0.3s ease; }
-.step-dot .dot-label { margin-top: 8px; font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; transition: all 0.3s ease; }
+.step-dot .dot-label { margin-top: 5px; font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; transition: all 0.3s ease; }
 .step-dot.active .dot-circle { border-color: var(--accent); color: var(--accent); background: var(--accent-light); transform: scale(1.1); box-shadow: 0 0 0 4px var(--surface), 0 0 0 6px var(--accent-light); }
 .step-dot.active .dot-label { color: var(--accent); }
 .step-dot.completed .dot-circle { background: var(--accent); border-color: var(--accent); color: white; }
@@ -261,29 +352,51 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
 }
 
 /* ==================== AUTH 系统样式 ==================== */
-/* 顶部用户状态区 */
+/* 顶部用户状态按钮 */
 .auth-btn {
-    display: flex; align-items: center; gap: 6px;
-    background: var(--surface2); border: 1px solid var(--border);
-    border-radius: 20px; padding: 6px 12px; cursor: pointer;
-    font-size: 12px; font-weight: 600; color: var(--text2);
-    transition: 0.2s; white-space: nowrap;
-    min-width: 0; overflow: hidden; flex-shrink: 1;
+  display: flex; align-items: center; gap: 5px;
+  background: transparent;
+  border: 1px solid rgba(0,0,0,0.12);
+  border-radius: 999px;
+  padding: 7px 13px;
+  cursor: pointer;
+  font-size: 12px; font-weight: 600; color: var(--text2);
+  transition: transform 0.15s cubic-bezier(0.34,1.56,0.64,1),
+              box-shadow 0.15s ease,
+              background 0.15s ease,
+              border-color 0.15s ease,
+              color 0.15s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
-.auth-btn:active { background: var(--accent-light); color: var(--accent); border-color: var(--accent); }
-/* 登录后邮箱文字自适应截断，不硬编码宽度，由 flex 容器动态决定可用空间 */
+.auth-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(0,0,0,0.07);
+  background: var(--surface2);
+}
+.auth-btn:active {
+  transform: scale(0.95);
+  box-shadow: none;
+}
+/* 登录态 */
+.auth-btn.logged-in {
+  background: var(--accent-light);
+  color: var(--accent);
+  border-color: rgba(27,79,216,0.2);
+}
+.auth-btn.logged-in:hover {
+  box-shadow: 0 3px 10px rgba(27,79,216,0.12);
+}
 .auth-name-text {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    display: block;
-    max-width: 80px;
+  max-width: 64px;
+  overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; display: block;
 }
 .auth-avatar {
-    width: 24px; height: 24px; background: var(--accent);
-    border-radius: 50%; display: flex; align-items: center; justify-content: center;
-    font-size: 11px; font-weight: 700; color: white; flex-shrink: 0;
+  width: 20px; height: 20px; background: var(--accent);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 700; color: white; flex-shrink: 0;
 }
 
 /* Auth 弹窗 */
@@ -895,20 +1008,25 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
 <body>
 
 <div class="header">
-  <div class="header-left" style="display:flex; align-items:center; flex-shrink:0; white-space:nowrap;">
+  <!-- 左：品牌区（flex-shrink:0，绝不截断） -->
+  <div class="header-brand">
     <div class="header-logo">🚢</div>
-    <div class="header-title">外贸报价计算器 <span style="color:var(--accent);font-size:11px;background:var(--accent-light);padding:2px 6px;border-radius:6px;margin-left:4px;">V8.1.1</span></div>
+    <div class="header-brand-text">
+      <div class="header-title">外贸报价计算器</div>
+      <span class="header-version">V8.1.1</span>
+    </div>
   </div>
-  <div style="display:flex; align-items:center; gap:8px; min-width:0; flex-shrink:1;">
-    <!-- 用户状态按钮 -->
+  <!-- 中：登录按钮 -->
+  <div class="header-auth-wrap">
     <div id="authBtn" class="auth-btn" onclick="openAuthSheet()">
       <span>👤</span><span id="authBtnLabel" class="auth-name-text">登录</span>
     </div>
-    <button class="rate-badge" id="rateBadge" onclick="fetchRate(true)">
-      <span class="dot"></span>
-      <span id="rateDisplay">获取汇率...</span>
-    </button>
   </div>
+  <!-- 右：汇率徽章 -->
+  <button class="rate-badge" id="rateBadge" onclick="fetchRate(true)">
+    <span class="rate-badge-label"><span class="dot"></span>实时汇率</span>
+    <span class="rate-badge-value" id="rateDisplay">—</span>
+  </button>
 </div>
 
 <div class="tabs">
@@ -3164,7 +3282,7 @@ function fetchRate(isManualClick = false) {
     if (isManualClick) state.manualRate = false; 
 
     const displayEl = document.getElementById('rateDisplay');
-if (displayEl) displayEl.innerText = '拉取中...';
+if (displayEl) displayEl.innerText = '···';
     fetch(`https://open.er-api.com/v6/latest/USD?t=${Date.now()}`)
         .then(r => r.json())
         .then(d => {
@@ -3177,10 +3295,10 @@ const inputEl = document.getElementById('exchangeRate');
                 if (typeof autoCalculate === 'function') autoCalculate(); 
             }
             
-            if (displayEl) displayEl.innerText = '实时 ' + r;
+            if (displayEl) displayEl.innerText = r;
         })
         .catch(e => {
-            if (displayEl) displayEl.innerText = '获取失败';
+            if (displayEl) displayEl.innerText = '—';
             showToast('⚠️ 网络受阻，请手动核对当前汇率');
         });
 }
@@ -3696,6 +3814,7 @@ function loadScript(src) {
 function renderGuestUI() {
     const btn = document.getElementById('authBtn');
     btn.innerHTML = '<span>👤</span><span id="authBtnLabel" class="auth-name-text">登录</span>';
+    btn.classList.remove('logged-in');
     btn.onclick = () => {
         if (!isSupabaseConfigured()) {
             showToast('⚙️ 请先在代码中填写 Supabase 配置');
@@ -3780,6 +3899,7 @@ function renderLoggedInUI(user) {
     const initial = email ? email[0].toUpperCase() : 'U';
     const btn = document.getElementById('authBtn');
     btn.innerHTML = `<div class="auth-avatar" style="width:20px;height:20px;font-size:10px;">${initial}</div><span class="auth-name-text">${email.split('@')[0]}</span>`;
+    btn.classList.add('logged-in');
     btn.onclick = openUserMenu;
     // 历史库标题
     const lbl = document.getElementById('historySourceLabel');
