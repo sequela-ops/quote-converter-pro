@@ -1006,6 +1006,15 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
 }
 .btn-export-excel:active { transform: scale(0.96); background: #0b8a65; }
 .btn-export-excel.disabled { opacity: 0.5; pointer-events: none; filter: grayscale(1); box-shadow: none; }
+.btn-delete-history {
+    background: var(--surface); color: var(--warn); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 8px 14px; font-size: 12px; font-weight: 700;
+    cursor: pointer; display: flex; align-items: center; gap: 6px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04); transition: transform 0.15s, background 0.2s, border-color 0.2s;
+}
+.btn-delete-history:active { transform: scale(0.96); background: var(--warn-light); border-color: rgba(212,80,10,0.3); }
+.btn-delete-history.disabled { opacity: 0.5; pointer-events: none; filter: grayscale(1); box-shadow: none; border-color: var(--border); color: var(--text3); }
+#deleteConfirmModal .modal-card { max-width: 300px; }
 
 /* ==================== 游客模式导出入口置灰样式 ==================== */
 .export-guest-locked {
@@ -1019,17 +1028,253 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
 .btn-export-excel.export-guest-locked {
     pointer-events: auto !important; /* 必须允许点击以显示提示，不能用 none */
 }
+
+/* ==================== 开场引导系统 (OpenAI 风格轮播版) ==================== */
+.openai-intro-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100dvh;
+    background: linear-gradient(180deg, #c5d6ee 0%, #e1ebf7 100%);
+    z-index: 999999; display: flex; flex-direction: column;
+    opacity: 1; transition: opacity 0.7s ease, transform 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+    overflow: hidden; touch-action: none; /* 彻底阻断 iOS 底部反弹与手势干扰 */
+}
+.openai-intro-overlay.dismissed {
+    opacity: 0; pointer-events: none; transform: translateY(-8vh);
+}
+.openai-intro-close {
+    position: absolute; top: max(20px, env(safe-area-inset-top)); right: 20px;
+    background: rgba(255, 255, 255, 0.25); border: none; border-radius: 999px;
+    padding: 8px 16px; color: white; font-size: 14px; font-weight: 500;
+    cursor: pointer; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    transition: background 0.2s; font-family: 'DM Sans', sans-serif; z-index: 30;
+}
+.openai-intro-close:active { background: rgba(255, 255, 255, 0.4); }
+
+/* 轮播轨道与容器 */
+.openai-slider-wrap {
+    flex: 1; width: 100%; position: relative; overflow: hidden;
+}
+.openai-slider-track {
+    display: flex; height: 100%; width: 100%; 
+    transition: transform 0.6s cubic-bezier(0.25, 1, 0.35, 1);
+    will-change: transform;
+}
+.openai-slide {
+    flex: 0 0 100%; width: 100%; height: 100%; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; padding: 0 32px; box-sizing: border-box;
+    text-align: center; color: white;
+}
+
+/* 页面1：极致极简 */
+.slide-1-title {
+    font-size: 40px; font-weight: 700; letter-spacing: -1.2px; 
+    margin-bottom: 20px; line-height: 1.15; font-family: 'DM Sans', sans-serif;
+    animation: openaiFadeUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.slide-1-sub {
+    font-size: 16px; font-weight: 500; opacity: 0.9; 
+    margin-bottom: 48px; line-height: 1.5; font-family: 'DM Sans', sans-serif;
+    animation: openaiFadeUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) 0.1s both;
+}
+
+/* 页面2-4：功能亮点 */
+.slide-icon {
+    font-size: 56px; margin-bottom: 24px; line-height: 1;
+    filter: drop-shadow(0 8px 16px rgba(0,0,0,0.08));
+}
+.slide-title {
+    font-size: 26px; font-weight: 700; letter-spacing: -0.5px;
+    margin-bottom: 16px; font-family: 'DM Sans', sans-serif;
+}
+.slide-desc {
+    font-size: 15px; color: rgba(255,255,255,0.9); line-height: 1.65;
+    max-width: 320px; margin: 0 auto;
+}
+
+/* 通用组件 */
+.openai-intro-btn {
+    background: white; color: #1A1A1A; border: none; border-radius: 999px;
+    padding: 15px 36px; font-size: 16px; font-weight: 600; cursor: pointer;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.06); transition: transform 0.2s;
+    font-family: 'DM Sans', sans-serif; 
+    animation: openaiFadeUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) 0.2s both;
+}
+.openai-intro-btn:active { transform: scale(0.96); box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+
+/* 底部圆点指示器 */
+.openai-pagination {
+    position: absolute; bottom: calc(40px + env(safe-area-inset-bottom)); left: 0; right: 0;
+    display: flex; justify-content: center; gap: 8px; z-index: 10;
+    opacity: 0; transition: opacity 0.4s; pointer-events: none;
+}
+.openai-pagination.visible { opacity: 1; pointer-events: auto; }
+.openai-dot {
+    width: 6px; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.35);
+    transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1); cursor: pointer;
+}
+.openai-dot.active { background: white; width: 20px; }
+
+@keyframes openaiFadeUp { 
+    from { transform: translateY(30px); opacity: 0; } 
+    to { transform: translateY(0); opacity: 1; } 
+}
+
+/* ==================== 极致打磨：打招呼与转场系统 ==================== */
+.openai-greeting {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: linear-gradient(180deg, #c5d6ee 0%, #e1ebf7 100%);
+    z-index: 20;
+    opacity: 1;
+    /* ── Bug-Fix #1 v8.2.0: 物理分层 ──────────────────────────────
+     * 问题：高刷屏/旧型 WebKit 在图层淡出时因缺乏独立 GPU 合成层
+     *       产生像素残留（Motion Artifacts）。
+     * 方案：通过 perspective + translateZ(0) + backface-visibility 三件套
+     *       强制浏览器为此元素开辟独立光栅化层（Compositing Layer），
+     *       动画完全在 GPU 上执行，彻底脱离 CPU 光栅化管线。
+     * 参考：Chrome Compositor Layers / Safari Metal 渲染策略。
+     * ──────────────────────────────────────────────────────────── */
+    perspective: 1000px;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    will-change: transform, opacity, filter;
+    -webkit-font-smoothing: antialiased;
+    /* 物理呼吸曲线：OpenAI 风格的标准曲线 */
+    transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1), 
+                transform 0.8s cubic-bezier(0.4, 0, 0.2, 1),
+                filter 0.8s ease;
+}
+
+/* 渐出态：增加微量模糊和缩放，让消散过程极度柔和，彻底掩盖任何像素残留 */
+.openai-greeting.fade-out {
+    opacity: 0;
+    transform: scale(1.1); 
+    filter: blur(12px); /* 模糊掩护 */
+    pointer-events: none;
+}
+
+/* 核心打磨：Intro 内容的初始隐藏态（用于 staggered 进入） */
+.intro-stagger {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 1s cubic-bezier(0.2, 0.8, 0.2, 1), 
+                transform 1s cubic-bezier(0.2, 0.8, 0.2, 1);
+    will-change: transform, opacity;
+}
+
+/* 激活态：当 Hi 消失时，文字从下方轻盈浮现 */
+.intro-stagger.active {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.greeting-icon {
+    font-size: 48px; margin-bottom: 24px;
+    animation: wave-animation 1.8s ease-in-out infinite;
+    transform-origin: 75% 80%;
+    filter: drop-shadow(0 8px 20px rgba(0,0,0,0.08));
+    display: inline-block;
+}
+
+/* 拟人化招手序列：快慢交替，模拟“晃两下停一下”的真实感 */
+@keyframes wave-animation {
+    0% { transform: rotate(0deg); }
+    10% { transform: rotate(18deg); }  /* 快速向右摆 */
+    20% { transform: rotate(-10deg); } /* 快速向左回 */
+    30% { transform: rotate(18deg); }  /* 再次向右 */
+    40% { transform: rotate(-6deg); }  /* 稍微收力 */
+    50% { transform: rotate(12deg); }  /* 最后一次小摆动 */
+    60% { transform: rotate(0deg); }   /* 回正 */
+    100% { transform: rotate(0deg); }  /* 短暂静止停留 */
+}
+
+.greeting-text {
+    font-size: 32px; /* 从 36px 略微下调 */
+    font-weight: 700;
+    color: white;
+    font-family: 'DM Sans', sans-serif;
+    letter-spacing: -0.8px;
+    opacity: 0.95;
+}
 </style>
 </head>
 <body>
+<!-- ==================== 开场引导系统 (OpenAI 同款轮播版) ==================== -->
+<div id="openaiIntroOverlay" class="openai-intro-overlay" style="display: none;">
+
+    <div id="openaiGreeting" class="openai-greeting">
+        <div class="greeting-icon">👋</div>
+        <div class="greeting-text">Hi～</div>
+    </div>
+
+    <button class="openai-intro-close" onclick="OpenAI_IntroEngine.dismiss()">Close</button>
+    
+    <div class="openai-slider-wrap">
+        <div class="openai-slider-track" id="openaiSliderTrack">
+            <!-- P1: 极致极简主视觉 -->
+<div class="openai-slide">
+    <div class="slide-1-title intro-stagger">Introducing<br>Navail Quote OS</div>
+    <div class="slide-1-sub intro-stagger">An intelligent layer for export pricing</div>
+    <button class="openai-intro-btn intro-stagger" onclick="OpenAI_IntroEngine.next()">Learn more</button>
+</div>
+            
+            <!-- P2: 亮点 1 -->
+            <div class="openai-slide">
+                <div class="slide-icon">⚡</div>
+                <div class="slide-title">毫秒级无缝试算</div>
+<div class="slide-desc">
+        抛弃繁琐的 Excel 报表。<br>
+        指尖拖动利润滑块，<br>
+        全盘报价瞬时动态响应，<br>
+        让您的每一分利润都足够确定。
+                </div>
+            </div>
+            
+            <!-- P3: 亮点 2 -->
+<div class="openai-slide">
+    <div class="slide-icon">🛡️</div>
+    <div class="slide-title">智能风控排雷</div>
+    <div class="slide-desc">
+        深度内化五大贸易术语，<br>
+        自动校准费用漏项。<br>
+        直连国际汇率 & 关税 API，<br>
+        从源头彻底阻断隐性亏损。
+    </div>
+</div>
+            
+            <!-- P4: 亮点 3 & 结束 -->
+            <div class="openai-slide">
+                <div class="slide-icon">✨</div>
+                <div class="slide-title">AI 赋能专业交付</div>
+<div class="slide-desc">
+        一键智能生成高转化商务邮件。<br>
+        多端云同步与离线计算架构，<br>
+        企业级 PDF & Excel 导出，<br>
+        实现随时随地从容报价。
+                </div>
+                <button class="openai-intro-btn" style="margin-top: 36px;" onclick="OpenAI_IntroEngine.dismiss()">开启全新体验</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 轮播指示器 -->
+    <div class="openai-pagination" id="openaiPagination">
+        <div class="openai-dot active" onclick="OpenAI_IntroEngine.goTo(0)"></div>
+        <div class="openai-dot" onclick="OpenAI_IntroEngine.goTo(1)"></div>
+        <div class="openai-dot" onclick="OpenAI_IntroEngine.goTo(2)"></div>
+        <div class="openai-dot" onclick="OpenAI_IntroEngine.goTo(3)"></div>
+    </div>
+</div>
 
 <div class="header">
   <!-- 左：品牌区（flex-shrink:0，绝不截断） -->
   <div class="header-brand">
     <div class="header-logo">🚢</div>
     <div class="header-brand-text">
-      <div class="header-title">外贸报价计算器</div>
-      <span class="header-version">V8.1.1</span>
+    <div class="header-title">外贸报价计算器</div>
+    <!-- 增加 onclick 唤起事件和手指指针 -->
+    <span class="header-version" onclick="OpenAI_IntroEngine.show()">V8.2.0</span>
     </div>
   </div>
   <!-- 中：登录按钮 -->
@@ -1481,9 +1726,14 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
     <input type="checkbox" class="history-checkbox" id="historySelectAllCb" onclick="event.stopPropagation(); toggleSelectAllHistory()">
     <span id="historySelectAllText">全选</span>
 </div>
-            <button class="btn-export-excel disabled" id="btnExportExcel" onclick="exportSelectedToExcel()">
-                <span id="excelBtnIcon">📊</span> <span id="excelBtnText">导出 Excel</span>
-            </button>
+            <div class="history-action-right" style="display: flex; gap: 8px;">
+                <button class="btn-delete-history disabled" id="btnDeleteSelected" onclick="confirmDeleteSelected()">
+                    <span id="deleteBtnIcon">🗑️</span> <span id="deleteBtnText">删除</span>
+                </button>
+                <button class="btn-export-excel disabled" id="btnExportExcel" onclick="exportSelectedToExcel()">
+                    <span id="excelBtnIcon">📊</span> <span id="excelBtnText">导出 Excel</span>
+                </button>
+            </div>
         </div>
         
         <div id="historyContainer">
@@ -1682,6 +1932,17 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
         <div class="reset-body">将清空当前所有填入的数据、核算结果及 AI 生成内容，<b>历史记录不受影响</b>。<br><br>此操作不可撤销。</div>
         <button class="m-btn m-btn-warn" onclick="resetAll()">确认清空，开始新报价单</button>
         <button class="m-btn m-btn-cancel" onclick="document.getElementById('resetConfirmModal').style.display='none'">取 消</button>
+    </div>
+</div>
+
+<!-- ==================== DELETE CONFIRM MODAL ==================== -->
+<div id="deleteConfirmModal" class="modal-overlay" onclick="if(event.target===this)this.style.display='none'" style="display:none;">
+    <div class="modal-card">
+        <div class="reset-icon" style="color: var(--warn); font-size: 36px;">🗑️</div>
+        <div class="reset-title" style="margin-top: 4px;">确认删除 <span id="deleteConfirmCount">0</span> 条记录？</div>
+        <div class="reset-body">此操作不可撤销。<br>选中的记录将从本机<span id="deleteConfirmCloudHint">及云端</span>永久抹除。</div>
+        <button class="m-btn m-btn-warn" id="deleteConfirmBtn" onclick="deleteSelectedHistory()">确 认 删 除</button>
+        <button class="m-btn m-btn-cancel" onclick="document.getElementById('deleteConfirmModal').style.display='none'">取 消</button>
     </div>
 </div>
 
@@ -3128,7 +3389,8 @@ function restoreHistory(id) {
     });
 
     // 7. 强制触发业务联动逻辑（进项票类型 / 国家警告 / WITS 初始态）
-    onInputVatChange(document.getElementById('inputVatRate'));
+    onInputVatChange(document.getElementById('inputVatRate'), true); 
+    
     onCountryChange(true);
 
     // 8. 彻底清除过往 AI 结果卡片及内部文字，防止数据误导与幽灵弹窗
@@ -3147,20 +3409,28 @@ function restoreHistory(id) {
         window.AsyncTaskCenter._dismissDone();
     }
 
-    // 9. 执行静默核算：同步财务数据并解锁 Tab 拦截
-    if (typeof calculate === 'function') calculate(true);
+    // 9. 视图切换预备：强制抹除当前步骤记录，确保 nextStep(1) 物理逻辑必定触发
+    state.currentStep = 0; 
 
-    // 10. 视图平滑跳转 + 焦点引导
+    // 10. 立即执行 UI 跳转（视觉先行，提升感知速度）
     switchTab('calc');
     nextStep(1);
-    setTimeout(() => {
-        const costEl = document.getElementById('costRMB');
-        if (costEl) {
-            costEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            costEl.focus();
-        }
-        showToast(`✅ 已还原历史报价：${record.product}`);
-    }, 400);
+
+    // 11. 执行静默核算：在 UI 切换完成后异步同步财务数据
+    // 使用 requestAnimationFrame 确保在下一帧执行，避免阻塞当前的 Tab 切换动画
+    requestAnimationFrame(() => {
+        if (typeof calculate === 'function') calculate(true);
+        
+        // 12. 焦点引导与成功反馈
+        setTimeout(() => {
+            const costEl = document.getElementById('costRMB');
+            if (costEl) {
+                costEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                costEl.focus();
+            }
+            showToast(`✅ 已还原历史报价：${record.product}`);
+        }, 300);
+    });
 }
 
 function clearHistory() {
@@ -3228,16 +3498,22 @@ function onCountryChange(skipValueReset = false) {
     
     // 核心修复：仅在非恢复模式下，才从数据库模板覆盖数值
     // 如果是恢复历史记录（skipValueReset 为 true），则保留历史快照中的数值
-    if (!skipValueReset) {
-        document.getElementById('taxRate').value = c.tax;
-        document.getElementById('vatRate').value = c.vat;
-    }
-    
-    const n = document.getElementById('countryNoteBox');
-    if (n) {
-        n.className = 'info-banner ' + (c.level || 'info');
-        n.innerText = 'ℹ️ ' + c.note;
-        n.style.display = 'block';
+    // [防崩溃补丁] 增加对 c 的存在性校验，拦截脏数据或未知 Key 导致的 TypeError
+    if (c) {
+        if (!skipValueReset) {
+            document.getElementById('taxRate').value = c.tax;
+            document.getElementById('vatRate').value = c.vat;
+        }
+        
+        const n = document.getElementById('countryNoteBox');
+        if (n) {
+            n.className = 'info-banner ' + (c.level || 'info');
+            n.innerText = 'ℹ️ ' + c.note;
+            n.style.display = 'block';
+        }
+    } else {
+        const n = document.getElementById('countryNoteBox');
+        if (n) n.style.display = 'none';
     }
 
     // 重置 WITS UI 状态等原有逻辑保持不变...
@@ -3282,17 +3558,40 @@ function selectHS(idx) {
     if (typeof autoCalculate === 'function') autoCalculate();
 }
 
-function onInputVatChange(sel) {
-    const isRebateEl = document.getElementById('isRebate');
+function onInputVatChange(sel, skipRebateOverride = false) {
+    /* ── Bug-Fix #4 v8.2.0: 闭包引用安全化 ──────────────────────────
+     * 问题：原逻辑若在特定场景（restoreHistory / 异步回调）下被调用，
+     *       外部变量 isRebateEl/rebateRateEl 的引用可能指向已卸载或
+     *       尚未挂载的 DOM 节点，导致闭包引用失效（stale reference）。
+     * 方案：将元素查找移入函数体内，每次调用时实时从活跃 DOM 中解析，
+     *       确保引用始终指向当前文档中存在的合法节点。
+     * 同时增加空指针卫语句，防御 DOM 未就绪的边缘场景。
+     * ──────────────────────────────────────────────────────────── */
+    const isRebateEl   = document.getElementById('isRebate');
     const rebateRateEl = document.getElementById('rebateRate');
+    const rowInputVat  = document.getElementById('row-inputVat');
+    if (!isRebateEl || !rebateRateEl) return; // 空指针卫语句
+
     if (parseFloat(sel.value) === 0) {
-        isRebateEl.checked = false; isRebateEl.disabled = true; rebateRateEl.disabled = true;
+        isRebateEl.checked = false;
+        isRebateEl.disabled = true;
+        rebateRateEl.disabled = true;
+        // 视觉降级：整行置灰，强化"此路不通"的感知
+        if (rowInputVat) rowInputVat.style.opacity = '0.5';
         showToast('⚠️ 普票无进项，已自动阻断退税链路');
     } else {
-    isRebateEl.disabled = false;
-    rebateRateEl.disabled = false;
-    isRebateEl.checked = true;  // 切回专票时同步恢复勾选
-}
+        isRebateEl.disabled = false;
+        rebateRateEl.disabled = false;
+
+        if (!skipRebateOverride) {
+            isRebateEl.checked = true; 
+        }
+        
+        if (rowInputVat) rowInputVat.style.opacity = '';
+    }
+
+    // 优化点：如果是恢复模式，不在此处触发冗余的防抖重算，由 restoreHistory 统一触发
+    if (!skipRebateOverride && typeof autoCalculate === 'function') autoCalculate();
 }
 
 function fetchRate(isManualClick = false) {
@@ -3544,8 +3843,10 @@ window.doLogisticsPro = debounce(function() {
     if (!preview) return;
 
     // 2. 生产级安全校验 (Production Guard)
-    // 检查所有必填字段是否为有效正数
-    const isValid = Object.values(params).every(v => typeof v === 'string' || (typeof v === 'number' && v > 0));
+    // 检查基础参数是否为有效正数（运费单价允许为 0，应对免邮或补贴场景）
+    const requiredPositive = ['l', 'w', 'h', 'gw', 'perCtn', 'totalPcs'];
+    const isValid = requiredPositive.every(k => typeof params[k] === 'number' && params[k] > 0)
+        && typeof params.uPrice === 'number' && params.uPrice >= 0;
 
     if (!isValid) {
         preview.innerHTML = '💡 请输入完整箱规、装率、总件数与运费单价以获取精确分摊。';
@@ -4397,7 +4698,19 @@ async function generateShareLink() {
     btn.innerHTML = '<span class="auth-spinner"></span><span>正在生成…</span>';
 
     try {
-        const snapshot = collectSnapshot(shareState.mode, null); // piNo 先留空
+        /* ── Bug-Fix #2 v8.2.0: 分享逻辑原子化 ─────────────────────────
+         * 问题：原"先插入（piNo=null）→ 再 update piNo"的两阶段策略存在
+         *       非原子性竞态窗口：若网络抖动、浏览器关闭或 update 失败，
+         *       数据库中的记录将永久缺失 piNo，客户收到的链接缺少 PI 序号。
+         * 方案：重构为"预先锁定 PI 序号 → 单次含 piNo 的完整 insert"，
+         *       消除两阶段写入产生的竞态窗口，确保 PI 序号 100% 完整入库。
+         *       generatePINo() 调用前置于 DB 写入之前，原子性得到保证。
+         * ──────────────────────────────────────────────────────────── */
+        // Step 1: 预先锁定 PI 序号（在任何网络请求前）
+        const piNo = generatePINo();
+
+        // Step 2: 收集完整快照（含已锁定的 piNo）
+        const snapshot = collectSnapshot(shareState.mode, piNo);
         const rawDays = snapshot.validDays || 10;
         const validDays = Math.min(rawDays, 365); // 数据库存档上限 365 天
 
@@ -4410,21 +4723,17 @@ async function generateShareLink() {
         const id = generateShareId();
         const expiresAt = new Date(Date.now() + validDays * 24 * 60 * 60 * 1000).toISOString();
 
+        // Step 3: 单次原子写入，含完整 piNo，彻底消除 update 竞态
         const row = {
             id,
             user_id: currentUser ? currentUser.id : null,
             type: shareState.mode,
-            data: snapshot,
+            data: snapshot, // snapshot 已含 piNo，无需二次 update
             expires_at: expiresAt
         };
 
         const { error } = await supabaseClient.from('shares').insert(row);
         if (error) throw error;
-
-        // 仅在写库成功后才消耗 PI 流水号，避免失败时序号空洞
-        const piNo = generatePINo();
-        // 回写 piNo 到已存储的记录（非阻塞，失败不影响链接生成）
-        supabaseClient.from('shares').update({ data: { ...snapshot, piNo } }).eq('id', id).then(() => {});
 
         // 构建 hash URL
         const baseUrl = window.location.origin + window.location.pathname;
@@ -4817,20 +5126,106 @@ function updateExportButtonState() {
     const checkboxes = document.querySelectorAll('.history-item-cb');
     const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
     const btn = document.getElementById('btnExportExcel');
+    const delBtn = document.getElementById('btnDeleteSelected');
     const mainCb = document.getElementById('historySelectAllCb');
     const textSpan = document.getElementById('historySelectAllText');
 
     if (checkedCount > 0) {
         btn.classList.remove('disabled');
         document.getElementById('excelBtnText').textContent = `导出 ${checkedCount} 项`;
+        if (delBtn) {
+            delBtn.classList.remove('disabled');
+            document.getElementById('deleteBtnText').textContent = `删除(${checkedCount})`;
+        }
     } else {
         btn.classList.add('disabled');
         document.getElementById('excelBtnText').textContent = '导出 Excel';
+        if (delBtn) {
+            delBtn.classList.add('disabled');
+            document.getElementById('deleteBtnText').textContent = '删除';
+        }
     }
 
     if (checkboxes.length > 0) {
         mainCb.checked = (checkedCount === checkboxes.length);
         textSpan.textContent = (checkedCount === checkboxes.length) ? '取消全选' : '全选';
+    }
+}
+
+function confirmDeleteSelected() {
+    const checkboxes = Array.from(document.querySelectorAll('.history-item-cb')).filter(cb => cb.checked);
+    if (checkboxes.length === 0) return;
+
+    document.getElementById('deleteConfirmCount').textContent = checkboxes.length;
+
+    // 智能判别：仅在已登录且连接正常时显示"及云端"的文案警告
+    const cloudHint = document.getElementById('deleteConfirmCloudHint');
+    if (cloudHint) {
+        cloudHint.style.display = (typeof currentUser !== 'undefined' && currentUser && supabaseClient) ? 'inline' : 'none';
+    }
+
+    document.getElementById('deleteConfirmModal').style.display = 'flex';
+}
+
+async function deleteSelectedHistory() {
+    const modal = document.getElementById('deleteConfirmModal');
+    const confirmBtn = document.getElementById('deleteConfirmBtn');
+    const originalText = confirmBtn.textContent;
+
+    const checkboxes = Array.from(document.querySelectorAll('.history-item-cb')).filter(cb => cb.checked);
+    if (checkboxes.length === 0) {
+        modal.style.display = 'none';
+        return;
+    }
+
+    // 防止重复点击，进入加载态
+    confirmBtn.disabled = true;
+    confirmBtn.textContent = '数据抹除中...';
+
+    const idsToDelete = checkboxes.map(cb => cb.dataset.id);
+
+    try {
+        // 1. 优先抹除：Supabase 云端拦截与映射（先云后本机，保障一致性）
+        // 若云端删除失败，本机数据仍在，用户可重试，不会出现"幽灵复现"
+        if (typeof currentUser !== 'undefined' && currentUser && typeof supabaseClient !== 'undefined' && supabaseClient) {
+            const { data: rows } = await supabaseClient
+                .from('quote_history')
+                .select('id, snapshot')
+                .eq('user_id', currentUser.id);
+
+            if (rows) {
+                // 找出与本次要删除的 snapshot.id 匹配的数据库原生 UUID
+                const uuidsToDelete = rows
+                    .filter(row => row.snapshot && idsToDelete.includes(String(row.snapshot.id)))
+                    .map(row => row.id);
+
+                if (uuidsToDelete.length > 0) {
+                    await supabaseClient.from('quote_history').delete().in('id', uuidsToDelete);
+                }
+            }
+        }
+
+        // 2. 本机 LocalStorage 隔离（云端成功后再执行本机删除）
+        try {
+            let localHistory = JSON.parse(localStorage.getItem('quoteHistory') || '[]');
+            localHistory = localHistory.filter(item => !idsToDelete.includes(String(item.id)));
+            localStorage.setItem('quoteHistory', JSON.stringify(localHistory));
+        } catch(e) {
+            console.warn('[Delete] localStorage 写入异常', e);
+        }
+
+        showToast(`🗑️ 成功删除 ${idsToDelete.length} 条记录`);
+
+        // 3. 释放锁并全局刷新视图流
+        document.getElementById('historySelectAllCb').checked = false;
+        await loadHistory();
+    } catch (err) {
+        console.error('[Delete Error]', err);
+        showToast('❌ 删除过程中发生网络异常，请重试');
+    } finally {
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = originalText;
+        modal.style.display = 'none';
     }
 }
 
@@ -5548,6 +5943,18 @@ function resetAll() {
         l: '', w: '', h: '', gw: '', perCtn: '', totalPcs: '', uPrice: '',
         logisticsMode: 'air_sp', result: null
     };
+
+    // [UX一致性修复] 彻底清空物流均摊弹窗的残留输入，避免幽灵数据跨订单污染
+    ['mcL','mcW','mcH','mcGw','mcPerCtn','mcTotalPcs','mcUnitPrice','mcTotal','mcQty'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    const mcModeEl = document.getElementById('mcLogisticsMode');
+    if (mcModeEl) mcModeEl.value = 'air_sp';
+    const proPreview = document.getElementById('proResultPreview');
+    if (proPreview) proPreview.innerHTML = '💡 输入完整箱规、装率、总件数与运费单价后自动测算。';
+    const mcResult = document.getElementById('mcResult');
+    if (mcResult) mcResult.innerText = '0.0000';
 
     // 12. 重置 Tab 锁定状态 & 结果页面
     UI.containers.tabs.forEach(t => t.classList.add('locked'));
@@ -6568,6 +6975,166 @@ const rawMoq = gv('moqInput') || '1000';
     return { openDrawer, closeDrawer, handleOverlayClick, selectVersion, generate };
 })();
 // ==================== PDF EXPORT ENGINE END ====================
+
+// ==================== OPENAI STYLE CAROUSEL ENGINE ====================
+window.OpenAI_IntroEngine = (function() {
+    'use strict';
+    const INTRO_VERSION = 'v8.2.0'; 
+    const STORAGE_KEY = `navail_intro_state_${INTRO_VERSION}`;
+    
+    let currentSlide = 0;
+    const totalSlides = 4;
+    let startX = 0;
+    let isDragging = false;
+
+    function init() {
+        const stateJSON = localStorage.getItem(STORAGE_KEY);
+        let shouldShow = false;
+
+        if (!stateJSON) {
+            shouldShow = true; // 首次进入系统
+        } else {
+            try {
+                const state = JSON.parse(stateJSON);
+                // 核心优化：如果上次只是"跳过"，且过了 7 天的防打扰冷静期，再次自动提醒
+                if (state.status === 'skipped') {
+                    const daysPassed = (Date.now() - state.timestamp) / (1000 * 3600 * 24);
+                    if (daysPassed > 7) {
+                        shouldShow = true;
+                    }
+                }
+            } catch(e) {}
+        }
+
+        // 绑定手势监听 (通过 dataset 确保只绑定一次)
+        const track = document.getElementById('openaiSliderTrack');
+        if (track && !track.dataset.bind) {
+            track.addEventListener('touchstart', handleTouchStart, { passive: true });
+            track.addEventListener('touchmove', handleTouchMove, { passive: false });
+            track.addEventListener('touchend', handleTouchEnd);
+
+            /* Bug-Fix #3 v8.2.0: 桌面端点击翻页降级 */
+            const _isTouchDev = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+            if (!_isTouchDev) {
+                track.style.cursor = 'pointer';
+                track.addEventListener('click', function() {
+                    if (currentSlide < totalSlides - 1) { next(); }
+                });
+            }
+            track.dataset.bind = 'true';
+        }
+
+        if (shouldShow) show(true); // isAuto = true
+    }
+
+    // 将 show 暴露给外部，允许手动无限次唤起
+    function show(isAuto = false) {
+        currentSlide = 0;
+
+        const overlay = document.getElementById('openaiIntroOverlay');
+        const greeting = document.getElementById('openaiGreeting');
+        const staggerItems = document.querySelectorAll('.intro-stagger');
+
+        if (!overlay) return;
+
+        /* Bug-Fix #5 v8.2.0: stagger 动画时序修复
+         * 手动唤起时 CSS transition 惰性导致文字直接闪现。
+         * inline style 强制还原隐藏态 → 双重 rAF 恢复 transition → 触发入场。 */
+        staggerItems.forEach(item => {
+            item.classList.remove('active');
+            item.style.transition = 'none';
+            item.style.opacity = '0';
+            item.style.transform = 'translateY(24px)';
+        });
+
+        if (greeting) {
+            greeting.style.cssText = 'display: flex;';
+            greeting.classList.remove('fade-out');
+        }
+
+        overlay.style.display = 'flex';
+        void overlay.offsetWidth;
+        overlay.classList.remove('dismissed');
+        document.body.style.overflow = 'hidden';
+
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                staggerItems.forEach(item => {
+                    item.style.transition = '';
+                    item.style.opacity = '';
+                    item.style.transform = '';
+                });
+                updateView();
+            });
+        });
+
+        setTimeout(() => {
+            if (greeting) {
+                greeting.classList.add('fade-out');
+                staggerItems.forEach((item, index) => {
+                    setTimeout(() => { item.classList.add('active'); }, index * 60);
+                });
+                setTimeout(() => { greeting.style.display = 'none'; }, 900);
+            }
+        }, 900);
+        if (isAuto) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                status: 'skipped', timestamp: Date.now()
+            }));
+        }
+    }
+
+    /* --- 触控事件保持不变 --- */
+    function handleTouchStart(e) { startX = e.touches[0].clientX; isDragging = true; }
+    function handleTouchMove(e) { if (isDragging) e.preventDefault(); }
+    function handleTouchEnd(e) {
+        if (!isDragging) return;
+        isDragging = false;
+        const diffX = startX - e.changedTouches[0].clientX;
+        if (diffX > 40) next();
+        else if (diffX < -40) prev();
+    }
+
+    function updateView() {
+        const track = document.getElementById('openaiSliderTrack');
+        if (track) track.style.transform = `translateX(-${currentSlide * 100}%)`;
+
+        document.querySelectorAll('.openai-dot').forEach((dot, index) => {
+            dot.classList.toggle('active', index === currentSlide);
+        });
+
+        const pag = document.getElementById('openaiPagination');
+        if (pag) {
+            if (currentSlide === 0) pag.classList.remove('visible');
+            else pag.classList.add('visible');
+        }
+    }
+
+    function next() { if (currentSlide < totalSlides - 1) { currentSlide++; updateView(); } }
+    function prev() { if (currentSlide > 0) { currentSlide--; updateView(); } }
+    function goTo(index) { currentSlide = index; updateView(); }
+
+    function dismiss() {
+        const overlay = document.getElementById('openaiIntroOverlay');
+        if (!overlay) return;
+
+        // 智能判断完播率：看完最后一页为 completed，中途关掉为 skipped
+        const status = (currentSlide === totalSlides - 1) ? 'completed' : 'skipped';
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+            status: status,
+            timestamp: Date.now()
+        }));
+
+        overlay.classList.add('dismissed');
+        document.body.style.overflow = '';
+        setTimeout(() => overlay.style.display = 'none', 800);
+    }
+
+    return { init, show, dismiss, next, prev, goTo };
+})();
+
+window.addEventListener('DOMContentLoaded', OpenAI_IntroEngine.init);
+// ==================== OPENAI STYLE CAROUSEL ENGINE END ====================
 
 // 启动通知中心
 AsyncTaskCenter.init();
