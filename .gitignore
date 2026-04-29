@@ -1,1 +1,15 @@
+# ════════════════════════════════════════
+#  Navail Quote OS — .gitignore
+# ════════════════════════════════════════
 
+# ⚠️  私有配置文件（含 API Keys / Supabase 凭据）
+#    绝对不允许提交到任何公开仓库
+config.js
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 编辑器
+.vscode/
+.idea/
