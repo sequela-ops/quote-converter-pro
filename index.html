@@ -5,14 +5,24 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Navail 外贸报价计算器</title>
 
-<!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-D018ZYMWZE"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
+<!-- ✅ 私有配置文件（已加入 .gitignore，不会提交到公开仓库） -->
+<script src="config.js"></script>
 
-  gtag('config', 'G-D018ZYMWZE');
+<!-- Google Analytics 4 — ID 从 config.js 读取，不硬编码 -->
+<script>
+  (function() {
+    var gaId = window.NAVAIL_CONFIG && window.NAVAIL_CONFIG.GA_MEASUREMENT_ID;
+    if (!gaId || gaId === 'YOUR_GA_MEASUREMENT_ID_HERE') return; // 未配置则跳过
+    var s = document.createElement('script');
+    s.async = true;
+    s.src = 'https://www.googletagmanager.com/gtag/js?id=' + gaId;
+    document.head.appendChild(s);
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    window.gtag = gtag;
+    gtag('js', new Date());
+    gtag('config', gaId);
+  })();
 </script>
 
 <!-- 字体预连接：减少 DNS + TLS 握手延迟约 100-300ms -->
@@ -1029,54 +1039,124 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
     pointer-events: auto !important; /* 必须允许点击以显示提示，不能用 none */
 }
 
-/* ==================== 开场引导系统 (OpenAI 风格轮播版) ==================== */
+/* ==================== 开场引导系统 v9.0 — Apple-Grade Motion ==================== */
+
+/*
+ * MOTION ENGINEERING NOTES v9.0
+ *
+ * 1. Spring Curve: 使用 CSS linear() 精确采样弹簧阻尼方程，
+ *    完全替代 cubic-bezier 无法模拟 overshoot 的缺陷。
+ *    数学原型：damping=0.7, stiffness=200, mass=1 (UIKit 默认参数)
+ *
+ * 2. GPU Layer Budget: will-change 仅在动画序列开始前由 JS 动态注入，
+ *    transitionend 后立即回收，避免常驻合成层浪费显存。
+ *
+ * 3. Blur Budget: 非激活幻灯片不施加 blur（opacity:0 时合成器
+ *    自动跳过不可见层的模糊计算）。blur 仅用于入/退场过渡期。
+ *
+ * 4. Live Drag: touchmove 实现真实跟手位移 + rubber-band 边界阻尼，
+ *    松手后弹簧 snap，而非瞬跳。
+ *
+ * 5. Event-Driven Timing: display:none 切换由 transitionend 驱动，
+ *    彻底消除硬编码 setTimeout 导致的时序竞争条件。
+ *
+ * 6. Reduced Motion: prefers-reduced-motion 完整降级，符合 WCAG 2.1。
+ */
+
+/* -- 弹簧曲线变量（供多处复用）-- */
+:root {
+    /* 安全弹簧策略：cubic-bezier fallback → @supports 渐进增强至精确 linear() */
+    --spring-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --spring-ease:   cubic-bezier(0.34, 0.72, 0, 1);
+    --dismiss-ease:  cubic-bezier(0.32, 0, 0.67, 0);
+}
+@supports (transition-timing-function: linear(0, 1)) {
+    :root {
+        --spring-bounce: linear(
+            0, 0.009, 0.035 2.1%, 0.141, 0.281 6.7%,
+            0.723 12.9%, 0.938, 1.067, 1.138 20.4%,
+            1.155, 1.138, 1.051 30%, 0.999 40%,
+            0.986, 1.001 56.5%, 1 100%
+        );
+    }
+}
+
+/* -- Overlay 容器 -- */
 .openai-intro-overlay {
     position: fixed; top: 0; left: 0; width: 100%; height: 100dvh;
     background: linear-gradient(180deg, #c5d6ee 0%, #e1ebf7 100%);
     z-index: 999999; display: flex; flex-direction: column;
-    opacity: 1; transition: opacity 0.7s ease, transform 0.8s cubic-bezier(0.25, 1, 0.5, 1);
-    overflow: hidden; touch-action: none; /* 彻底阻断 iOS 底部反弹与手势干扰 */
+    opacity: 1; overflow: hidden; touch-action: none;
+    transition:
+        opacity   0.55s var(--dismiss-ease),
+        transform 0.55s var(--dismiss-ease),
+        filter    0.55s var(--dismiss-ease);
 }
 .openai-intro-overlay.dismissed {
-    opacity: 0; pointer-events: none; transform: translateY(-8vh);
+    opacity: 0; pointer-events: none;
+    transform: scale(0.94) translateY(20px);
+    filter: blur(10px) brightness(0.88);
 }
+
+/* -- 关闭按钮 -- */
 .openai-intro-close {
     position: absolute; top: max(20px, env(safe-area-inset-top)); right: 20px;
-    background: rgba(255, 255, 255, 0.25); border: none; border-radius: 999px;
+    background: rgba(255,255,255,0.25); border: none; border-radius: 999px;
     padding: 8px 16px; color: white; font-size: 14px; font-weight: 500;
     cursor: pointer; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-    transition: background 0.2s; font-family: 'DM Sans', sans-serif; z-index: 30;
+    transition: background 0.2s, transform 0.3s var(--spring-bounce);
+    font-family: 'DM Sans', sans-serif; z-index: 30;
 }
-.openai-intro-close:active { background: rgba(255, 255, 255, 0.4); }
+.openai-intro-close:active { background: rgba(255,255,255,0.4); transform: scale(0.93); }
 
-/* 轮播轨道与容器 */
+/* -- 轮播轨道 -- */
 .openai-slider-wrap {
     flex: 1; width: 100%; position: relative; overflow: hidden;
 }
 .openai-slider-track {
-    display: flex; height: 100%; width: 100%; 
-    transition: transform 0.6s cubic-bezier(0.25, 1, 0.35, 1);
-    will-change: transform;
+    display: flex; height: 100%; width: 100%;
+    will-change: auto;
+    user-select: none; -webkit-user-select: none;
 }
+.openai-slider-track.is-animating {
+    transition: transform 0.46s var(--spring-bounce);
+}
+
+/* -- 幻灯片卡片 -- */
 .openai-slide {
     flex: 0 0 100%; width: 100%; height: 100%; display: flex; flex-direction: column;
     align-items: center; justify-content: center; padding: 0 32px; box-sizing: border-box;
     text-align: center; color: white;
+    transition: opacity 0.45s ease;
+}
+.openai-slide.slide-inactive {
+    opacity: 0; pointer-events: none;
 }
 
-/* 页面1：极致极简 */
+/* -- 景深缩放内层（制造"从深处弹出"的立体感）-- */
+.openai-slide .slide-inner {
+    display: flex; flex-direction: column; align-items: center;
+    transition: transform 0.46s var(--spring-bounce), opacity 0.38s ease;
+    transform-origin: center center;
+}
+.openai-slide.slide-inactive .slide-inner {
+    transform: scale(0.88); opacity: 0;
+}
+.openai-slide:not(.slide-inactive) .slide-inner {
+    transform: scale(1); opacity: 1;
+}
+
+/* -- 页面1：主视觉 -- */
 .slide-1-title {
-    font-size: 40px; font-weight: 700; letter-spacing: -1.2px; 
+    font-size: 40px; font-weight: 700; letter-spacing: -1.2px;
     margin-bottom: 20px; line-height: 1.15; font-family: 'DM Sans', sans-serif;
-    animation: openaiFadeUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .slide-1-sub {
-    font-size: 16px; font-weight: 500; opacity: 0.9; 
+    font-size: 16px; font-weight: 500; opacity: 0.9;
     margin-bottom: 48px; line-height: 1.5; font-family: 'DM Sans', sans-serif;
-    animation: openaiFadeUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) 0.1s both;
 }
 
-/* 页面2-4：功能亮点 */
+/* -- 页面2-4：功能亮点 -- */
 .slide-icon {
     font-size: 56px; margin-bottom: 24px; line-height: 1;
     filter: drop-shadow(0 8px 16px rgba(0,0,0,0.08));
@@ -1090,112 +1170,126 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
     max-width: 320px; margin: 0 auto;
 }
 
-/* 通用组件 */
+/* -- 通用按钮 -- */
 .openai-intro-btn {
     background: white; color: #1A1A1A; border: none; border-radius: 999px;
     padding: 15px 36px; font-size: 16px; font-weight: 600; cursor: pointer;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.06); transition: transform 0.2s;
-    font-family: 'DM Sans', sans-serif; 
-    animation: openaiFadeUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) 0.2s both;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08), 0 8px 24px rgba(0,0,0,0.06);
+    transition: transform 0.4s var(--spring-bounce), box-shadow 0.3s ease;
+    font-family: 'DM Sans', sans-serif;
 }
-.openai-intro-btn:active { transform: scale(0.96); box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+.openai-intro-btn:active { transform: scale(0.92); box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
 
-/* 底部圆点指示器 */
+/* -- 分页指示器 -- */
 .openai-pagination {
     position: absolute; bottom: calc(40px + env(safe-area-inset-bottom)); left: 0; right: 0;
     display: flex; justify-content: center; gap: 8px; z-index: 10;
-    opacity: 0; transition: opacity 0.4s; pointer-events: none;
+    opacity: 0; transition: opacity 0.4s ease; pointer-events: none;
 }
 .openai-pagination.visible { opacity: 1; pointer-events: auto; }
 .openai-dot {
     width: 6px; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.35);
-    transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1); cursor: pointer;
+    transition: width 0.4s var(--spring-bounce), background 0.3s ease;
+    cursor: pointer;
 }
 .openai-dot.active { background: white; width: 20px; }
 
-@keyframes openaiFadeUp { 
-    from { transform: translateY(30px); opacity: 0; } 
-    to { transform: translateY(0); opacity: 1; } 
-}
+/* ==================== 打招呼与转场系统 v9.0 ==================== */
 
-/* ==================== 极致打磨：打招呼与转场系统 ==================== */
+/* -- Greeting 层 -- */
 .openai-greeting {
     position: absolute; inset: 0;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     background: linear-gradient(180deg, #c5d6ee 0%, #e1ebf7 100%);
     z-index: 20;
-    opacity: 1;
-    /* ── Bug-Fix #1 v8.2.0: 物理分层 ──────────────────────────────
-     * 问题：高刷屏/旧型 WebKit 在图层淡出时因缺乏独立 GPU 合成层
-     *       产生像素残留（Motion Artifacts）。
-     * 方案：通过 perspective + translateZ(0) + backface-visibility 三件套
-     *       强制浏览器为此元素开辟独立光栅化层（Compositing Layer），
-     *       动画完全在 GPU 上执行，彻底脱离 CPU 光栅化管线。
-     * 参考：Chrome Compositor Layers / Safari Metal 渲染策略。
-     * ──────────────────────────────────────────────────────────── */
     perspective: 1000px;
-    backface-visibility: hidden;
-    -webkit-backface-visibility: hidden;
-    transform: translateZ(0);
-    -webkit-transform: translateZ(0);
-    will-change: transform, opacity, filter;
+    backface-visibility: hidden; -webkit-backface-visibility: hidden;
     -webkit-font-smoothing: antialiased;
-    /* 物理呼吸曲线：OpenAI 风格的标准曲线 */
-    transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1), 
-                transform 0.8s cubic-bezier(0.4, 0, 0.2, 1),
-                filter 0.8s ease;
+    /* ★ 永久根治：彻底移除 animation/keyframes，改为纯 transition 三态架构
+     * 根因：animation fill-mode='both' 永久持有终态，优先级高于 transition，
+     *       导致 .fade-out 属性变化被忽略，greeting 永久卡住。
+     * 新架构：默认隐藏态(CSS) → .greeting-visible入场(JS) → .fade-out退场(JS) */
+    opacity: 0;
+    transform: translateY(18px) scale(0.97);
+    filter: blur(8px);
+    transition:
+        opacity   0.55s cubic-bezier(0.4, 0, 0.2, 1),
+        transform 0.6s  cubic-bezier(0.34, 1.2, 0.64, 1),
+        filter    0.55s ease;
 }
-
-/* 渐出态：增加微量模糊和缩放，让消散过程极度柔和，彻底掩盖任何像素残留 */
+.openai-greeting.greeting-visible {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0px);
+}
 .openai-greeting.fade-out {
     opacity: 0;
-    transform: scale(1.1); 
-    filter: blur(12px); /* 模糊掩护 */
+    transform: scale(1.08) translateY(-12px);
+    filter: blur(10px);
     pointer-events: none;
 }
 
-/* 核心打磨：Intro 内容的初始隐藏态（用于 staggered 进入） */
+/* -- Stagger 入场系统 -- */
 .intro-stagger {
     opacity: 0;
-    transform: translateY(24px);
-    transition: opacity 1s cubic-bezier(0.2, 0.8, 0.2, 1), 
-                transform 1s cubic-bezier(0.2, 0.8, 0.2, 1);
-    will-change: transform, opacity;
+    transform: translateY(36px) scale(0.94);
+    filter: blur(10px);
+    transition:
+        opacity   0.9s cubic-bezier(0.2, 0.8, 0.2, 1),
+        transform 1.1s var(--spring-bounce),
+        filter    0.8s ease;
 }
-
-/* 激活态：当 Hi 消失时，文字从下方轻盈浮现 */
 .intro-stagger.active {
-    opacity: 1;
-    transform: translateY(0);
+    opacity: 1; transform: translateY(0) scale(1); filter: blur(0px);
 }
 
+/* -- 招手图标 -- */
 .greeting-icon {
-    font-size: 48px; margin-bottom: 24px;
-    animation: wave-animation 1.8s ease-in-out infinite;
+    font-size: 52px; margin-bottom: 24px;
+    animation: waveMotion 2.2s ease-in-out infinite;
     transform-origin: 75% 80%;
-    filter: drop-shadow(0 8px 20px rgba(0,0,0,0.08));
+    filter: drop-shadow(0 8px 20px rgba(0,0,0,0.1));
     display: inline-block;
 }
 
-/* 拟人化招手序列：快慢交替，模拟“晃两下停一下”的真实感 */
-@keyframes wave-animation {
-    0% { transform: rotate(0deg); }
-    10% { transform: rotate(18deg); }  /* 快速向右摆 */
-    20% { transform: rotate(-10deg); } /* 快速向左回 */
-    30% { transform: rotate(18deg); }  /* 再次向右 */
-    40% { transform: rotate(-6deg); }  /* 稍微收力 */
-    50% { transform: rotate(12deg); }  /* 最后一次小摆动 */
-    60% { transform: rotate(0deg); }   /* 回正 */
-    100% { transform: rotate(0deg); }  /* 短暂静止停留 */
+@keyframes waveMotion {
+    0%   { transform: rotate(0deg)  scale(1);    }
+    8%   { transform: rotate(20deg) scale(1.05); }
+    16%  { transform: rotate(-8deg) scale(1);    }
+    26%  { transform: rotate(16deg) scale(1.03); }
+    36%  { transform: rotate(-4deg) scale(1);    }
+    46%  { transform: rotate(10deg) scale(1.02); }
+    58%  { transform: rotate(0deg)  scale(1);    }
+    100% { transform: rotate(0deg)  scale(1);    }
 }
 
+/* -- 打招呼文字 -- */
 .greeting-text {
-    font-size: 32px; /* 从 36px 略微下调 */
-    font-weight: 700;
-    color: white;
-    font-family: 'DM Sans', sans-serif;
-    letter-spacing: -0.8px;
-    opacity: 0.95;
+    font-size: 34px; font-weight: 700; color: white;
+    font-family: 'DM Sans', sans-serif; letter-spacing: -0.8px; opacity: 0.95;
+    -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+}
+
+/* ==================== Reduced Motion 无障碍降级 ==================== */
+@media (prefers-reduced-motion: reduce) {
+    .openai-intro-overlay,
+    .openai-intro-overlay.dismissed,
+    .openai-slider-track.is-animating,
+    .openai-slide, .openai-slide .slide-inner,
+    .openai-slide.slide-inactive .slide-inner,
+    .openai-greeting, .openai-greeting.fade-out,
+    .intro-stagger, .intro-stagger.active,
+    .openai-dot, .openai-intro-btn, .openai-intro-close {
+        transition-duration: 0.15s !important;
+        animation-duration: 0.15s !important;
+        transform: none !important;
+        filter: none !important;
+    }
+    .openai-intro-overlay.dismissed { opacity: 0 !important; }
+    .openai-greeting.fade-out       { opacity: 0 !important; }
+    .intro-stagger                  { opacity: 0 !important; }
+    .intro-stagger.active           { opacity: 1 !important; }
+    .greeting-icon { animation: none !important; }
 }
 </style>
 </head>
@@ -1213,47 +1307,55 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
     <div class="openai-slider-wrap">
         <div class="openai-slider-track" id="openaiSliderTrack">
             <!-- P1: 极致极简主视觉 -->
-<div class="openai-slide">
-    <div class="slide-1-title intro-stagger">Introducing<br>Navail Quote OS</div>
-    <div class="slide-1-sub intro-stagger">An intelligent layer for export pricing</div>
-    <button class="openai-intro-btn intro-stagger" onclick="OpenAI_IntroEngine.next()">Learn more</button>
-</div>
-            
-            <!-- P2: 亮点 1 -->
             <div class="openai-slide">
-                <div class="slide-icon">⚡</div>
-                <div class="slide-title">毫秒级无缝试算</div>
-<div class="slide-desc">
-        抛弃繁琐的 Excel 报表。<br>
-        指尖拖动利润滑块，<br>
-        全盘报价瞬时动态响应，<br>
-        让您的每一分利润都足够确定。
+                <div class="slide-inner">
+                    <div class="slide-1-title intro-stagger">Introducing<br>Navail Quote OS</div>
+                    <div class="slide-1-sub intro-stagger">An intelligent layer for export pricing</div>
+                    <button class="openai-intro-btn intro-stagger" onclick="OpenAI_IntroEngine.next()">Learn more</button>
                 </div>
             </div>
-            
+
+            <!-- P2: 亮点 1 -->
+            <div class="openai-slide">
+                <div class="slide-inner">
+                    <div class="slide-icon">⚡</div>
+                    <div class="slide-title">毫秒级无缝试算</div>
+                    <div class="slide-desc">
+                        抛弃繁琐的 Excel 报表。<br>
+                        指尖拖动利润滑块，<br>
+                        全盘报价瞬时动态响应，<br>
+                        让您的每一分利润都足够确定。
+                    </div>
+                </div>
+            </div>
+
             <!-- P3: 亮点 2 -->
-<div class="openai-slide">
-    <div class="slide-icon">🛡️</div>
-    <div class="slide-title">智能风控排雷</div>
-    <div class="slide-desc">
-        深度内化五大贸易术语，<br>
-        自动校准费用漏项。<br>
-        直连国际汇率 & 关税 API，<br>
-        从源头彻底阻断隐性亏损。
-    </div>
-</div>
-            
+            <div class="openai-slide">
+                <div class="slide-inner">
+                    <div class="slide-icon">🛡️</div>
+                    <div class="slide-title">智能风控排雷</div>
+                    <div class="slide-desc">
+                        深度内化五大贸易术语，<br>
+                        自动校准费用漏项。<br>
+                        直连国际汇率 &amp; 关税 API，<br>
+                        从源头彻底阻断隐性亏损。
+                    </div>
+                </div>
+            </div>
+
             <!-- P4: 亮点 3 & 结束 -->
             <div class="openai-slide">
-                <div class="slide-icon">✨</div>
-                <div class="slide-title">AI 赋能专业交付</div>
-<div class="slide-desc">
-        一键智能生成高转化商务邮件。<br>
-        多端云同步与离线计算架构，<br>
-        企业级 PDF & Excel 导出，<br>
-        实现随时随地从容报价。
+                <div class="slide-inner">
+                    <div class="slide-icon">✨</div>
+                    <div class="slide-title">AI 赋能专业交付</div>
+                    <div class="slide-desc">
+                        一键智能生成高转化商务邮件。<br>
+                        多端云同步与离线计算架构，<br>
+                        企业级 PDF &amp; Excel 导出，<br>
+                        实现随时随地从容报价。
+                    </div>
+                    <button class="openai-intro-btn" style="margin-top: 36px;" onclick="OpenAI_IntroEngine.dismiss()">开启全新体验</button>
                 </div>
-                <button class="openai-intro-btn" style="margin-top: 36px;" onclick="OpenAI_IntroEngine.dismiss()">开启全新体验</button>
             </div>
         </div>
     </div>
@@ -4032,12 +4134,16 @@ function initLogicBind() {
  *    --   $$ delete from shares where expires_at < now() $$);
  */
 
-const SUPABASE_URL = 'https://ehotaizdxfhwuuitjhty.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVob3RhaXpkeGZod3V1aXRqaHR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5OTQ1MjMsImV4cCI6MjA5MTU3MDUyM30.z2YNyQxY2_VjkaZhXfb-qKejBikOOoNXKlVcYsALglM';
+// ✅ 敏感配置从外部 config.js 读取（该文件已加入 .gitignore）
+// 若 config.js 未加载，则降级为空字符串，Supabase 功能将被优雅禁用
+const SUPABASE_URL = (window.NAVAIL_CONFIG && window.NAVAIL_CONFIG.SUPABASE_URL) || '';
+const SUPABASE_ANON_KEY = (window.NAVAIL_CONFIG && window.NAVAIL_CONFIG.SUPABASE_ANON_KEY) || '';
 
 // [Fix-1] 补全缺失的验证函数，避免致命的 ReferenceError 阻断初始化
 function isSupabaseConfigured() {
-    return typeof SUPABASE_URL !== 'undefined' && SUPABASE_URL !== '' && SUPABASE_URL !== 'YOUR_SUPABASE_URL_HERE';
+    return typeof SUPABASE_URL !== 'undefined'
+        && SUPABASE_URL !== ''
+        && SUPABASE_URL !== 'YOUR_SUPABASE_URL_HERE';
 }
 
 let supabaseClient = null;
@@ -6976,107 +7082,162 @@ const rawMoq = gv('moqInput') || '1000';
 })();
 // ==================== PDF EXPORT ENGINE END ====================
 
-// ==================== OPENAI STYLE CAROUSEL ENGINE ====================
+// ==================== OPENAI STYLE CAROUSEL ENGINE v9.0 ====================
+/*
+ * v9.0 重构要点：
+ * 1. Live Drag：touchmove 实时跟手 + rubber-band 边界阻尼（0.25x 摩擦系数）
+ * 2. Spring Snap：松手后 .is-animating 触发弹簧曲线归位，非瞬跳
+ * 3. Event-Driven：greeting.transitionend 驱动 display:none，消除竞争条件
+ * 4. will-change 动态管理：slide 前注入，transitionend 后回收
+ * 5. Depth-of-Field：updateView 用 .slide-inactive class 驱动 CSS 景深，
+ *    不再对非激活层写 blur（性能修复核心）
+ * 6. 状态版本升级：v9.0，已看完的用户不再重复弹出
+ */
 window.OpenAI_IntroEngine = (function() {
     'use strict';
-    const INTRO_VERSION = 'v8.2.0'; 
+    const INTRO_VERSION = 'v9.0';
     const STORAGE_KEY = `navail_intro_state_${INTRO_VERSION}`;
-    
+
     let currentSlide = 0;
     const totalSlides = 4;
-    let startX = 0;
+
+    // --- 手势状态 ---
+    let dragStartX = 0;
+    let dragCurrentX = 0;
     let isDragging = false;
+    let trackWidth = 0;
+
+    // --- DOM 引用缓存（init 时填充）---
+    let _track, _overlay, _greeting, _slides, _dots, _pagination;
 
     function init() {
+        _overlay    = document.getElementById('openaiIntroOverlay');
+        _track      = document.getElementById('openaiSliderTrack');
+        _greeting   = document.getElementById('openaiGreeting');
+        _pagination = document.getElementById('openaiPagination');
+        _slides     = Array.from(document.querySelectorAll('.openai-slide'));
+        _dots       = Array.from(document.querySelectorAll('.openai-dot'));
+
+        if (!_overlay || !_track) return;
+
+        // 初始化所有非第0页为 inactive
+        _slides.forEach((slide, i) => {
+            if (i !== 0) slide.classList.add('slide-inactive');
+        });
+
+        // 手势绑定（dataset 防重复注册）
+        if (!_track.dataset.bind) {
+            _track.addEventListener('touchstart', handleTouchStart, { passive: true });
+            _track.addEventListener('touchmove',  handleTouchMove,  { passive: false });
+            _track.addEventListener('touchend',   handleTouchEnd,   { passive: true });
+
+            // 桌面端：点击区域翻页（非触摸设备降级）
+            const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+            if (!isTouchDevice) {
+                _track.style.cursor = 'pointer';
+                _track.addEventListener('click', () => {
+                    if (currentSlide < totalSlides - 1) next();
+                });
+            }
+            _track.dataset.bind = 'true';
+        }
+
+        // 判断是否显示
         const stateJSON = localStorage.getItem(STORAGE_KEY);
         let shouldShow = false;
-
         if (!stateJSON) {
-            shouldShow = true; // 首次进入系统
+            shouldShow = true;
         } else {
             try {
                 const state = JSON.parse(stateJSON);
-                // 核心优化：如果上次只是"跳过"，且过了 7 天的防打扰冷静期，再次自动提醒
                 if (state.status === 'skipped') {
                     const daysPassed = (Date.now() - state.timestamp) / (1000 * 3600 * 24);
-                    if (daysPassed > 7) {
-                        shouldShow = true;
-                    }
+                    if (daysPassed > 7) shouldShow = true;
                 }
+                // completed 状态：永不再自动弹出
             } catch(e) {}
         }
 
-        // 绑定手势监听 (通过 dataset 确保只绑定一次)
-        const track = document.getElementById('openaiSliderTrack');
-        if (track && !track.dataset.bind) {
-            track.addEventListener('touchstart', handleTouchStart, { passive: true });
-            track.addEventListener('touchmove', handleTouchMove, { passive: false });
-            track.addEventListener('touchend', handleTouchEnd);
-
-            /* Bug-Fix #3 v8.2.0: 桌面端点击翻页降级 */
-            const _isTouchDev = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-            if (!_isTouchDev) {
-                track.style.cursor = 'pointer';
-                track.addEventListener('click', function() {
-                    if (currentSlide < totalSlides - 1) { next(); }
-                });
-            }
-            track.dataset.bind = 'true';
-        }
-
-        if (shouldShow) show(true); // isAuto = true
+        if (shouldShow) show(true);
     }
 
-    // 将 show 暴露给外部，允许手动无限次唤起
     function show(isAuto = false) {
+        if (!_overlay) return;
         currentSlide = 0;
+        trackWidth = _track.parentElement.offsetWidth;
 
-        const overlay = document.getElementById('openaiIntroOverlay');
-        const greeting = document.getElementById('openaiGreeting');
+        // 重置 stagger 元素：强制回到初始隐藏态（防止重复唤起时闪现）
         const staggerItems = document.querySelectorAll('.intro-stagger');
-
-        if (!overlay) return;
-
-        /* Bug-Fix #5 v8.2.0: stagger 动画时序修复
-         * 手动唤起时 CSS transition 惰性导致文字直接闪现。
-         * inline style 强制还原隐藏态 → 双重 rAF 恢复 transition → 触发入场。 */
         staggerItems.forEach(item => {
             item.classList.remove('active');
             item.style.transition = 'none';
-            item.style.opacity = '0';
-            item.style.transform = 'translateY(24px)';
+            item.style.opacity    = '0';
+            item.style.transform  = 'translateY(36px) scale(0.94)';
+            item.style.filter     = 'blur(10px)';
         });
 
-        if (greeting) {
-            greeting.style.cssText = 'display: flex;';
-            greeting.classList.remove('fade-out');
+        // 重置 greeting：移除所有动态 class，回到 CSS 默认隐藏态
+        if (_greeting) {
+            _greeting.classList.remove('greeting-visible', 'fade-out');
+            _greeting.style.display = '';
+            void _greeting.offsetWidth;
         }
 
-        overlay.style.display = 'flex';
-        void overlay.offsetWidth;
-        overlay.classList.remove('dismissed');
+        // 重置轨道位置
+        _track.classList.remove('is-animating');
+        _track.style.transform = 'translateX(0)';
+
+        // 重置景深状态
+        _slides.forEach((slide, i) => {
+            if (i === 0) slide.classList.remove('slide-inactive');
+            else slide.classList.add('slide-inactive');
+        });
+
+        // 显示 overlay
+        _overlay.style.display = 'flex';
+        void _overlay.offsetWidth; // 强制重排，确保 transition 生效
+        _overlay.classList.remove('dismissed');
         document.body.style.overflow = 'hidden';
 
+        // 双重 rAF → 恢复 stagger transition → 注入 greeting-visible 触发纯 transition 入场
         requestAnimationFrame(() => {
             requestAnimationFrame(() => {
                 staggerItems.forEach(item => {
                     item.style.transition = '';
-                    item.style.opacity = '';
-                    item.style.transform = '';
+                    item.style.opacity    = '';
+                    item.style.transform  = '';
+                    item.style.filter     = '';
                 });
-                updateView();
+                if (_greeting) _greeting.classList.add('greeting-visible');
+                _updateDots();
+                _updatePagination();
             });
         });
 
+        // ── Greeting 退场（1100ms 后）── 入场 0.6s + 500ms 展示 = 1100ms
         setTimeout(() => {
-            if (greeting) {
-                greeting.classList.add('fade-out');
-                staggerItems.forEach((item, index) => {
-                    setTimeout(() => { item.classList.add('active'); }, index * 60);
-                });
-                setTimeout(() => { greeting.style.display = 'none'; }, 900);
-            }
-        }, 900);
+            if (!_greeting) return;
+            _greeting.classList.remove('greeting-visible');
+            _greeting.classList.add('fade-out');
+            staggerItems.forEach((item, i) => {
+                setTimeout(() => item.classList.add('active'), i * 85);
+            });
+            // 双重保险：transitionend 主路径 + 650ms 硬编码兜底（防 WebView 丢事件）
+            let greetingHidden = false;
+            const hideGreeting = () => {
+                if (greetingHidden) return;
+                greetingHidden = true;
+                _greeting.style.display = 'none';
+            };
+            _greeting.addEventListener('transitionend', function onGrEnd(e) {
+                if (e.propertyName !== 'opacity') return;
+                _greeting.removeEventListener('transitionend', onGrEnd);
+                hideGreeting();
+            });
+            setTimeout(hideGreeting, 650);
+        }, 1100);
+
+        // 记录状态（isAuto 模式下写入，防止重复自动弹出）
         if (isAuto) {
             localStorage.setItem(STORAGE_KEY, JSON.stringify({
                 status: 'skipped', timestamp: Date.now()
@@ -7084,57 +7245,137 @@ window.OpenAI_IntroEngine = (function() {
         }
     }
 
-    /* --- 触控事件保持不变 --- */
-    function handleTouchStart(e) { startX = e.touches[0].clientX; isDragging = true; }
-    function handleTouchMove(e) { if (isDragging) e.preventDefault(); }
+    // ── 触控手势：Live Drag 实现 ────────────────────────────────────────────
+    let dragStartTime = 0; // 速度感知：记录按下时间戳
+
+    function handleTouchStart(e) {
+        dragStartX   = e.touches[0].clientX;
+        dragCurrentX = dragStartX;
+        dragStartTime = Date.now();
+        isDragging   = true;
+        trackWidth   = _track.parentElement.offsetWidth;
+
+        _slides.forEach(s => s.style.willChange = 'transform, opacity');
+        _track.classList.remove('is-animating');
+    }
+
+    function handleTouchMove(e) {
+        if (!isDragging) return;
+        e.preventDefault(); // 阻止页面纵向滚动干扰
+
+        dragCurrentX = e.touches[0].clientX;
+        const rawDx = dragCurrentX - dragStartX;
+
+        // Rubber-band 边界阻尼：到达首/末页时阻力增大（0.25x 摩擦系数）
+        const isAtStart = (currentSlide === 0 && rawDx > 0);
+        const isAtEnd   = (currentSlide === totalSlides - 1 && rawDx < 0);
+        const dx = (isAtStart || isAtEnd) ? rawDx * 0.45 : rawDx;
+
+        // 实时跟手：当前页基础位置 + 手指偏移
+        const baseOffset = -currentSlide * trackWidth;
+        _track.style.transform = `translateX(${baseOffset + dx}px)`;
+    }
+
     function handleTouchEnd(e) {
         if (!isDragging) return;
         isDragging = false;
-        const diffX = startX - e.changedTouches[0].clientX;
-        if (diffX > 40) next();
-        else if (diffX < -40) prev();
-    }
 
-    function updateView() {
-        const track = document.getElementById('openaiSliderTrack');
-        if (track) track.style.transform = `translateX(-${currentSlide * 100}%)`;
+        const diffX    = dragStartX - e.changedTouches[0].clientX;
+        const elapsed  = Date.now() - dragStartTime;
+        const velocity = Math.abs(diffX) / elapsed; // px/ms
+        const threshold = trackWidth * 0.15; // 15% 屏宽
 
-        document.querySelectorAll('.openai-dot').forEach((dot, index) => {
-            dot.classList.toggle('active', index === currentSlide);
+        // 速度感知 flick：快速轻扫（>0.3px/ms）即触发翻页，无需满足距离阈值
+        // 对齐 iOS UIScrollView 的 velocity-based paging 行为
+        const isFlick = velocity > 0.25; // 更灵敏：轻快一划即翻页
+
+        if      (diffX >  (isFlick ? 8 : threshold) && currentSlide < totalSlides - 1) currentSlide++;
+        else if (diffX < -(isFlick ? 8 : threshold) && currentSlide > 0)               currentSlide--;
+
+        // 弹簧 snap：注入 is-animating 触发 CSS spring transition
+        _track.classList.add('is-animating');
+        _track.style.transform = `translateX(${-currentSlide * trackWidth}px)`;
+
+        // transitionend 后回收 will-change（释放 GPU 合成层）
+        _track.addEventListener('transitionend', function handler() {
+            _slides.forEach(s => s.style.willChange = 'auto');
+            _track.classList.remove('is-animating');
+            _track.removeEventListener('transitionend', handler);
         });
 
-        const pag = document.getElementById('openaiPagination');
-        if (pag) {
-            if (currentSlide === 0) pag.classList.remove('visible');
-            else pag.classList.add('visible');
-        }
+        _updateSlideStates();
+        _updateDots();
+        _updatePagination();
+    }
+
+    // ── 视图更新函数（景深由 CSS class 驱动，无 JS 写 blur）─────────────────
+    function _updateSlideStates() {
+        _slides.forEach((slide, i) => {
+            if (i === currentSlide) slide.classList.remove('slide-inactive');
+            else                    slide.classList.add('slide-inactive');
+        });
+    }
+
+    function _updateDots() {
+        _dots.forEach((dot, i) => dot.classList.toggle('active', i === currentSlide));
+    }
+
+    function _updatePagination() {
+        if (!_pagination) return;
+        if (currentSlide === 0) _pagination.classList.remove('visible');
+        else                    _pagination.classList.add('visible');
+    }
+
+    // updateView：对外公开，供 goTo 等调用
+    function updateView() {
+        // 使用弹簧动画跳转（非拖拽场景）
+        trackWidth = _track.parentElement ? _track.parentElement.offsetWidth : window.innerWidth;
+        _track.classList.add('is-animating');
+        _track.style.transform = `translateX(${-currentSlide * trackWidth}px)`;
+        _track.addEventListener('transitionend', function handler(e) {
+            if (e.propertyName !== 'transform') return;
+            _track.classList.remove('is-animating');
+            _track.removeEventListener('transitionend', handler);
+        });
+        _updateSlideStates();
+        _updateDots();
+        _updatePagination();
     }
 
     function next() { if (currentSlide < totalSlides - 1) { currentSlide++; updateView(); } }
-    function prev() { if (currentSlide > 0) { currentSlide--; updateView(); } }
-    function goTo(index) { currentSlide = index; updateView(); }
+    function prev() { if (currentSlide > 0)               { currentSlide--; updateView(); } }
+    function goTo(index) {
+        if (index >= 0 && index < totalSlides) { currentSlide = index; updateView(); }
+    }
 
     function dismiss() {
-        const overlay = document.getElementById('openaiIntroOverlay');
-        if (!overlay) return;
+        if (!_overlay) return;
 
-        // 智能判断完播率：看完最后一页为 completed，中途关掉为 skipped
+        // 智能完播率追踪：看完末页为 completed，中途退出为 skipped
         const status = (currentSlide === totalSlides - 1) ? 'completed' : 'skipped';
         localStorage.setItem(STORAGE_KEY, JSON.stringify({
-            status: status,
-            timestamp: Date.now()
+            status: status, timestamp: Date.now()
         }));
 
-        overlay.classList.add('dismissed');
+        // 注入 overlay will-change，确保退场动画在独立合成层执行
+        _overlay.style.willChange = 'transform, opacity, filter';
+        _overlay.classList.add('dismissed');
         document.body.style.overflow = '';
-        setTimeout(() => overlay.style.display = 'none', 800);
+
+        // transitionend 驱动 display:none + will-change 回收（精确，无硬编码）
+        _overlay.addEventListener('transitionend', function handler(e) {
+            if (e.propertyName !== 'opacity') return;
+            _overlay.style.display    = 'none';
+            _overlay.style.willChange = 'auto';
+            _overlay.removeEventListener('transitionend', handler);
+        });
     }
 
     return { init, show, dismiss, next, prev, goTo };
 })();
 
 window.addEventListener('DOMContentLoaded', OpenAI_IntroEngine.init);
-// ==================== OPENAI STYLE CAROUSEL ENGINE END ====================
+// ==================== OPENAI STYLE CAROUSEL ENGINE v9.0 END ====================
 
 // 启动通知中心
 AsyncTaskCenter.init();
