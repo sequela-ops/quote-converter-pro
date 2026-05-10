@@ -18,20 +18,7 @@ jobs:
         with:
           fetch-depth: 5
 
-      # 2. 生成时间 & 版本号（Asia/Shanghai 时区）
-      - name: Generate Version Info
-        run: |
-          export TZ='Asia/Shanghai'
-          echo "BUILD_TIME=$(date '+%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
-          echo "VERSION=v$(date '+%Y.%m.%d.%H%M')" >> $GITHUB_ENV
-
-      # 3. 写入版本文件
-      - name: Create version file
-        run: |
-          echo "Version: $VERSION" > version.txt
-          echo "Last updated: $BUILD_TIME" >> version.txt
-
-      # 4. ✅ 新增：从 Secrets 生成 config.js（含敏感配置，不进仓库）
+      # 2. ✅ 从 Secrets 生成 config.js（含敏感配置，不进仓库）
       - name: Generate config.js from Secrets
         run: |
           cat > config.js << 'EOF'
@@ -42,7 +29,7 @@ jobs:
           };
           EOF
 
-      # 5. 打包 dist
+      # 3. 打包 dist（version.txt 由仓库受控，每次发版手动更新）
       - name: Prepare dist
         run: |
           mkdir dist
@@ -52,11 +39,11 @@ jobs:
           cp config.js dist/
           cp config.example.js dist/ 2>/dev/null || true
 
-      # 6. Debug 确认文件
+      # 4. Debug 确认文件
       - name: Check files
         run: ls -la dist/
 
-      # 7. 部署到 GitHub Pages
+      # 5. 部署到 GitHub Pages
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
         with:
