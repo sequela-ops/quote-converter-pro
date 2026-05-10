@@ -878,37 +878,16 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
     color: var(--accent);
     font-weight: 600;
 }
-.changelog-toggle {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
+.changelog-link {
+    display: inline-block;
     margin-top: 6px;
     font-size: 11px;
     color: var(--text3);
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 4px 0;
+    text-decoration: none;
     font-family: 'DM Sans', sans-serif;
     transition: color 0.2s;
 }
-.changelog-toggle:hover { color: var(--accent); }
-.changelog-box {
-    display: none;
-    text-align: left;
-    margin-top: 10px;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: 12px 14px;
-    font-size: 11px;
-    color: var(--text2);
-    font-family: 'DM Mono', monospace;
-    line-height: 2;
-    white-space: pre-wrap;
-    word-break: break-all;
-}
-.changelog-box.open { display: block; }
+.changelog-link:hover { color: var(--accent); }
 
 /* ==================== V7: 物流计费引擎 Modal 样式 ==================== */
 .mini-mode-tabs { display: flex; gap: 0; margin-bottom: 16px; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
@@ -1376,7 +1355,7 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
     <div class="header-brand-text">
     <div class="header-title">外贸报价计算器</div>
     <!-- 增加 onclick 唤起事件和手指指针 -->
-    <span class="header-version" onclick="OpenAI_IntroEngine.show()">V8.3.0</span>
+    <span class="header-version" id="headerVersionText" onclick="OpenAI_IntroEngine.show()">v5.3.1</span>
     </div>
   </div>
   <!-- 中：登录按钮 -->
@@ -5577,8 +5556,8 @@ async function ensureMainAppInitialized() {
  */
 async function loadVersionInfo() {
     const versionEl = document.getElementById('versionText');
+    const headerVersionEl = document.getElementById('headerVersionText');
     const timeEl    = document.getElementById('buildTime');
-    const changelogEl = document.getElementById('changelogContent');
 
     try {
         const res = await fetch('version.txt');
@@ -5587,6 +5566,7 @@ async function loadVersionInfo() {
             const vMatch = text.match(/Version:\s*(.+)/);
             const tMatch = text.match(/Last updated:\s*(.+)/);
             if (vMatch && versionEl) versionEl.innerHTML = `<strong>${escapeHTML(vMatch[1].trim())}</strong>`;
+            if (vMatch && headerVersionEl) headerVersionEl.textContent = vMatch[1].trim();
             if (vMatch) state.appVersion = vMatch[1].trim(); // [V8.1.0] PDF印记动态版本
             if (tMatch && timeEl) timeEl.textContent = tMatch[1].trim();
         } else if (versionEl) {
@@ -5594,15 +5574,6 @@ async function loadVersionInfo() {
         }
     } catch (e) {
         if (versionEl) versionEl.innerHTML = '<strong>offline</strong>';
-    }
-
-    try {
-        const res = await fetch('changelog.txt');
-        if (res.ok && changelogEl) {
-            changelogEl.textContent = (await res.text()).trim() || '暂无记录';
-        }
-    } catch (e) {
-        if (changelogEl) changelogEl.textContent = '无法获取更新日志';
     }
 }
 
@@ -5676,14 +5647,6 @@ window.addEventListener('hashchange', async () => {
         await checkShareHash();
     }
 });
-
-// changelog 展开/收起
-function toggleChangelog() {
-    const box = document.getElementById('changelogContent');
-    const btn = document.getElementById('changelogToggleBtn');
-    const isOpen = box.classList.toggle('open');
-    btn.textContent = isOpen ? '▲ 收起更新日志' : '▼ 查看更新日志';
-}
 
 // ====================V6: AI 赋能核心模块 ====================
 
@@ -6181,10 +6144,9 @@ async function predictHSCode() {
         &nbsp;·&nbsp;
         Last updated: <span id="buildTime">—</span>
     </div>
-    <button class="changelog-toggle" id="changelogToggleBtn" onclick="toggleChangelog()">
-        ▼ 查看更新日志
-    </button>
-    <div class="changelog-box" id="changelogContent"></div>
+    <a class="changelog-link" href="manual.html#changelog">
+        查看更新日志 →
+    </a>
 </div>
 
 <!-- 右下角悬浮重置按钮 -->
@@ -6769,7 +6731,7 @@ window.PdfExportEngine = (function() {
         pdf.setTextColor(112, 109, 103);
         
         // 【关键修复】直接使用外层作用域的 state，避免 window.state 读取失败
-        const appVer = (typeof state !== 'undefined' && state.appVersion ? state.appVersion : 'V8.1.0').replace(/\s/g, '');
+        const appVer = (typeof state !== 'undefined' && state.appVersion ? state.appVersion : 'v5.3.1').replace(/\s/g, '');
         const now = new Date();
         const dateStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
 
