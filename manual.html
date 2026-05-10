@@ -581,6 +581,93 @@ html, body {
   .section-title { font-size: 22px; }
   .content-footer { flex-direction: column; gap: 16px; align-items: flex-start; }
 }
+
+/* ══════════════════════════════════════
+   §8 更新日志 · Timeline
+══════════════════════════════════════ */
+.changelog-timeline {
+  position: relative;
+  margin-top: 32px;
+  padding-left: 28px;
+}
+.changelog-timeline::before {
+  content: '';
+  position: absolute;
+  left: 7px;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  background: var(--border);
+}
+.changelog-entry {
+  position: relative;
+  padding-bottom: 28px;
+}
+.changelog-entry:last-child { padding-bottom: 0; }
+.changelog-entry::before {
+  content: '';
+  position: absolute;
+  left: -27px;
+  top: 7px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid var(--border2);
+  box-sizing: border-box;
+  z-index: 1;
+}
+.changelog-entry.major::before { border-color: var(--accent); background: var(--accent); }
+.changelog-entry.minor::before { border-color: var(--accent2); background: var(--accent2); }
+.changelog-entry.patch::before { border-color: var(--border2); background: var(--surface); }
+
+.changelog-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+.changelog-version {
+  font-family: 'DM Mono', monospace;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: 0.02em;
+}
+.changelog-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.changelog-tag.major { background: var(--accent-light); color: var(--accent); }
+.changelog-tag.minor { background: var(--accent2-light); color: var(--accent2); }
+.changelog-tag.patch { background: var(--surface2); color: var(--text3); border: 1px solid var(--border); }
+
+.changelog-desc {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text2);
+}
+.changelog-loading,
+.changelog-error {
+  padding: 24px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text3);
+  background: var(--surface2);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+}
+
+@media (max-width: 768px) {
+  .changelog-timeline { padding-left: 22px; }
+  .changelog-entry::before { left: -22px; }
+}
 </style>
 </head>
 <body>
@@ -643,6 +730,12 @@ html, body {
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><line x1="12" y1="22" x2="12" y2="8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
         结语 · Epilogue
       </button>
+
+      <button class="nav-item" data-section="changelog" onclick="navigate('changelog', this)">
+        <div class="nav-num">8</div>
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        更新日志 · Changelog
+      </button>
     </nav>
 
     <div class="sidebar-footer">
@@ -651,7 +744,6 @@ html, body {
         返回核算台
       </a>
       <div class="sidebar-footer-meta">
-        <div>v1.0.1</div>
         <div>© 2026 Navail Nexus.</div>
       </div>
     </div>
@@ -698,7 +790,7 @@ html, body {
         </div>
         <div class="content-footer">
           <div class="footer-meta">
-            <div>Navail Quote OS · 产品使用手册 v1.0.1</div>
+            <div>Navail Quote OS · 产品使用手册</div>
             <div>© 2026 Navail Nexus. All rights reserved.</div>
           </div>
           <button class="back-to-app" onclick="navigate('core', document.querySelector('[data-section=core]'))">
@@ -744,7 +836,7 @@ html, body {
         </div>
         <div class="content-footer">
           <div class="footer-meta">
-            <div>Navail Quote OS · 产品使用手册 v1.0.1</div>
+            <div>Navail Quote OS · 产品使用手册</div>
             <div>© 2026 Navail Nexus. All rights reserved.</div>
           </div>
           <button class="back-to-app" onclick="navigate('features', document.querySelector('[data-section=features]'))">下一章 →</button>
@@ -814,7 +906,7 @@ html, body {
 
         <div class="content-footer">
           <div class="footer-meta">
-            <div>Navail Quote OS · 产品使用手册 v1.0.1</div>
+            <div>Navail Quote OS · 产品使用手册</div>
             <div>© 2026 Navail Nexus. All rights reserved.</div>
           </div>
           <button class="back-to-app" onclick="navigate('quickstart', document.querySelector('[data-section=quickstart]'))">下一章 →</button>
@@ -879,7 +971,7 @@ html, body {
         </div>
         <div class="content-footer">
           <div class="footer-meta">
-            <div>Navail Quote OS · 产品使用手册 v1.0.1</div>
+            <div>Navail Quote OS · 产品使用手册</div>
             <div>© 2026 Navail Nexus. All rights reserved.</div>
           </div>
           <button class="back-to-app" onclick="navigate('tips', document.querySelector('[data-section=tips]'))">下一章 →</button>
@@ -921,7 +1013,7 @@ html, body {
         </div>
         <div class="content-footer">
           <div class="footer-meta">
-            <div>Navail Quote OS · 产品使用手册 v1.0.1</div>
+            <div>Navail Quote OS · 产品使用手册</div>
             <div>© 2026 Navail Nexus. All rights reserved.</div>
           </div>
           <button class="back-to-app" onclick="navigate('faq', document.querySelector('[data-section=faq]'))">下一章 →</button>
@@ -1010,7 +1102,7 @@ html, body {
 
         <div class="content-footer">
           <div class="footer-meta">
-            <div>Navail Quote OS · 产品使用手册 v1.0.1</div>
+            <div>Navail Quote OS · 产品使用手册</div>
             <div>© 2026 Navail Nexus. All rights reserved.</div>
           </div>
           <button class="back-to-app" onclick="navigate('epilogue', document.querySelector('[data-section=epilogue]'))">下一章 →</button>
@@ -1046,7 +1138,40 @@ html, body {
 
         <div class="content-footer" style="margin-top: 60px;">
           <div class="footer-meta">
-            <div>Navail Quote OS · 产品使用手册 v1.0.1</div>
+            <div>Navail Quote OS · 产品使用手册</div>
+            <div>© 2026 Navail Nexus. All rights reserved.</div>
+          </div>
+          <a href="index.html" class="back-to-app">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:2px;"><polyline points="15 18 9 12 15 6"/></svg>
+            返回核算台
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── §8 更新日志 ── -->
+    <div class="section-page" id="sec-changelog">
+      <div class="content">
+        <div class="breadcrumb">
+          <span>手册</span><span class="breadcrumb-sep">/</span>
+          <span class="breadcrumb-current">更新日志</span>
+        </div>
+        <div class="section-eyebrow">Chapter 08</div>
+        <h1 class="section-title">更新日志</h1>
+        <p class="section-subtitle">Changelog — 产品迭代历程</p>
+        <div class="divider"></div>
+
+        <div class="prose">
+          <p>每一次发布都遵循语义化版本号（Semantic Versioning）规范，按变更影响范围划分：<strong style="color: var(--accent);">Major</strong> 代表产品定位或核心能力的重大演进；<strong style="color: var(--accent2);">Minor</strong> 代表新增独立功能模块；<strong style="color: var(--text3);">Patch</strong> 代表问题修复与体验优化。</p>
+        </div>
+
+        <div class="changelog-timeline" id="changelogTimeline">
+          <div class="changelog-loading">正在加载更新历史…</div>
+        </div>
+
+        <div class="content-footer" style="margin-top: 60px;">
+          <div class="footer-meta">
+            <div>Navail Quote OS · 产品使用手册</div>
             <div>© 2026 Navail Nexus. All rights reserved.</div>
           </div>
           <a href="index.html" class="back-to-app">
@@ -1068,7 +1193,8 @@ const SECTION_LABELS = {
   quickstart: '操作教程',
   tips: '进阶技巧',
   faq: '常见问题',
-  epilogue: '结语'
+  epilogue: '结语',
+  changelog: '更新日志'
 };
 
 function navigate(sectionId, navEl) {
@@ -1124,6 +1250,68 @@ document.querySelectorAll('.faq-item').forEach(item => {
     }
   });
 });
+
+/* ══════════════════════════════════════
+   §8 更新日志：从 changelog.txt 异步加载并按权重渲染时间线
+   - 行格式：- vX.Y.Z: 描述
+   - 权重判定：Z>0 → patch；Y>0 且 Z=0 → minor；Y=0 且 Z=0 → major
+══════════════════════════════════════ */
+function classifyVersion(version) {
+  var m = version.match(/^v?(\d+)\.(\d+)\.(\d+)/i);
+  if (!m) return 'patch';
+  var minor = parseInt(m[2], 10);
+  var patch = parseInt(m[3], 10);
+  if (minor === 0 && patch === 0) return 'major';
+  if (patch === 0) return 'minor';
+  return 'patch';
+}
+
+function escapeHTML(s) {
+  return String(s).replace(/[&<>"']/g, function(c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+
+function renderChangelog(text) {
+  var container = document.getElementById('changelogTimeline');
+  if (!container) return;
+  var lines = text.split('\n').map(function(l) { return l.trim(); }).filter(Boolean);
+  var entries = [];
+  lines.forEach(function(line) {
+    var m = line.match(/^-\s*(v\d+\.\d+\.\d+):\s*(.+)$/i);
+    if (m) entries.push({ version: m[1], desc: m[2] });
+  });
+  if (!entries.length) {
+    container.innerHTML = '<div class="changelog-error">暂无更新记录</div>';
+    return;
+  }
+  var html = entries.map(function(e) {
+    var level = classifyVersion(e.version);
+    var tagText = level.charAt(0).toUpperCase() + level.slice(1);
+    return '<div class="changelog-entry ' + level + '">' +
+             '<div class="changelog-head">' +
+               '<span class="changelog-version">' + escapeHTML(e.version) + '</span>' +
+               '<span class="changelog-tag ' + level + '">' + tagText + '</span>' +
+             '</div>' +
+             '<div class="changelog-desc">' + escapeHTML(e.desc) + '</div>' +
+           '</div>';
+  }).join('');
+  container.innerHTML = html;
+}
+
+(function loadChangelog() {
+  var container = document.getElementById('changelogTimeline');
+  if (!container) return;
+  fetch('changelog.txt')
+    .then(function(res) {
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return res.text();
+    })
+    .then(renderChangelog)
+    .catch(function() {
+      container.innerHTML = '<div class="changelog-error">无法获取更新日志，请稍后重试</div>';
+    });
+})();
 </script>
 </body>
 </html>
